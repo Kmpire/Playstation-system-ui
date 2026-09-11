@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
+import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import ConsoleDashboard from './screens/ConsoleDashboard';
 import POSSales from './screens/POSSales';
 import MenuManagement from './screens/MenuManagement';
@@ -53,8 +55,9 @@ const ADMIN_ONLY: Screen[] = ['reports', 'pricing', 'staff', 'shiftReports', 'da
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('dashboard');
-  const [lang, setLang] = useState<Language>('en');
+  const [lang, setLang] = useState<Language>('ar');
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('ps_theme') as Theme) || 'dark');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS);
   const [currentUser, setCurrentUser] = useState<Account | null>(null);
@@ -80,7 +83,14 @@ export default function App() {
   const daysUsed = Math.floor((Date.now() - trialStart) / 86_400_000);
   const trialExpired = !activated && daysUsed >= TRIAL_DAYS;
 
-  useEffect(() => { localStorage.setItem('ps_theme', theme); }, [theme]);
+  useEffect(() => {
+    localStorage.setItem('ps_theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   const toast = useCallback((message: string) => {
     const id = ++toastSeq;
@@ -157,35 +167,64 @@ export default function App() {
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden ${theme === 'dark' ? 'dark bg-[#0b0d12]' : 'bg-slate-100'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div
+      className={`flex h-screen overflow-hidden ${theme === 'dark' ? 'dark bg-[#07090e] text-white' : 'bg-slate-100 text-slate-900'}`}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      {/* Responsive Sidebar (Fixed on desktop, Drawer on mobile) */}
       <Sidebar
         screen={screen}
         setScreen={setScreen}
         lang={lang}
-        setLang={setLang}
-        theme={theme}
-        setTheme={setTheme}
-        t={t}
         isRTL={isRTL}
         role={role}
         currentUser={currentUser}
-        onLogout={() => { setCurrentUser(null); setScreen('dashboard'); }}
         lowStockCount={lowStockItems.length}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
-      <main className="flex-1 overflow-hidden">
-        {screen === 'dashboard' && <ConsoleDashboard {...sharedProps} />}
-        {screen === 'pos' && <POSSales {...sharedProps} />}
-        {screen === 'menu' && <MenuManagement {...sharedProps} />}
-        {screen === 'pricing' && role === 'admin' && <PricingSettings {...sharedProps} />}
-        {screen === 'reports' && role === 'admin' && <Reports {...sharedProps} />}
-        {screen === 'staff' && role === 'admin' && <StaffShifts {...sharedProps} />}
-        {screen === 'shiftReports' && role === 'admin' && <ShiftReports {...sharedProps} />}
-        {screen === 'inventory' && <Inventory {...sharedProps} />}
-        {screen === 'controllers' && <Controllers {...sharedProps} />}
-        {screen === 'contact' && <Contact {...sharedProps} />}
-        {screen === 'dataManagement' && role === 'admin' && <DataManagement {...sharedProps} />}
-        {screen === 'account' && <AccountScreen {...sharedProps} />}
-      </main>
+
+      {/* Main Content Area with Top Navbar and Dynamic View */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Navbar
+          screen={screen}
+          theme={theme}
+          setTheme={setTheme}
+          lang={lang}
+          setLang={setLang}
+          isRTL={isRTL}
+          currentUser={currentUser}
+          role={role}
+          onLogout={() => { setCurrentUser(null); setScreen('dashboard'); }}
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          lowStockCount={lowStockItems.length}
+          t={t}
+        />
+
+        <main className="flex-1 overflow-hidden relative">
+          {screen === 'dashboard' && <ConsoleDashboard {...sharedProps} />}
+          {screen === 'pos' && <POSSales {...sharedProps} />}
+          {screen === 'menu' && <MenuManagement {...sharedProps} />}
+          {screen === 'pricing' && role === 'admin' && <PricingSettings {...sharedProps} />}
+          {screen === 'reports' && role === 'admin' && <Reports {...sharedProps} />}
+          {screen === 'staff' && role === 'admin' && <StaffShifts {...sharedProps} />}
+          {screen === 'shiftReports' && role === 'admin' && <ShiftReports {...sharedProps} />}
+          {screen === 'inventory' && <Inventory {...sharedProps} />}
+          {screen === 'controllers' && <Controllers {...sharedProps} />}
+          {screen === 'contact' && <Contact {...sharedProps} />}
+          {screen === 'dataManagement' && role === 'admin' && <DataManagement {...sharedProps} />}
+          {screen === 'account' && <AccountScreen {...sharedProps} />}
+        </main>
+
+        {/* Mobile Quick Bottom Navigation */}
+        <BottomNav
+          screen={screen}
+          setScreen={setScreen}
+          onOpenMore={() => setMobileMenuOpen(true)}
+          isRTL={isRTL}
+        />
+      </div>
+
       <Toasts toasts={toasts} isRTL={isRTL} />
     </div>
   );

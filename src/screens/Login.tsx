@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Gamepad2, Lock, User, Globe, ShieldCheck, Clock, Sparkles } from 'lucide-react';
 import type { Language } from '../types';
 import { COMPANY } from '../data/company';
+import Button from '../components/ui/Button';
 
 interface Props {
   isRTL: boolean;
@@ -11,9 +13,16 @@ interface Props {
   onLogin: (username: string, password: string) => boolean;
 }
 
-export default function Login({ isRTL, lang, setLang, trialDaysLeft, activated, onLogin }: Props) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+export default function Login({
+  isRTL,
+  lang,
+  setLang,
+  trialDaysLeft,
+  activated,
+  onLogin,
+}: Props) {
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
   const [error, setError] = useState(false);
 
   function submit(e: React.FormEvent) {
@@ -22,68 +31,138 @@ export default function Login({ isRTL, lang, setLang, trialDaysLeft, activated, 
     if (!ok) setError(true);
   }
 
-  return (
-    <div className="min-h-screen bg-[#0b0d12] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* ambient glow */}
-      <div className="absolute -top-40 -start-40 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="absolute -bottom-40 -end-40 w-96 h-96 rounded-full bg-purple-500/10 blur-3xl" />
+  const fillDemo = (u: string, p: string) => {
+    setUsername(u);
+    setPassword(p);
+    setError(false);
+  };
 
-      <div className="relative w-full max-w-sm">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
-            <span className="text-cyan-400 font-bold font-gaming tracking-wider">PS</span>
+  return (
+    <div className="min-h-screen bg-[#07090e] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none">
+      {/* PlayStation Ambient Glow Elements */}
+      <div className="absolute top-1/4 -start-32 w-96 h-96 rounded-full bg-[#0070d1]/15 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -end-32 w-96 h-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+
+      <div className="relative w-full max-w-sm z-10">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#0070d1] to-[#00a2ff] text-white flex items-center justify-center shadow-xl shadow-[#0070d1]/30 mb-4 animate-in zoom-in-75">
+            <Gamepad2 className="w-9 h-9" />
           </div>
-          <div>
-            <div className="text-white text-xl font-bold font-gaming leading-tight">{isRTL ? COMPANY.nameAr : COMPANY.name}</div>
-            <div className="text-slate-500 text-xs">{isRTL ? 'نظام إدارة المقهى' : 'Café Management System'}</div>
-          </div>
+          <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+            <span>{isRTL ? COMPANY.nameAr : COMPANY.name}</span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#0070d1]/25 text-sky-400 border border-[#0070d1]/40 font-bold">
+              PRO
+            </span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            {isRTL ? 'نظام إدارة صالات الألعاب ونقاط البيع' : 'PlayStation Lounge & POS Management'}
+          </p>
         </div>
 
-        <form onSubmit={submit} className="bg-[#141720] border border-[#252a36] rounded-2xl p-6 space-y-4 shadow-2xl">
+        {/* Login Card */}
+        <form
+          onSubmit={submit}
+          className="bg-[#0f131d]/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-7 space-y-4 shadow-2xl"
+        >
           <div>
-            <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1.5">{isRTL ? 'اسم المستخدم' : 'Username'}</label>
-            <input
-              value={username}
-              onChange={e => { setUsername(e.target.value); setError(false); }}
-              autoFocus
-              className="w-full bg-[#0d0f14] border border-[#252a36] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500/50"
-              placeholder="admin / cashier"
-            />
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              {isRTL ? 'اسم المستخدم' : 'Username'}
+            </label>
+            <div className="relative flex items-center">
+              <User className="w-4 h-4 text-slate-400 absolute start-3.5 pointer-events-none" />
+              <input
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setError(false);
+                }}
+                autoFocus
+                className="w-full bg-[#141926] border border-slate-800 rounded-xl ps-10 pe-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#0070d1] focus:ring-2 focus:ring-[#0070d1]/20 transition-all font-medium"
+                placeholder="admin / cashier"
+              />
+            </div>
           </div>
+
           <div>
-            <label className="block text-slate-400 text-xs uppercase tracking-wider mb-1.5">{isRTL ? 'كلمة المرور' : 'Password'}</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => { setPassword(e.target.value); setError(false); }}
-              className="w-full bg-[#0d0f14] border border-[#252a36] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500/50"
-              placeholder="••••••••"
-            />
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              {isRTL ? 'كلمة المرور' : 'Password'}
+            </label>
+            <div className="relative flex items-center">
+              <Lock className="w-4 h-4 text-slate-400 absolute start-3.5 pointer-events-none" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(false);
+                }}
+                className="w-full bg-[#141926] border border-slate-800 rounded-xl ps-10 pe-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#0070d1] focus:ring-2 focus:ring-[#0070d1]/20 transition-all font-medium"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           {error && (
-            <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2">
-              {isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password'}
+            <div className="text-rose-400 text-xs bg-rose-500/10 border border-rose-500/25 rounded-xl px-3 py-2.5 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+              <span>
+                {isRTL
+                  ? 'اسم المستخدم أو كلمة المرور غير صحيحة'
+                  : 'Invalid username or password'}
+              </span>
             </div>
           )}
 
-          <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 rounded-xl text-sm font-gaming transition-colors">
+          <Button variant="primary" type="submit" fullWidth size="lg">
             {isRTL ? 'تسجيل الدخول' : 'Sign In'}
-          </button>
+          </Button>
 
-          <div className="text-center text-[11px] text-slate-600">
-            {isRTL ? 'تجريبي:' : 'Demo:'} admin / admin123 · cashier / cashier123
+          {/* Quick Demo Access Pills */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <div className="text-[11px] text-slate-500 mb-2 text-center">
+              {isRTL ? 'تسجيل سريع تجريبي (بنقرة واحدة):' : 'One-click Demo Accounts:'}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => fillDemo('admin', 'admin123')}
+                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center"
+              >
+                👑 {isRTL ? 'المدير (Admin)' : 'Admin'}
+              </button>
+              <button
+                type="button"
+                onClick={() => fillDemo('cashier', 'cashier123')}
+                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center"
+              >
+                🎮 {isRTL ? 'الكاشير (Cashier)' : 'Cashier'}
+              </button>
+            </div>
           </div>
         </form>
 
-        <div className="mt-4 flex items-center justify-between text-xs">
-          <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className="text-slate-500 hover:text-slate-300 transition-colors">
-            🌐 {lang === 'en' ? 'عربي' : 'English'}
+        {/* Footer controls: Language & License status */}
+        <div className="mt-5 flex items-center justify-between text-xs px-2">
+          <button
+            onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+            className="text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5 text-[#0070d1]" />
+            <span>{lang === 'en' ? 'التحويل للعربية' : 'English'}</span>
           </button>
-          <span className={activated ? 'text-green-500' : 'text-amber-500'}>
-            {activated
-              ? (isRTL ? '✓ مُفعّل' : '✓ Licensed')
-              : (isRTL ? `النسخة التجريبية — ${trialDaysLeft} يوم متبقي` : `Free trial — ${trialDaysLeft} days left`)}
+
+          <span className="flex items-center gap-1 text-slate-400">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span className={activated ? 'text-emerald-400 font-semibold' : 'text-amber-400'}>
+              {activated
+                ? isRTL
+                  ? 'مرخص'
+                  : 'Licensed'
+                : isRTL
+                ? `تجريبي · باقي ${trialDaysLeft} أيام`
+                : `Trial · ${trialDaysLeft}d left`}
+            </span>
           </span>
         </div>
       </div>

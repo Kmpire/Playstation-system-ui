@@ -1,113 +1,174 @@
-import type { Screen, Language, UserRole, Theme } from '../types';
+import React from 'react';
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  UtensilsCrossed,
+  Tag,
+  BarChart3,
+  Users,
+  Clock,
+  Boxes,
+  Gamepad2,
+  Database,
+  Phone,
+  UserCheck,
+  X,
+  ChevronRight,
+  ChevronLeft,
+} from 'lucide-react';
+import type { Screen, Language, UserRole } from '../types';
 import type { Account } from '../App';
 
 interface NavItem {
   id: Screen;
   enLabel: string;
   arLabel: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { id: 'dashboard', icon: '⊞', enLabel: 'Dashboard', arLabel: 'لوحة التحكم' },
-  { id: 'pos', icon: '🛒', enLabel: 'POS / Sales', arLabel: 'نقطة البيع' },
-  { id: 'menu', icon: '☰', enLabel: 'Menu', arLabel: 'القائمة' },
-  { id: 'pricing', icon: '◈', enLabel: 'Pricing', arLabel: 'الأسعار', adminOnly: true },
-  { id: 'reports', icon: '◎', enLabel: 'Reports', arLabel: 'التقارير', adminOnly: true },
-  { id: 'staff', icon: '◉', enLabel: 'Staff & Shifts', arLabel: 'الموظفون', adminOnly: true },
-  { id: 'shiftReports', icon: '🗂', enLabel: 'Shift Reports', arLabel: 'تقارير الورديات', adminOnly: true },
-  { id: 'inventory', icon: '▤', enLabel: 'Inventory', arLabel: 'المخزون' },
-  { id: 'controllers', icon: '⊡', enLabel: 'Controllers', arLabel: 'وحدات التحكم' },
-  { id: 'dataManagement', icon: '🗄', enLabel: 'Data Management', arLabel: 'إدارة البيانات', adminOnly: true },
-  { id: 'contact', icon: '☎', enLabel: 'Contact / About', arLabel: 'اتصل بنا' },
-  { id: 'account', icon: '⚙', enLabel: 'My Account', arLabel: 'حسابي' },
+  { id: 'dashboard', icon: LayoutDashboard, enLabel: 'Dashboard', arLabel: 'لوحة التحكم' },
+  { id: 'pos', icon: ShoppingCart, enLabel: 'POS / Sales', arLabel: 'نقطة البيع السريع' },
+  { id: 'menu', icon: UtensilsCrossed, enLabel: 'Menu Management', arLabel: 'قائمة الطلبات' },
+  { id: 'pricing', icon: Tag, enLabel: 'Pricing Rates', arLabel: 'أسعار الألعاب', adminOnly: true },
+  { id: 'reports', icon: BarChart3, enLabel: 'Reports & Analytics', arLabel: 'التقارير المالية', adminOnly: true },
+  { id: 'staff', icon: Users, enLabel: 'Staff & Shifts', arLabel: 'الموظفون والورديات', adminOnly: true },
+  { id: 'shiftReports', icon: Clock, enLabel: 'Shift Reports', arLabel: 'تقارير الورديات', adminOnly: true },
+  { id: 'inventory', icon: Boxes, enLabel: 'Inventory & Stock', arLabel: 'إدارة المخزون' },
+  { id: 'controllers', icon: Gamepad2, enLabel: 'Controllers & Maint.', arLabel: 'الأذرع والصيانة' },
+  { id: 'dataManagement', icon: Database, enLabel: 'Data & Backup', arLabel: 'إدارة البيانات', adminOnly: true },
+  { id: 'contact', icon: Phone, enLabel: 'Contact / Support', arLabel: 'الدعم والمساعدة' },
+  { id: 'account', icon: UserCheck, enLabel: 'My Account', arLabel: 'إعدادات الحساب' },
 ];
 
-interface Props {
+interface SidebarProps {
   screen: Screen;
   setScreen: (s: Screen) => void;
   lang: Language;
-  setLang: (l: Language) => void;
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-  t: (k: string) => string;
   isRTL: boolean;
   role: UserRole;
   currentUser: Account;
-  onLogout: () => void;
   lowStockCount: number;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export default function Sidebar({ screen, setScreen, lang, setLang, theme, setTheme, t, isRTL, role, currentUser, onLogout, lowStockCount }: Props) {
+export default function Sidebar({
+  screen,
+  setScreen,
+  isRTL,
+  role,
+  currentUser,
+  lowStockCount,
+  mobileOpen = false,
+  onCloseMobile,
+}: SidebarProps) {
+  const handleNavClick = (id: Screen) => {
+    setScreen(id);
+    if (onCloseMobile) onCloseMobile();
+  };
+
+  const ChevronIcon = isRTL ? ChevronLeft : ChevronRight;
+
   return (
-    <aside className="w-56 shrink-0 bg-[#0d0f14] border-e border-[#1e2330] flex flex-col h-full">
-      {/* Logo */}
-      <div className="px-4 py-5 border-b border-[#1e2330]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
-            <span className="text-cyan-400 font-bold text-xs font-gaming tracking-wider">PS</span>
-          </div>
-          <div className="min-w-0">
-            <div className="text-white text-sm font-semibold font-gaming leading-tight">PS Café</div>
-            <div className="text-slate-500 text-[11px] mt-0.5 truncate">
-              {isRTL ? currentUser.name : currentUser.name} · {role === 'admin' ? t('adminRole') : t('cashierRole')}
+    <>
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      {/* Sidebar container */}
+      <aside
+        className={`fixed lg:static top-0 bottom-0 ${
+          isRTL ? 'right-0' : 'left-0'
+        } z-40 w-64 shrink-0 bg-[#07090e] border-e border-[#1a2233] flex flex-col h-full transition-transform duration-300 ease-in-out ${
+          mobileOpen
+            ? 'translate-x-0 shadow-2xl'
+            : isRTL
+            ? 'translate-x-full lg:translate-x-0'
+            : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="p-4 border-b border-[#1a2233] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0070d1] to-[#00a2ff] text-white flex items-center justify-center shadow-lg shadow-[#0070d1]/30">
+              <Gamepad2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-white font-bold text-base tracking-wide flex items-center gap-1.5">
+                PS Café <span className="text-[10px] px-1.5 py-0.2 bg-[#0070d1]/30 text-sky-400 rounded-md">PRO</span>
+              </div>
+              <div className="text-slate-400 text-xs truncate max-w-[130px]">
+                {currentUser.name}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Nav links */}
-      <nav className="flex-1 py-2 overflow-y-auto">
-        {NAV.filter(item => !item.adminOnly || role === 'admin').map(item => {
-          const active = screen === item.id;
-          const label = isRTL ? item.arLabel : item.enLabel;
-          return (
+          {/* Close button on mobile drawer */}
+          {onCloseMobile && (
             <button
-              key={item.id}
-              onClick={() => setScreen(item.id)}
-              className={`relative w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 text-start
-                ${active ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200 hover:bg-white/4'}`}
+              onClick={onCloseMobile}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60"
             >
-              {active && (
-                <span className="absolute inset-y-0 start-0 w-[3px] bg-cyan-400 rounded-e-full" />
-              )}
-              <span className="text-[15px] w-5 text-center leading-none opacity-80">{item.icon}</span>
-              <span className="font-medium text-[13px] truncate">{label}</span>
-              {item.id === 'inventory' && lowStockCount > 0 && (
-                <span className="ms-auto min-w-[18px] h-[18px] px-1 bg-amber-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {lowStockCount}
-                </span>
-              )}
+              <X className="w-5 h-5" />
             </button>
-          );
-        })}
-      </nav>
+          )}
+        </div>
 
-      {/* Bottom controls */}
-      <div className="p-3 border-t border-[#1e2330] space-y-0.5">
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-white/4 rounded-lg text-sm transition-colors text-start"
-        >
-          <span className="text-[15px]">{theme === 'dark' ? '☀️' : '🌙'}</span>
-          <span className="text-[13px]">{theme === 'dark' ? (isRTL ? 'الوضع الفاتح' : 'Light Mode') : (isRTL ? 'الوضع الداكن' : 'Dark Mode')}</span>
-        </button>
-        <button
-          onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-400 hover:text-slate-200 hover:bg-white/4 rounded-lg text-sm transition-colors text-start"
-        >
-          <span className="text-[15px]">🌐</span>
-          <span className="text-[13px]">{lang === 'en' ? 'عربي' : 'English'}</span>
-        </button>
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-500 hover:text-red-300 hover:bg-red-500/10 rounded-lg text-sm transition-colors text-start"
-        >
-          <span className="text-[15px]">⏻</span>
-          <span className="text-[13px]">{t('logout')}</span>
-        </button>
-      </div>
-    </aside>
+        {/* Navigation List */}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
+          {NAV.filter((item) => !item.adminOnly || role === 'admin').map((item) => {
+            const active = screen === item.id;
+            const Icon = item.icon;
+            const label = isRTL ? item.arLabel : item.enLabel;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-start group ${
+                  active
+                    ? 'bg-[#0070d1] text-white shadow-md shadow-[#0070d1]/30 font-semibold'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-[#121724]'
+                }`}
+              >
+                <Icon
+                  className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
+                    active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                  }`}
+                />
+                <span className="truncate flex-1">{label}</span>
+
+                {item.id === 'inventory' && lowStockCount > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      active
+                        ? 'bg-white text-[#0070d1]'
+                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    }`}
+                  >
+                    {lowStockCount}
+                  </span>
+                )}
+
+                {active && <ChevronIcon className="w-3.5 h-3.5 opacity-75 shrink-0" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Footer info */}
+        <div className="p-3 border-t border-[#1a2233] text-center">
+          <div className="text-[11px] text-slate-500">
+            PlayStation Cafe System v2.0
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

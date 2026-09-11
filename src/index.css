@@ -1,56 +1,83 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Cairo', system-ui, sans-serif;
+  --font-sans: 'Cairo', system-ui, -apple-system, sans-serif;
   --font-gaming: 'Cairo', 'Barlow Semi Condensed', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-}
 
-html {
-  /* Larger base scale for desktop café / POS readability from a distance */
-  font-size: 18px;
+  /* PlayStation Core Brand Colors */
+  --color-ps-blue: #0070d1;
+  --color-ps-blue-hover: #0082f3;
+  --color-ps-dark: #07090e;
+  --color-ps-surface: #0e121b;
+  --color-ps-card: #131824;
+  --color-ps-border: #1e2638;
 }
 
 html,
 body,
 #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   font-family: 'Cairo', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom sleek scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #252a36 transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.25) transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #252a36;
-  border-radius: 2px;
+  background-color: rgba(100, 116, 139, 0.25);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.45);
 }
 
+/* PlayStation pulse & expiration alerts */
 @keyframes flash-expire {
-  0%, 100% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.5); }
-  50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.7); border-color: rgb(239, 68, 68); }
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(239, 68, 68, 0.85);
+    border-color: rgb(239, 68, 68);
+  }
 }
 
 .session-expired {
   animation: flash-expire 1s ease-in-out infinite;
 }
 
-@keyframes fadein {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Safe area for mobile devices (e.g. iPhone bottom bar) */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
 }
