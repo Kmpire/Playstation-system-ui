@@ -168,7 +168,7 @@ export default function App() {
 
   return (
     <div
-      className={`flex h-screen overflow-hidden ${theme === 'dark' ? 'dark bg-[#07090e] text-white' : 'bg-slate-100 text-slate-900'}`}
+      className={`flex h-full h-[100dvh] w-full overflow-hidden ${theme === 'dark' ? 'dark bg-[#07090e] text-white' : 'bg-slate-100 text-slate-900'}`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
       {/* Responsive Sidebar (Fixed on desktop, Drawer on mobile) */}
@@ -221,7 +221,6 @@ export default function App() {
         <BottomNav
           screen={screen}
           setScreen={setScreen}
-          onOpenMore={() => setMobileMenuOpen(true)}
           isRTL={isRTL}
         />
       </div>

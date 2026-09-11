@@ -4,21 +4,19 @@ import {
   ShoppingCart,
   Coffee,
   Clock,
-  Menu,
 } from 'lucide-react';
 import type { Screen } from '../types';
 
 interface BottomNavProps {
   screen: Screen;
   setScreen: (s: Screen) => void;
-  onOpenMore: () => void;
+  onOpenMore?: () => void;
   isRTL: boolean;
 }
 
 export default function BottomNav({
   screen,
   setScreen,
-  onOpenMore,
   isRTL,
 }: BottomNavProps) {
   const items = [
@@ -47,7 +45,7 @@ export default function BottomNav({
   return (
     <nav
       aria-label="Mobile quick navigation"
-      className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#090c13]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around z-30 safe-bottom select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
+      className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#090c13]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 px-3 py-1.5 flex items-center justify-around z-30 safe-bottom select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
     >
       {items.map((item) => {
         const active = screen === item.id;
@@ -56,7 +54,7 @@ export default function BottomNav({
           <button
             key={item.id}
             onClick={() => setScreen(item.id)}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-150 ${
+            className={`flex-1 flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all duration-150 ${
               active
                 ? 'text-[#0070d1] dark:text-sky-400 font-bold'
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -71,23 +69,10 @@ export default function BottomNav({
             >
               <Icon className="w-5 h-5" />
             </div>
-            <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
+            <span className="text-[11px] mt-0.5 tracking-tight">{item.label}</span>
           </button>
         );
       })}
-
-      {/* More button to open drawer */}
-      <button
-        onClick={onOpenMore}
-        className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
-      >
-        <div className="p-1 rounded-lg">
-          <Menu className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] mt-0.5 tracking-tight">
-          {isRTL ? 'المزيد' : 'More'}
-        </span>
-      </button>
     </nav>
   );
 }
