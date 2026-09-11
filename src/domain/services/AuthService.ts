@@ -16,6 +16,10 @@ export class AuthService {
   }
 
   async login(username: string, pass: string): Promise<UserAccount | null> {
+    if (this.authRepo.login) {
+      return this.authRepo.login(username, pass)
+    }
+
     const accounts = await this.authRepo.getAccounts()
     const match = accounts.find(
       (a) =>
@@ -37,7 +41,12 @@ export class AuthService {
   async changePassword(
     username: string,
     newPassword: string,
+    currentPassword?: string,
   ): Promise<boolean> {
+    if (this.authRepo.changePassword) {
+      return this.authRepo.changePassword(username, newPassword, currentPassword)
+    }
+
     const accounts = await this.authRepo.getAccounts()
     const updated = accounts.map((a) =>
       a.username === username ? { ...a, password: newPassword } : a,

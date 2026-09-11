@@ -81,6 +81,7 @@ function MainApp() {
     currentUser,
     setCurrentUser,
     trialState,
+    login,
     changePassword,
     activateLicense,
     refresh: refreshAuth,
@@ -211,14 +212,9 @@ function MainApp() {
           setLang={setLang}
           trialDaysLeft={trialState?.daysLeft ?? 7}
           activated={trialState?.activated ?? false}
-          onLogin={(u, p) => {
-            const acc = accounts.find(
-              (a) =>
-                a.username.toLowerCase() === u.trim().toLowerCase() &&
-                a.password === p,
-            )
-            if (acc) {
-              setCurrentUser(acc)
+          onLogin={async (u, p) => {
+            const ok = await login(u, p)
+            if (ok) {
               setScreen("dashboard")
               return true
             }

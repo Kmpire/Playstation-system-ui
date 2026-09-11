@@ -5,7 +5,7 @@ interface Props {
   isRTL: boolean
   toast: (msg: string) => void
   currentUser: Account
-  changePassword: (username: string, newPassword: string) => void
+  changePassword: (username: string, newPassword: string, currentPassword?: string) => Promise<boolean> | void
   [key: string]: unknown
 }
 
@@ -20,17 +20,9 @@ export default function AccountScreen({
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-    if (current !== currentUser.password) {
-      setError(
-        isRTL
-          ? "كلمة المرور الحالية غير صحيحة"
-          : "Current password is incorrect",
-      )
-      return
-    }
     if (next.length < 4) {
       setError(isRTL ? "كلمة المرور قصيرة جداً" : "New password is too short")
       return
@@ -39,11 +31,20 @@ export default function AccountScreen({
       setError(isRTL ? "كلمتا المرور غير متطابقتين" : "Passwords do not match")
       return
     }
-    changePassword(currentUser.username, next)
-    setCurrent("")
-    setNext("")
-    setConfirm("")
-    toast(isRTL ? "تم تغيير كلمة المرور ✓" : "Password changed ✓")
+    try {
+      await changePassword(currentUser.username, next, current)
+      setCurrent("")
+      setNext("")
+      setConfirm("")
+      toast(isRTL ? "تم تغيير كلمة المرور ✓" : "Password changed ✓")
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          (isRTL
+            ? "كلمة المرور الحالية غير صحيحة"
+            : "Current password is incorrect"),
+      )
+    }
   }
 
   return (

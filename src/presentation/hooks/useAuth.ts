@@ -42,8 +42,8 @@ export function useAuth() {
     setCurrentUser(null)
   }
 
-  const changePassword = async (username: string, newPass: string) => {
-    const success = await authService.changePassword(username, newPass)
+  const changePassword = async (username: string, newPass: string, currentPass?: string) => {
+    const success = await authService.changePassword(username, newPass, currentPass)
     if (success) {
       setAccounts((prev) =>
         prev.map((a) =>

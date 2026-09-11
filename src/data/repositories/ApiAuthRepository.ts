@@ -9,6 +9,39 @@ export class ApiAuthRepository implements IAuthRepository {
     return apiClient<UserAccount[]>("/auth/accounts")
   }
 
+  async login(username: string, pass: string): Promise<UserAccount | null> {
+    try {
+      const res = await apiClient<{ success: boolean; token?: string; user?: UserAccount }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password: pass }),
+      })
+      if (res && res.token) {
+        setAuthToken(res.token)
+      }
+      if (res && res.user) {
+        await this.setCurrentUser(res.user)
+        return res.user
+      }
+      return null
+    } catch (e) {
+      console.error("Login API error:", e)
+      return null
+    }
+  }
+
+  async changePassword(username: string, newPassword: string, currentPassword?: string): Promise<boolean> {
+    try {
+      await apiClient<{ success: boolean }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ username, newPassword, currentPassword }),
+      })
+      return true
+    } catch (e) {
+      console.error("Change password error:", e)
+      throw e
+    }
+  }
+
   async saveAccounts(accounts: UserAccount[]): Promise<void> {
     await apiClient<void>("/auth/accounts", {
       method: "POST",

@@ -8,6 +8,7 @@ import type {
   MaintenanceRecord,
   ShiftReport,
 } from "@/domain"
+import { useServices } from "@/presentation/context/ServicesContext"
 
 interface Props {
   isRTL: boolean
@@ -32,6 +33,7 @@ interface Props {
 export default function DataManagement(props: Props) {
   const { isRTL, toast } = props
   const fileRef = useRef<HTMLInputElement>(null)
+  const services = useServices()
   const [lastAction, setLastAction] = useState<string | null>(null)
 
   function exportData() {
@@ -64,17 +66,37 @@ export default function DataManagement(props: Props) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const d = JSON.parse(String(reader.result))
-        if (d.consoles) props.setConsoles(d.consoles)
-        if (d.menuItems) props.setMenuItems(d.menuItems)
-        if (d.categories) props.setCategories(d.categories)
-        if (d.pricing) props.setPricing(d.pricing)
-        if (d.controllers) props.setControllers(d.controllers)
-        if (d.maintenanceRecords)
+        if (d.consoles) {
+          props.setConsoles(d.consoles)
+          await services.consoleRepo.saveAll(d.consoles)
+        }
+        if (d.menuItems) {
+          props.setMenuItems(d.menuItems)
+          await services.menuRepo.saveAllItems(d.menuItems)
+        }
+        if (d.categories) {
+          props.setCategories(d.categories)
+          await services.menuRepo.saveAllCategories(d.categories)
+        }
+        if (d.pricing) {
+          props.setPricing(d.pricing)
+          await services.pricingRepo.saveAll(d.pricing)
+        }
+        if (d.controllers) {
+          props.setControllers(d.controllers)
+          await services.controllerRepo.saveAll(d.controllers)
+        }
+        if (d.maintenanceRecords) {
           props.setMaintenanceRecords(d.maintenanceRecords)
-        if (d.shiftReports) props.setShiftReports(d.shiftReports)
+          await services.controllerRepo.saveAllMaintenanceRecords(d.maintenanceRecords)
+        }
+        if (d.shiftReports) {
+          props.setShiftReports(d.shiftReports)
+          await services.shiftRepo.saveAllShiftReports(d.shiftReports)
+        }
         setLastAction(
           isRTL ? "تم استيراد البيانات بنجاح" : "Data restored successfully",
         )

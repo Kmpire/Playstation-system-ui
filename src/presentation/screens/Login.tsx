@@ -18,7 +18,7 @@ interface Props {
   setLang: (l: Language) => void
   trialDaysLeft: number
   activated: boolean
-  onLogin: (username: string, password: string) => boolean
+  onLogin: (username: string, password: string) => Promise<boolean> | boolean
 }
 
 export default function Login({
@@ -32,11 +32,20 @@ export default function Login({
   const [username, setUsername] = useState("admin")
   const [password, setPassword] = useState("admin123")
   const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    const ok = onLogin(username, password)
-    if (!ok) setError(true)
+    setError(false)
+    setLoading(true)
+    try {
+      const ok = await onLogin(username, password)
+      if (!ok) setError(true)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const fillDemo = (u: string, p: string) => {
