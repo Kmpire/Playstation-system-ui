@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { MenuItem, GameConsole, Controller } from "@/domain"
+import { useServices } from "../context/ServicesContext"
 
 interface Props {
   menuItems: MenuItem[]
@@ -8,6 +9,7 @@ interface Props {
   controllers: Controller[]
   t: (k: string) => string
   isRTL: boolean
+  toast?: (msg: string) => void
   [key: string]: unknown
 }
 
@@ -19,25 +21,33 @@ export default function Inventory({
   consoles,
   controllers,
   isRTL,
+  toast,
 }: Props) {
+  const services = useServices()
   const [cat, setCat] = useState<Category>("consumables")
   const [editing, setEditing] = useState<string | null>(null)
   const [editQty, setEditQty] = useState("")
   const [editThreshold, setEditThreshold] = useState("")
 
-  function saveEdit(id: string) {
+  async function saveEdit(id: string) {
+    const target = menuItems.find((i) => i.id === id)
+    if (!target) return
+    const updated = {
+      ...target,
+      stock: parseInt(editQty) || target.stock,
+      lowStockThreshold: parseInt(editThreshold) || target.lowStockThreshold,
+    }
     setMenuItems((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              stock: parseInt(editQty) || i.stock,
-              lowStockThreshold: parseInt(editThreshold) || i.lowStockThreshold,
-            }
-          : i,
-      ),
+      prev.map((i) => (i.id === id ? updated : i)),
     )
     setEditing(null)
+    try {
+      await services.menuRepo.saveItem(updated)
+      toast?.(isRTL ? "تم تحديث المخزون بنجاح" : "Inventory updated successfully")
+    } catch (err: any) {
+      console.error("Error saving inventory item:", err)
+      toast?.(isRTL ? `فشل تحديث المخزون: ${err.message || err}` : `Failed to save inventory: ${err.message || err}`)
+    }
   }
 
   const lowConsumables = menuItems.filter((i) => i.stock <= i.lowStockThreshold)

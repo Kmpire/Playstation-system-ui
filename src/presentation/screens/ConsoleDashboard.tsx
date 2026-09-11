@@ -51,6 +51,7 @@ interface Props {
   toast: (msg: string) => void
   isRTL: boolean
   theme: Theme
+  currentUser?: { name?: string; username?: string; role?: string }
   [key: string]: unknown
 }
 
@@ -64,6 +65,7 @@ export default function ConsoleDashboard({
   toast,
   isRTL,
   theme,
+  currentUser,
 }: Props) {
   const services = useServices()
   const [, setTick] = useState(0)
@@ -153,26 +155,30 @@ export default function ConsoleDashboard({
     return playerType === "single" ? cfg.singleRate : cfg.multiRate
   }
 
-  const handleToggleReserve = (conId: number) => {
-    const target = consoles.find((c) => c.id === conId)
-    if (!target) return
-    const isNowReserved = target.status !== "reserved"
-    setConsoles((prev) =>
-      prev.map((c) =>
-        c.id === conId
-          ? { ...c, status: isNowReserved ? "reserved" : "available" }
-          : c,
-      ),
-    )
-    toast(
-      isNowReserved
-        ? isRTL
-          ? `تم حجز ${target.name}`
-          : `Marked ${target.name} as reserved`
-        : isRTL
-          ? `تم إلغاء حجز ${target.name} وأصبح متاحاً`
-          : `Reservation canceled for ${target.name}`,
-    )
+  const handleToggleReserve = async (conId: number) => {
+    try {
+      const { console: updated, isReserved } =
+        await services.consoleService.toggleReserve(conId)
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updated : c)),
+      )
+      toast(
+        isReserved
+          ? isRTL
+            ? `تم حجز ${updated.name}`
+            : `Marked ${updated.name} as reserved`
+          : isRTL
+            ? `تم إلغاء حجز ${updated.name} وأصبح متاحاً`
+            : `Reservation canceled for ${updated.name}`,
+      )
+    } catch (err: any) {
+      console.error("Error toggling reservation:", err)
+      toast(
+        isRTL
+          ? `فشل تحديث الحجز: ${err.message || err}`
+          : `Failed to update reservation: ${err.message || err}`,
+      )
+    }
   }
 
   // ── Session Handlers ────────────────────────────────────────────────────────

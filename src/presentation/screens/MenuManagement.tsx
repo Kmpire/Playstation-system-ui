@@ -10,6 +10,7 @@ interface Props {
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>
   t: (k: string) => string
   isRTL: boolean
+  toast?: (msg: string) => void
   [key: string]: unknown
 }
 
@@ -32,6 +33,7 @@ export default function MenuManagement({
   setCategories,
   t,
   isRTL,
+  toast,
 }: Props) {
   const services = useServices()
   const [editItem, setEditItem] = useState<MenuItem | null>(null)
@@ -73,13 +75,16 @@ export default function MenuManagement({
         setMenuItems((prev) =>
           prev.map((i) => (i.id === editItem.id ? updated : i)),
         )
+        toast?.(isRTL ? "تم تحديث الصنف بنجاح" : "Item updated successfully")
       } else {
         const created = await services.inventoryService.addMenuItem(formData)
         setMenuItems((prev) => [...prev, created])
+        toast?.(isRTL ? "تم إضافة الصنف بنجاح" : "Item added successfully")
       }
       setShowForm(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving menu item:", err)
+      toast?.(isRTL ? `فشل حفظ الصنف: ${err.message || err}` : `Failed to save item: ${err.message || err}`)
     }
   }
 
@@ -88,8 +93,10 @@ export default function MenuManagement({
       await services.inventoryService.deleteMenuItem(id)
       setMenuItems((prev) => prev.filter((i) => i.id !== id))
       setDeleteConfirm(null)
-    } catch (err) {
+      toast?.(isRTL ? "تم حذف الصنف" : "Item deleted")
+    } catch (err: any) {
       console.error("Error deleting menu item:", err)
+      toast?.(isRTL ? `فشل حذف الصنف: ${err.message || err}` : `Failed to delete item: ${err.message || err}`)
     }
   }
 
@@ -104,8 +111,10 @@ export default function MenuManagement({
       setCatInput("")
       setCatInputAr("")
       setShowCatForm(false)
-    } catch (err) {
+      toast?.(isRTL ? "تمت إضافة التصنيف بنجاح" : "Category added successfully")
+    } catch (err: any) {
       console.error("Error adding category:", err)
+      toast?.(isRTL ? `فشل إضافة التصنيف: ${err.message || err}` : `Failed to add category: ${err.message || err}`)
     }
   }
 
@@ -113,8 +122,10 @@ export default function MenuManagement({
     try {
       await services.inventoryService.deleteCategory(id)
       setCategories((prev) => prev.filter((c) => c.id !== id))
-    } catch (err) {
+      toast?.(isRTL ? "تم حذف التصنيف" : "Category deleted")
+    } catch (err: any) {
       console.error("Error deleting category:", err)
+      toast?.(isRTL ? `فشل حذف التصنيف: ${err.message || err}` : `Failed to delete category: ${err.message || err}`)
     }
   }
 

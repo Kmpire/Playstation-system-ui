@@ -129,9 +129,11 @@ export default function POSSales({
   currentUser,
   t,
   isRTL,
+  toast,
 }: Props & {
   setMenuItems?: React.Dispatch<React.SetStateAction<MenuItem[]>>
   currentUser?: { name?: string }
+  toast?: (msg: string) => void
 }) {
   const services = useServices()
   const [selCat, setSelCat] = useState<string>(categories[0]?.id ?? "")
@@ -146,7 +148,7 @@ export default function POSSales({
     : menuItems
 
   const subtotal = cart.reduce((s, e) => s + e.item.price * e.qty, 0)
-  const discount = promoApplied ? subtotal * 0.1 : 0
+  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0
   const total = subtotal - discount
   const totalItemsCount = cart.reduce((s, e) => s + e.qty, 0)
 
@@ -191,8 +193,9 @@ export default function POSSales({
         }),
       )
       setShowReceipt(true)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error processing sale:", err)
+      toast?.(isRTL ? `فشل إتمام البيع: ${err.message || err}` : `Failed to process sale: ${err.message || err}`)
     }
   }
 

@@ -8,6 +8,7 @@ interface Props {
   setPricing: React.Dispatch<React.SetStateAction<PricingConfig[]>>
   t: (k: string) => string
   isRTL: boolean
+  toast?: (msg: string) => void
   [key: string]: unknown
 }
 
@@ -48,6 +49,7 @@ export default function PricingSettings({
   setPricing,
   t,
   isRTL,
+  toast,
 }: Props) {
   const services = useServices()
   const [draft, setDraft] = useState<PricingConfig[]>(
@@ -75,9 +77,11 @@ export default function PricingSettings({
       const savedList = await services.pricingService.updatePricing(updated)
       setPricing(savedList)
       setSaved(true)
+      toast?.(isRTL ? "تم حفظ الأسعار بنجاح" : "Pricing saved successfully")
       setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving pricing:", err)
+      toast?.(isRTL ? `فشل حفظ الأسعار: ${err.message || err}` : `Failed to save pricing: ${err.message || err}`)
     }
   }
 

@@ -106,8 +106,9 @@ export default function Controllers({
         prev.map((ct) => (ct.id === id ? updated : ct)),
       )
       toast(isRTL ? "تم تحديث حالة ذراع التحكم" : "Updated controller status")
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating controller status:", err)
+      toast(isRTL ? `فشل تحديث الحالة: ${err.message || err}` : `Failed to update status: ${err.message || err}`)
     }
   }
 
@@ -122,8 +123,9 @@ export default function Controllers({
       toast(
         isRTL ? "تمت إضافة ذراع التحكم بنجاح" : "Controller added successfully",
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding controller:", err)
+      toast(isRTL ? `فشل إضافة ذراع التحكم: ${err.message || err}` : `Failed to add controller: ${err.message || err}`)
     }
   }
 
@@ -140,10 +142,15 @@ export default function Controllers({
     setConsoles((prev) =>
       prev.map((c) => (c.id === consoleId ? updated : c)),
     )
-    services.consoleRepo.save(updated).catch(console.error)
-    toast(
-      isRTL ? "تم تغيير وضع صيانة الجهاز" : "Toggled console maintenance mode",
-    )
+    try {
+      await services.consoleRepo.save(updated)
+      toast(
+        isRTL ? "تم تغيير وضع صيانة الجهاز" : "Toggled console maintenance mode",
+      )
+    } catch (err: any) {
+      console.error("Error toggling maintenance:", err)
+      toast(isRTL ? `فشل تحديث الصيانة: ${err.message || err}` : `Failed to update maintenance: ${err.message || err}`)
+    }
   }
 
   async function addRecord() {
@@ -155,8 +162,9 @@ export default function Controllers({
       setForm(EMPTY_RECORD)
       setShowForm(false)
       toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding maintenance record:", err)
+      toast(isRTL ? `فشل حفظ سجل الصيانة: ${err.message || err}` : `Failed to save record: ${err.message || err}`)
     }
   }
 
