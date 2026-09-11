@@ -119,81 +119,170 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
       )}
 
       {/* Filters */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-6 py-3 shrink-0 flex items-center gap-3">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-4 sm:px-6 py-3 shrink-0 flex flex-wrap items-center gap-2.5 sm:gap-3">
         <input type="search" placeholder={isRTL ? 'بحث…' : 'Search…'} value={search} onChange={e => setSearch(e.target.value)}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 w-52 bg-white dark:bg-[#1a1d26] dark:text-slate-100" />
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 flex-1 sm:flex-none sm:w-52 bg-white dark:bg-[#1a1d26] dark:text-slate-100" />
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] text-slate-700 dark:text-slate-300">
           <option value="">{isRTL ? 'جميع الفئات' : 'All categories'}</option>
           {categories.map(c => <option key={c.id} value={c.id}>{isRTL ? c.nameAr : c.name}</option>)}
         </select>
-        <div className="ms-auto text-slate-400 dark:text-slate-500 text-xs">{filtered.length} {isRTL ? 'نتيجة' : 'results'}</div>
+        <div className="w-full sm:w-auto sm:ms-auto text-slate-400 dark:text-slate-500 text-xs text-end">{filtered.length} {isRTL ? 'نتيجة' : 'results'}</div>
       </div>
 
-      {/* Table */}
+      {/* Content Area: Desktop Table & Mobile Cards */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full">
-          <thead className="sticky top-0 bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50 z-10">
-            <tr>
-              {[
-                isRTL ? 'الاسم' : 'Name',
-                isRTL ? 'الفئة' : 'Category',
-                isRTL ? 'السعر' : 'Price',
-                isRTL ? 'التكلفة' : 'Cost',
-                isRTL ? 'المخزون' : 'Stock',
-                isRTL ? 'الحد الأدنى' : 'Min. Stock',
-                isRTL ? 'الإجراءات' : 'Actions',
-              ].map((h, i) => (
-                <th key={i} className={`px-4 py-3 text-[11px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider text-start ${i === 6 ? 'text-end' : ''}`}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
-            {filtered.map(item => {
-              const lowStock = item.stock <= item.lowStockThreshold;
-              return (
-                <tr key={item.id} className="bg-white dark:bg-[#1a1d26] hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="text-slate-900 dark:text-slate-100 font-medium text-sm">{item.name}</div>
-                    <div className="text-slate-400 dark:text-slate-500 text-xs">{item.nameAr}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-slate-100 dark:bg-[#252a36] text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">{catName(item.category)}</span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sm text-slate-900 dark:text-slate-100">{money(item.price, isRTL)}</td>
-                  <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">{money(item.costPrice, isRTL)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`font-mono text-sm font-semibold ${lowStock ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{item.stock}</span>
-                    {lowStock && <span className="ms-1.5 text-[10px] text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">{isRTL ? 'منخفض' : 'Low'}</span>}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">{item.lowStockThreshold}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => openEdit(item)} className="px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg transition-colors">
-                        {isRTL ? 'تعديل' : 'Edit'}
-                      </button>
-                      <button onClick={() => setDeleteConfirm(item.id)} className="px-3 py-1.5 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg transition-colors">
-                        {isRTL ? 'حذف' : 'Delete'}
-                      </button>
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50 z-10">
+              <tr>
+                {[
+                  isRTL ? 'الاسم' : 'Name',
+                  isRTL ? 'الفئة' : 'Category',
+                  isRTL ? 'السعر' : 'Price',
+                  isRTL ? 'التكلفة' : 'Cost',
+                  isRTL ? 'المخزون' : 'Stock',
+                  isRTL ? 'الحد الأدنى' : 'Min. Stock',
+                  isRTL ? 'الإجراءات' : 'Actions',
+                ].map((h, i) => (
+                  <th key={i} className={`px-4 py-3 text-[11px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider text-start ${i === 6 ? 'text-end' : ''}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
+              {filtered.map(item => {
+                const lowStock = item.stock <= item.lowStockThreshold;
+                return (
+                  <tr key={item.id} className="bg-white dark:bg-[#1a1d26] hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="text-slate-900 dark:text-slate-100 font-medium text-sm">{item.name}</div>
+                      <div className="text-slate-400 dark:text-slate-500 text-xs">{item.nameAr}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs bg-slate-100 dark:bg-[#252a36] text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">{catName(item.category)}</span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-slate-900 dark:text-slate-100">{money(item.price, isRTL)}</td>
+                    <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">{money(item.costPrice, isRTL)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`font-mono text-sm font-semibold ${lowStock ? 'text-amber-600' : 'text-slate-900 dark:text-slate-100'}`}>{item.stock}</span>
+                      {lowStock && <span className="ms-1.5 text-[10px] text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">{isRTL ? 'منخفض' : 'Low'}</span>}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">{item.lowStockThreshold}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <button onClick={() => openEdit(item)} className="px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg transition-colors">
+                          {isRTL ? 'تعديل' : 'Edit'}
+                        </button>
+                        <button onClick={() => setDeleteConfirm(item.id)} className="px-3 py-1.5 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg transition-colors">
+                          {isRTL ? 'حذف' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden p-3.5 space-y-3">
+          {filtered.map(item => {
+            const lowStock = item.stock <= item.lowStockThreshold;
+            return (
+              <div
+                key={item.id}
+                className="bg-white dark:bg-[#1a1d26] border border-slate-200/80 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm space-y-3"
+              >
+                {/* Title & Category Badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                      {item.name}
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                      {item.nameAr}
+                    </div>
+                  </div>
+                  <span className="text-xs bg-slate-100 dark:bg-[#252a36] text-slate-600 dark:text-slate-400 px-2.5 py-1 rounded-full font-medium shrink-0">
+                    {catName(item.category)}
+                  </span>
+                </div>
+
+                {/* Pricing & Stock Stats */}
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-[#141721] p-2.5 rounded-xl text-center">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                      {isRTL ? 'السعر' : 'Price'}
+                    </div>
+                    <div className="font-mono font-bold text-xs sm:text-sm text-blue-600 dark:text-sky-400">
+                      {money(item.price, isRTL)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                      {isRTL ? 'التكلفة' : 'Cost'}
+                    </div>
+                    <div className="font-mono font-medium text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                      {money(item.costPrice, isRTL)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                      {isRTL ? 'المخزون' : 'Stock'}
+                    </div>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`font-mono font-bold text-xs sm:text-sm ${lowStock ? 'text-amber-500' : 'text-slate-900 dark:text-slate-100'}`}>
+                        {item.stock}
+                      </span>
+                      {lowStock && (
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded px-1">
+                          ⚠️
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="flex-1 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50 rounded-xl transition-colors text-center"
+                  >
+                    {isRTL ? 'تعديل' : 'Edit'}
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(item.id)}
+                    className="flex-1 py-2 text-xs font-semibold text-red-500 dark:text-red-400 bg-red-50/60 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded-xl transition-colors text-center"
+                  >
+                    {isRTL ? 'حذف' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="text-center py-10 text-slate-400 text-xs">
+              {isRTL ? 'لا توجد عناصر مطابقة' : 'No menu items found'}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Add/Edit modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl w-[480px] max-h-[85vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/30 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/30 flex items-center justify-between sticky top-0 bg-white dark:bg-[#1a1d26] z-10">
               <h2 className="font-semibold text-slate-900 dark:text-slate-100">{editItem ? (isRTL ? 'تعديل عنصر' : 'Edit Item') : (isRTL ? 'إضافة عنصر' : 'Add Item')}</h2>
               <button onClick={() => setShowForm(false)} className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-2xl leading-none">×</button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{isRTL ? 'الاسم (EN)' : 'Name (EN)'}</label>
                   <input type="text" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
@@ -212,7 +301,7 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
                   {categories.map(c => <option key={c.id} value={c.id}>{isRTL ? c.nameAr : c.name}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{isRTL ? 'السعر (ج.م)' : 'Price (EGP)'}</label>
                   <input type="number" min={0} step={0.5} value={formData.price} onChange={e => setFormData(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
@@ -224,7 +313,7 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
                     className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 font-mono dark:bg-[#1a1d26] dark:text-slate-100" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">{isRTL ? 'الكمية' : 'Stock Qty'}</label>
                   <input type="number" min={0} value={formData.stock} onChange={e => setFormData(p => ({ ...p, stock: parseInt(e.target.value) || 0 }))}

@@ -200,7 +200,8 @@ export default function StaffShifts({ auditLog, role, setShiftReports, currentUs
               <div className="ms-auto text-slate-400 text-xs">{filteredLog.length} {isRTL ? 'سجل' : 'entries'}</div>
             </div>
 
-            <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-700/30 bg-slate-50 dark:bg-[#252a36]">
@@ -224,6 +225,38 @@ export default function StaffShifts({ auditLog, role, setShiftReports, currentUs
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-2.5">
+              {filteredLog.map(entry => (
+                <div
+                  key={entry.id}
+                  className="bg-white dark:bg-[#1a1d26] border border-slate-200/80 dark:border-slate-700/40 rounded-2xl p-3.5 shadow-sm space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+                      {entry.actionType}
+                    </span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${entry.staff === 'Admin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-[#252a36] dark:text-slate-300'}`}>
+                      {entry.staff}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {entry.details}
+                  </p>
+
+                  <div className="text-[11px] font-mono text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-800/80">
+                    {entry.timestamp}
+                  </div>
+                </div>
+              ))}
+              {filteredLog.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  {isRTL ? 'لا توجد سجلات مطابقة' : 'No matching audit records'}
+                </div>
+              )}
             </div>
           </div>
         )}

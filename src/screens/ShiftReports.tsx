@@ -41,8 +41,9 @@ export default function ShiftReports({ shiftReports, isRTL }: Props) {
         <div className="ms-auto text-slate-400 text-xs">{filtered.length} {isRTL ? 'تقرير' : 'reports'}</div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        {/* Desktop Table View */}
+        <div className="hidden md:block bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-700/30 bg-slate-50 dark:bg-[#252a36]">
@@ -71,6 +72,66 @@ export default function ShiftReports({ shiftReports, isRTL }: Props) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden space-y-3">
+          {filtered.map(r => (
+            <div
+              key={r.id}
+              className="bg-white dark:bg-[#1a1d26] border border-slate-200/80 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm space-y-2.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {r.date}
+                </span>
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${r.staff === 'Admin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-[#252a36] dark:text-slate-300'}`}>
+                  {r.staff}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-[#141721] p-2.5 rounded-xl text-center">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                    {isRTL ? 'المتوقع' : 'Expected'}
+                  </div>
+                  <div className="font-mono font-medium text-xs text-slate-700 dark:text-slate-300">
+                    {money(r.expectedCash, isRTL)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                    {isRTL ? 'المعدود' : 'Counted'}
+                  </div>
+                  <div className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
+                    {money(r.countedCash, isRTL)}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
+                    {isRTL ? 'الفارق' : 'Variance'}
+                  </div>
+                  <div className={`font-mono font-bold text-xs ${Math.abs(r.variance) < 0.01 ? 'text-green-600 dark:text-green-400' : r.variance > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {r.variance > 0 ? '+' : ''}{money(r.variance, isRTL)}
+                  </div>
+                </div>
+              </div>
+
+              {r.notes && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  {r.notes}
+                </p>
+              )}
+            </div>
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="text-center py-10 text-slate-400 text-xs">
+              {isRTL ? 'لا توجد تقارير مطابقة' : 'No matching reports'}
+            </div>
+          )}
         </div>
       </div>
     </div>

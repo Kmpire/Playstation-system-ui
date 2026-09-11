@@ -248,13 +248,14 @@ export default function Controllers({
               </div>
             </div>
 
-            {/* Controller Pool Table */}
+            {/* Controller Pool Table & Mobile Cards */}
             <div>
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                 {isRTL ? 'وحدات التحكم في الصالة (Pool)' : 'Controllers Pool'}
               </div>
 
-              <div className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+              {/* Desktop Table View */}
+              <div className="hidden sm:block bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-start text-xs sm:text-sm">
                     <thead>
@@ -318,6 +319,54 @@ export default function Controllers({
                   </table>
                 </div>
               </div>
+
+              {/* Mobile Cards View */}
+              <div className="sm:hidden grid grid-cols-1 gap-2.5">
+                {controllers.map((ctrl) => {
+                  const assignedCon = ctrl.assignedTo
+                    ? consoles.find((c) => c.id === ctrl.assignedTo)
+                    : null;
+                  const statusObj = CTRL_STATUS.find((s) => s.id === ctrl.status);
+
+                  return (
+                    <div
+                      key={ctrl.id}
+                      className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-3"
+                    >
+                      <div>
+                        <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                          {ctrl.number}
+                        </div>
+                        <div className="text-xs mt-0.5">
+                          {assignedCon ? (
+                            <span className="font-semibold text-[#0070d1] dark:text-sky-400">
+                              {assignedCon.name}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">
+                              {isRTL ? 'متوفر في الصالة' : 'Shared Pool'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <select
+                        value={ctrl.status}
+                        onChange={(e) =>
+                          setStatus(ctrl.id, e.target.value as ControllerStatus)
+                        }
+                        className={`text-xs px-2.5 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
+                      >
+                        {CTRL_STATUS.map((s) => (
+                          <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            {isRTL ? s.ar : s.en}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -342,7 +391,8 @@ export default function Controllers({
               </div>
             </div>
 
-            <div className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            {/* Desktop Table View */}
+            <div className="hidden sm:block bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-start text-xs sm:text-sm">
                   <thead>
@@ -396,6 +446,47 @@ export default function Controllers({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="sm:hidden space-y-3">
+              {filteredRecords.map((record) => (
+                <div
+                  key={record.id}
+                  className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        record.targetType === 'console'
+                          ? 'bg-[#0070d1]/15 text-[#0070d1] dark:text-sky-400'
+                          : 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+                      }`}
+                    >
+                      {record.targetLabel}
+                    </span>
+                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                      {money(record.cost, isRTL)}
+                    </span>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {record.issue}
+                  </p>
+
+                  <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                    <span className="font-mono">{record.date}</span>
+                    <span className="bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 font-medium">
+                      {record.resolvedBy}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {filteredRecords.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  {isRTL ? 'لا توجد سجلات تطابق البحث' : 'No records match search'}
+                </div>
+              )}
             </div>
           </div>
         )}
