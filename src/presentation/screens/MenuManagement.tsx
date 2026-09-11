@@ -64,45 +64,58 @@ export default function MenuManagement({
     setShowForm(true)
   }
 
-  function saveItem() {
+  async function saveItem() {
     if (!formData.name || !formData.category) return
-    const item: MenuItem = editItem
-      ? { ...editItem, ...formData }
-      : { id: `m${Date.now()}`, ...formData }
-    if (editItem) {
-      setMenuItems((prev) =>
-        prev.map((i) => (i.id === editItem.id ? item : i)),
-      )
-    } else {
-      setMenuItems((prev) => [...prev, item])
+    try {
+      if (editItem) {
+        const item: MenuItem = { ...editItem, ...formData }
+        const updated = await services.inventoryService.updateMenuItem(item)
+        setMenuItems((prev) =>
+          prev.map((i) => (i.id === editItem.id ? updated : i)),
+        )
+      } else {
+        const created = await services.inventoryService.addMenuItem(formData)
+        setMenuItems((prev) => [...prev, created])
+      }
+      setShowForm(false)
+    } catch (err) {
+      console.error("Error saving menu item:", err)
     }
-    services.menuRepo.saveItem(item).catch(console.error)
-    setShowForm(false)
   }
 
-  function deleteItem(id: string) {
-    setMenuItems((prev) => prev.filter((i) => i.id !== id))
-    services.menuRepo.deleteItem(id).catch(console.error)
-    setDeleteConfirm(null)
+  async function deleteItem(id: string) {
+    try {
+      await services.inventoryService.deleteMenuItem(id)
+      setMenuItems((prev) => prev.filter((i) => i.id !== id))
+      setDeleteConfirm(null)
+    } catch (err) {
+      console.error("Error deleting menu item:", err)
+    }
   }
 
-  function addCategory() {
+  async function addCategory() {
     if (!catInput.trim()) return
-    const newCat: Category = {
-      id: `cat${Date.now()}`,
-      name: catInput.trim(),
-      nameAr: catInputAr.trim() || catInput.trim(),
+    try {
+      const created = await services.inventoryService.addCategory({
+        name: catInput.trim(),
+        nameAr: catInputAr.trim() || catInput.trim(),
+      })
+      setCategories((prev) => [...prev, created])
+      setCatInput("")
+      setCatInputAr("")
+      setShowCatForm(false)
+    } catch (err) {
+      console.error("Error adding category:", err)
     }
-    setCategories((prev) => [...prev, newCat])
-    services.menuRepo.saveCategory(newCat).catch(console.error)
-    setCatInput("")
-    setCatInputAr("")
-    setShowCatForm(false)
   }
 
-  function deleteCategory(id: string) {
-    setCategories((prev) => prev.filter((c) => c.id !== id))
-    services.menuRepo.deleteCategory?.(id)?.catch(console.error)
+  async function deleteCategory(id: string) {
+    try {
+      await services.inventoryService.deleteCategory(id)
+      setCategories((prev) => prev.filter((c) => c.id !== id))
+    } catch (err) {
+      console.error("Error deleting category:", err)
+    }
   }
 
   const filtered = menuItems

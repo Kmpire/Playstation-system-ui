@@ -69,12 +69,16 @@ export default function PricingSettings({
     setSaved(false)
   }
 
-  function save() {
+  async function save() {
     const updated = draft.map((p) => ({ ...p }))
-    setPricing(updated)
-    services.pricingRepo.saveAll(updated).catch(console.error)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      const savedList = await services.pricingService.updatePricing(updated)
+      setPricing(savedList)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      console.error("Error saving pricing:", err)
+    }
   }
 
   const ORDER: ConsoleType[] = ["PS4", "PS5", "Xbox", "VIP"]

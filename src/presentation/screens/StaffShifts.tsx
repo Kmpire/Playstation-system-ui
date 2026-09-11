@@ -58,25 +58,25 @@ export default function StaffShifts(props: Props) {
 
   const variance = parseFloat(countedCash || "0") - expectedCash
 
-  function submitShift() {
+  async function submitShift() {
     if (!countedCash) return
     const counted = parseFloat(countedCash)
-    const report: ShiftReport = {
-      id: `sr${Date.now()}`,
-      date: todayKey(),
-      staff: currentUser.role === "admin" ? "Admin" : "Cashier",
-      countedCash: counted,
-      expectedCash,
-      variance: counted - expectedCash,
-      notes,
+    try {
+      const report = await services.shiftService.submitReport(
+        currentUser.role === "admin" ? "Admin" : "Cashier",
+        counted,
+        expectedCash,
+        notes,
+      )
+      setShiftReports((prev) => [report, ...prev])
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 3000)
+      setCountedCash("")
+      setNotes("")
+      toast(isRTL ? "تم إرسال تقرير الوردية ✓" : "Shift report submitted ✓")
+    } catch (err) {
+      console.error("Error submitting shift report:", err)
     }
-    setShiftReports((prev) => [report, ...prev])
-    services.shiftRepo.addShiftReport(report).catch(console.error)
-    setSubmitted(true)
-    setTimeout(() => setSubmitted(false), 3000)
-    setCountedCash("")
-    setNotes("")
-    toast(isRTL ? "تم إرسال تقرير الوردية ✓" : "Shift report submitted ✓")
   }
 
   const filteredLog = auditLog.filter(

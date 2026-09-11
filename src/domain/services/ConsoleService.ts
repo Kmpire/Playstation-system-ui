@@ -187,7 +187,7 @@ export class ConsoleService {
       ...console,
       status: "available",
       dailyTotal: console.dailyTotal + finalAmount,
-      session: undefined,
+      session: null as any,
     }
 
     await this.consoleRepo.save(updated)
@@ -311,7 +311,7 @@ export class ConsoleService {
     const fromUpdated: GameConsole = {
       ...fromCon,
       status: "available",
-      session: undefined,
+      session: null as any,
     }
 
     await this.consoleRepo.save(toUpdated)
@@ -340,7 +340,11 @@ export class ConsoleService {
     let newTarget: number | undefined
     if (console.session.mode === "prepaid") {
       const currentTarget = console.session.targetDurationMin || 0
-      newTarget = mode === "add" ? currentTarget + minutes : minutes
+      const elapsedMin = Math.ceil(
+        ConsoleService.getElapsedMs(console.session) / 60_000,
+      )
+      newTarget =
+        mode === "add" ? Math.max(currentTarget, elapsedMin) + minutes : minutes
     }
 
     const updated: GameConsole = {

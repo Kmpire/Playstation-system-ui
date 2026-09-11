@@ -96,37 +96,38 @@ export default function Controllers({
   const [showAddCtrl, setShowAddCtrl] = useState(false)
   const [newCtrlId, setNewCtrlId] = useState("")
 
-  function setStatus(id: string, status: ControllerStatus) {
-    const target = controllers.find((ct) => ct.id === id)
-    if (target) {
-      const updated = { ...target, status }
-      services.controllerRepo.save(updated).catch(console.error)
+  async function setStatus(id: string, status: ControllerStatus) {
+    try {
+      const updated = await services.controllerService.updateControllerStatus(
+        id,
+        status,
+      )
+      setControllers((prev) =>
+        prev.map((ct) => (ct.id === id ? updated : ct)),
+      )
+      toast(isRTL ? "تم تحديث حالة ذراع التحكم" : "Updated controller status")
+    } catch (err) {
+      console.error("Error updating controller status:", err)
     }
-    setControllers((prev) =>
-      prev.map((ct) => (ct.id === id ? { ...ct, status } : ct)),
-    )
-    toast(isRTL ? "تم تحديث حالة ذراع التحكم" : "Updated controller status")
   }
 
-  function addController() {
+  async function addController() {
     const number = newCtrlId.trim()
     if (!number) return
-    const newCtrl: Controller = {
-      id: `ctrl${Date.now()}`,
-      number,
-      assignedTo: null,
-      status: "working",
+    try {
+      const created = await services.controllerService.addController(number)
+      setControllers((prev) => [...prev, created])
+      setNewCtrlId("")
+      setShowAddCtrl(false)
+      toast(
+        isRTL ? "تمت إضافة ذراع التحكم بنجاح" : "Controller added successfully",
+      )
+    } catch (err) {
+      console.error("Error adding controller:", err)
     }
-    setControllers((prev) => [...prev, newCtrl])
-    services.controllerRepo.save(newCtrl).catch(console.error)
-    setNewCtrlId("")
-    setShowAddCtrl(false)
-    toast(
-      isRTL ? "تمت إضافة ذراع التحكم بنجاح" : "Controller added successfully",
-    )
   }
 
-  function toggleMaintenance(consoleId: number) {
+  async function toggleMaintenance(consoleId: number) {
     const target = consoles.find((c) => c.id === consoleId)
     if (!target) return
     const newStatus =
@@ -145,14 +146,18 @@ export default function Controllers({
     )
   }
 
-  function addRecord() {
+  async function addRecord() {
     if (!form.date || !form.issue) return
-    const record: MaintenanceRecord = { id: `mr${Date.now()}`, ...form }
-    setMaintenanceRecords((prev) => [...prev, record])
-    services.controllerRepo.addMaintenanceRecord(record).catch(console.error)
-    setForm(EMPTY_RECORD)
-    setShowForm(false)
-    toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")
+    try {
+      const created =
+        await services.controllerService.addMaintenanceRecord(form)
+      setMaintenanceRecords((prev) => [...prev, created])
+      setForm(EMPTY_RECORD)
+      setShowForm(false)
+      toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")
+    } catch (err) {
+      console.error("Error adding maintenance record:", err)
+    }
   }
 
   const filteredRecords = maintenanceRecords.filter(

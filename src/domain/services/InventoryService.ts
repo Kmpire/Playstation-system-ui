@@ -91,4 +91,8 @@ export class InventoryService {
     await this.menuRepo.saveCategory(newCat)
     return newCat
   }
+
+  async deleteCategory(catId: string): Promise<void> {
+    await this.menuRepo.deleteCategory?.(catId)
+  }
 }

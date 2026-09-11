@@ -17,6 +17,7 @@ import {
 import type { MenuItem, Category } from "@/domain"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
+import { useServices } from "../context/ServicesContext"
 
 interface CartEntry {
   item: MenuItem
@@ -121,7 +122,18 @@ function ReceiptView({
   )
 }
 
-export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
+export default function POSSales({
+  menuItems,
+  setMenuItems,
+  categories,
+  currentUser,
+  t,
+  isRTL,
+}: Props & {
+  setMenuItems?: React.Dispatch<React.SetStateAction<MenuItem[]>>
+  currentUser?: { name?: string }
+}) {
+  const services = useServices()
   const [selCat, setSelCat] = useState<string>(categories[0]?.id ?? "")
   const [cart, setCart] = useState<CartEntry[]>([])
   const [promoCode, setPromoCode] = useState("")
@@ -164,9 +176,24 @@ export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
     }
   }
 
-  function handleCheckout() {
+  async function handleCheckout() {
     if (cart.length === 0) return
-    setShowReceipt(true)
+    try {
+      await services.posService.processSale(
+        cart,
+        promoApplied ? promoCode : "",
+        (currentUser as any)?.name || "Cashier",
+      )
+      setMenuItems?.((prev) =>
+        prev.map((item) => {
+          const sold = cart.find((c) => c.item.id === item.id)
+          return sold ? { ...item, stock: Math.max(0, item.stock - sold.qty) } : item
+        }),
+      )
+      setShowReceipt(true)
+    } catch (err) {
+      console.error("Error processing sale:", err)
+    }
   }
 
   function handleDone() {

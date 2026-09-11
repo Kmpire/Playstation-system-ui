@@ -177,279 +177,192 @@ export default function ConsoleDashboard({
 
   // ── Session Handlers ────────────────────────────────────────────────────────
 
-  const handleStartSession = (
+  const handleStartSession = async (
     conId: number,
     mode: SessionMode,
     durationMin: number,
     playerType: PlayerType,
   ) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con) return
-
-    const rate = getRate(con.type, playerType)
-    const newSession = {
-      startTime: Date.now(),
-      mode,
-      targetDurationMin: mode === "prepaid" ? durationMin : undefined,
-      playerType,
-      totalPausedMs: 0,
-      priceSegments: [
-        {
-          startElapsedMs: 0,
-          ratePerHour: rate,
-          playerType,
-        },
-      ],
-      tab: [],
+    try {
+      const updatedCon = await services.consoleService.startSession(
+        conId,
+        mode,
+        durationMin,
+        playerType,
+        (currentUser as any)?.name || "Staff",
+      )
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      toast(
+        isRTL
+          ? `تم بدء تشغيل ${updatedCon.name} بنجاح`
+          : `Session started for ${updatedCon.name}`,
+      )
+    } catch (err) {
+      console.error("Error starting session:", err)
     }
-
-    const updatedCon: GameConsole = {
-      ...con,
-      status: "occupied",
-      session: newSession,
-    }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    toast(
-      isRTL
-        ? `تم بدء تشغيل ${con.name} بنجاح`
-        : `Session started for ${con.name}`,
-    )
   }
 
-  const handlePause = (conId: number) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con || !con.session) return
-
-    const updatedCon: GameConsole = {
-      ...con,
-      status: "paused",
-      session: { ...con.session, pausedAt: Date.now() },
+  const handlePause = async (conId: number) => {
+    try {
+      const updatedCon = await services.consoleService.pauseSession(conId)
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
+    } catch (err) {
+      console.error("Error pausing session:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
   }
 
-  const handleResume = (conId: number) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con || !con.session || !con.session.pausedAt) return
-    const pauseDuration = Date.now() - con.session.pausedAt
-
-    const updatedCon: GameConsole = {
-      ...con,
-      status: "occupied",
-      session: {
-        ...con.session,
-        pausedAt: undefined,
-        totalPausedMs: con.session.totalPausedMs + pauseDuration,
-      },
+  const handleResume = async (conId: number) => {
+    try {
+      const updatedCon = await services.consoleService.resumeSession(conId)
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
+    } catch (err) {
+      console.error("Error resuming session:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
   }
 
-  const handleEndSession = (conId: number, finalAmount: number) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con) return
-
-    const updatedCon: GameConsole = {
-      ...con,
-      status: "available",
-      dailyTotal: con.dailyTotal + finalAmount,
-      session: null as any,
+  const handleEndSession = async (conId: number, finalAmount: number) => {
+    try {
+      const updatedCon = await services.consoleService.endSession(
+        conId,
+        finalAmount,
+        (currentUser as any)?.name || "Staff",
+      )
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      alertedSessions.current.delete(conId)
+      setEndSessionCon(null)
+      setExpiredAlertCon(null)
+      toast(
+        isRTL
+          ? `تم إنهاء الجلسة واستلام ${money(finalAmount, isRTL)}`
+          : `Session ended. Collected ${money(finalAmount, isRTL)}`,
+      )
+    } catch (err) {
+      console.error("Error ending session:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    alertedSessions.current.delete(conId)
-    setEndSessionCon(null)
-    setExpiredAlertCon(null)
-
-    services.consoleRepo.save(updatedCon).catch(console.error)
-    services.auditRepo
-      .addLog({
-        id: "a_" + Date.now(),
-        timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
-        staff: "Staff",
-        actionType: "Session Ended",
-        details: `${con.name} ended. Total collected: $${finalAmount.toFixed(2)}`,
-      })
-      .catch(console.error)
-
-    toast(
-      isRTL
-        ? `تم إنهاء الجلسة واستلام ${money(finalAmount, isRTL)}`
-        : `Session ended. Collected ${money(finalAmount, isRTL)}`,
-    )
   }
 
-  const handleTogglePlayer = (conId: number, newPlayerType: PlayerType) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con || !con.session) return
-    const elapsed = getElapsedMs(con.session)
-    const newRate = getRate(con.type, newPlayerType)
-
-    const updatedCon: GameConsole = {
-      ...con,
-      session: {
-        ...con.session,
-        playerType: newPlayerType,
-        priceSegments: [
-          ...con.session.priceSegments,
-          {
-            startElapsedMs: elapsed,
-            ratePerHour: newRate,
-            playerType: newPlayerType,
-          },
-        ],
-      },
+  const handleTogglePlayer = async (conId: number, newPlayerType: PlayerType) => {
+    try {
+      const updatedCon = await services.consoleService.togglePlayerType(
+        conId,
+        newPlayerType,
+      )
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      toast(
+        isRTL
+          ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
+          : `Switched to ${newPlayerType} player rate`,
+      )
+    } catch (err) {
+      console.error("Error toggling player type:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    toast(
-      isRTL
-        ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
-        : `Switched to ${newPlayerType} player rate`,
-    )
   }
 
-  const handleAddToTab = (conId: number, item: MenuItem) => {
+  const handleAddToTab = async (conId: number, item: MenuItem) => {
     if (item.stock <= 0) {
       toast(isRTL ? "الكمية غير كافية في المخزون!" : "Item is out of stock!")
       return
     }
 
-    const con = consoles.find((c) => c.id === conId)
-    if (!con || !con.session) return
+    try {
+      const updatedCon = await services.consoleService.addTabItem(
+        conId,
+        item,
+        1,
+      )
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
 
-    const existing = con.session.tab.find((t) => t.id === item.id)
-    const newTab = existing
-      ? con.session.tab.map((t) =>
-          t.id === item.id ? { ...t, qty: t.qty + 1 } : t,
-        )
-      : [...con.session.tab, { ...item, qty: 1 }]
+      // Deduct stock in inventory
+      const updatedItem = { ...item, stock: Math.max(0, item.stock - 1) }
+      setMenuItems((prev) =>
+        prev.map((i) => (i.id === item.id ? updatedItem : i)),
+      )
+      services.menuRepo.saveItem(updatedItem).catch(console.error)
 
-    const updatedCon: GameConsole = {
-      ...con,
-      session: { ...con.session, tab: newTab },
+      toast(
+        isRTL
+          ? `تمت إضافة ${item.nameAr || item.name} إلى الحساب`
+          : `Added ${item.name} to tab`,
+      )
+    } catch (err) {
+      console.error("Error adding to tab:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    // Deduct stock
-    const updatedItem = { ...item, stock: Math.max(0, item.stock - 1) }
-    setMenuItems((prev) =>
-      prev.map((i) => (i.id === item.id ? updatedItem : i)),
-    )
-    services.menuRepo.saveItem(updatedItem).catch(console.error)
-
-    toast(
-      isRTL
-        ? `تمت إضافة ${item.nameAr || item.name} إلى الحساب`
-        : `Added ${item.name} to tab`,
-    )
   }
 
-  const handleTransfer = (fromId: number, toId: number) => {
-    const fromCon = consoles.find((c) => c.id === fromId)
-    const toCon = consoles.find((c) => c.id === toId)
-    if (!fromCon || !toCon || !fromCon.session || toCon.status !== "available")
-      return
-
-    const fromUpdated: GameConsole = {
-      ...fromCon,
-      status: "available",
-      session: null as any,
+  const handleTransfer = async (fromId: number, toId: number) => {
+    try {
+      const { from, to } = await services.consoleService.transferSession(
+        fromId,
+        toId,
+      )
+      setConsoles((prev) =>
+        prev.map((c) => {
+          if (c.id === fromId) return from
+          if (c.id === toId) return to
+          return c
+        }),
+      )
+      setTransferFromCon(null)
+      toast(
+        isRTL
+          ? `تم نقل الجلسة من ${from.name} إلى ${to.name}`
+          : `Transferred session to ${to.name}`,
+      )
+    } catch (err) {
+      console.error("Error transferring session:", err)
     }
-    const toUpdated: GameConsole = {
-      ...toCon,
-      status: "occupied",
-      session: fromCon.session,
-    }
-
-    setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id === fromId) return fromUpdated
-        if (c.id === toId) return toUpdated
-        return c
-      }),
-    )
-    services.consoleRepo.save(fromUpdated).catch(console.error)
-    services.consoleRepo.save(toUpdated).catch(console.error)
-
-    setTransferFromCon(null)
-    toast(
-      isRTL
-        ? `تم نقل الجلسة من ${fromCon.name} إلى ${toCon.name}`
-        : `Transferred session to ${toCon.name}`,
-    )
   }
 
-  const handleTimeConfirm = (
+  const handleTimeConfirm = async (
     conId: number,
     mode: "edit" | "add",
     minutes: number,
   ) => {
-    const con = consoles.find((c) => c.id === conId)
-    if (!con || !con.session) return
-    const cur = con.session.targetDurationMin ?? 60
-    const elapsedMin = Math.ceil(getElapsedMs(con.session) / 60_000)
-    const newDuration =
-      mode === "edit" ? minutes : Math.max(cur, elapsedMin) + minutes
-
-    const updatedCon: GameConsole = {
-      ...con,
-      session: { ...con.session, targetDurationMin: newDuration },
+    try {
+      const updatedCon = await services.consoleService.editSessionTime(
+        conId,
+        mode,
+        minutes,
+      )
+      setConsoles((prev) =>
+        prev.map((c) => (c.id === conId ? updatedCon : c)),
+      )
+      alertedSessions.current.delete(conId)
+      setTimeModalState(null)
+      setExpiredAlertCon(null)
+      toast(
+        isRTL
+          ? `تم تحديث مدة اللعب بنجاح`
+          : `Updated session time successfully`,
+      )
+    } catch (err) {
+      console.error("Error editing session time:", err)
     }
-
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === conId ? updatedCon : c)),
-    )
-    services.consoleRepo.save(updatedCon).catch(console.error)
-
-    alertedSessions.current.delete(conId)
-    setTimeModalState(null)
-    setExpiredAlertCon(null)
-    toast(
-      isRTL ? `تم تحديث مدة اللعب بنجاح` : `Updated session time successfully`,
-    )
   }
 
-  const handleAddConsole = (name: string, type: ConsoleType) => {
-    const all = consoles
-    const newId = all.length > 0 ? Math.max(...all.map((c) => c.id)) + 1 : 1
-    const newCon: GameConsole = {
-      id: newId,
-      name,
-      type,
-      status: "available",
-      dailyTotal: 0,
+  const handleAddConsole = async (name: string, type: ConsoleType) => {
+    try {
+      const newCon = await services.consoleService.createConsole(name, type)
+      setConsoles((prev) => [...prev, newCon])
+      setIsAddConsoleOpen(false)
+      toast(isRTL ? `تم إضافة ${name} إلى الصالة` : `Added ${name} to lounge`)
+    } catch (err) {
+      console.error("Error adding console:", err)
     }
-    setConsoles((prev) => [...prev, newCon])
-    services.consoleRepo.save(newCon).catch(console.error)
-    toast(isRTL ? `تم إضافة ${name} إلى الصالة` : `Added ${name} to lounge`)
   }
 
   // ── Metrics ────────────────────────────────────────────────────────────────
