@@ -125,9 +125,32 @@ export default function ConsoleDashboard({
 
   // Rate getter
   const getRate = (type: ConsoleType, playerType: PlayerType): number => {
-    const cfg = pricing.find((p) => p.consoleType === type);
-    if (!cfg) return 30;
+    const cfg = pricing.find((p) => p.type === type || (p as any).consoleType === type);
+    if (!cfg) {
+      if (type === 'VIP') return playerType === 'single' ? 60 : 85;
+      if (type === 'PS5') return playerType === 'single' ? 40 : 55;
+      if (type === 'Xbox') return playerType === 'single' ? 30 : 45;
+      return playerType === 'single' ? 25 : 35;
+    }
     return playerType === 'single' ? cfg.singleRate : cfg.multiRate;
+  };
+
+  const handleToggleReserve = (conId: number) => {
+    const target = consoles.find((c) => c.id === conId);
+    if (!target) return;
+    const isNowReserved = target.status !== 'reserved';
+    setConsoles((prev) =>
+      prev.map((c) => (c.id === conId ? { ...c, status: isNowReserved ? 'reserved' : 'available' } : c))
+    );
+    toast(
+      isNowReserved
+        ? isRTL
+          ? `تم حجز ${target.name}`
+          : `Marked ${target.name} as reserved`
+        : isRTL
+        ? `تم إلغاء حجز ${target.name} وأصبح متاحاً`
+        : `Reservation canceled for ${target.name}`
+    );
   };
 
   // ── Session Handlers ────────────────────────────────────────────────────────
@@ -527,6 +550,7 @@ export default function ConsoleDashboard({
                   onTogglePlayer={(pt) => handleTogglePlayer(con.id, pt)}
                   onShowTab={() => setViewTabCon(con)}
                   onEditTime={() => setTimeModalState({ con, mode: 'edit' })}
+                  onToggleReserve={() => handleToggleReserve(con.id)}
                 />
               );
             })}

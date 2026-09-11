@@ -14,6 +14,8 @@ import {
   Tv,
   Crown,
   AlertTriangle,
+  Bookmark,
+  CalendarCheck,
 } from 'lucide-react';
 import type {
   GameConsole,
@@ -85,6 +87,7 @@ interface ConsoleCardProps {
   onTogglePlayer: (pt: PlayerType) => void;
   onShowTab: () => void;
   onEditTime: () => void;
+  onToggleReserve: () => void;
 }
 
 export default function ConsoleCard({
@@ -100,6 +103,7 @@ export default function ConsoleCard({
   onTogglePlayer,
   onShowTab,
   onEditTime,
+  onToggleReserve,
 }: ConsoleCardProps) {
   const elapsed = con.session ? getElapsedMs(con.session) : 0;
   const cost = con.session ? calcCost(con.session, elapsed) : 0;
@@ -125,14 +129,16 @@ export default function ConsoleCard({
     occupied: 'border-[#0070d1]/40 hover:border-[#0070d1]/80 shadow-[0_0_15px_rgba(0,112,209,0.15)] dark:bg-[#0f1422]',
     paused: 'border-amber-500/40 hover:border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.12)] dark:bg-[#15131b]',
     maintenance: 'border-rose-500/25 opacity-75 grayscale-[40%] dark:bg-[#140f12]',
-    reserved: 'border-purple-500/30 hover:border-purple-500/60 dark:bg-[#130f1c]',
+    reserved: 'border-purple-500/40 hover:border-purple-500/70 shadow-[0_0_15px_rgba(168,85,247,0.15)] dark:bg-[#130f1c]',
   };
 
   return (
     <div
       className={`relative rounded-2xl bg-white border p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md ${
         cardBorderConfig[con.status]
-      } ${isExpired ? 'session-expired ring-2 ring-rose-500' : ''}`}
+      } ${con.type === 'VIP' ? 'ring-1 ring-amber-500/30' : ''} ${
+        isExpired ? 'session-expired ring-2 ring-rose-500' : ''
+      }`}
     >
       {/* Top row: Console Name, Type & Status Badge */}
       <div className="flex items-center justify-between gap-2 mb-3">
@@ -141,9 +147,16 @@ export default function ConsoleCard({
             {TYPE_ICONS[con.type]}
           </div>
           <div className="min-w-0">
-            <h4 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate leading-tight">
-              {con.name}
-            </h4>
+            <div className="flex items-center gap-1.5">
+              <h4 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate leading-tight">
+                {con.name}
+              </h4>
+              {con.type === 'VIP' && (
+                <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 text-[10px] font-extrabold border border-amber-500/30 shrink-0">
+                  VIP
+                </span>
+              )}
+            </div>
             <span className="text-[11px] text-slate-400 uppercase font-semibold">
               {con.type}
             </span>
@@ -252,11 +265,28 @@ export default function ConsoleCard({
                   {isRTL ? 'الجهاز قيد الصيانة' : 'Under Maintenance'}
                 </span>
               </div>
+            ) : con.status === 'reserved' ? (
+              <div className="flex flex-col items-center gap-1 text-purple-500">
+                <CalendarCheck className="w-6 h-6 opacity-80" />
+                <span className="text-xs font-bold">
+                  {isRTL ? 'محجوز بانتظار العميل' : 'Reserved for Customer'}
+                </span>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-1 text-slate-400">
-                <Gamepad2 className="w-6 h-6 opacity-40" />
+                {con.type === 'VIP' ? (
+                  <Crown className="w-6 h-6 text-amber-500/70" />
+                ) : (
+                  <Gamepad2 className="w-6 h-6 opacity-40" />
+                )}
                 <span className="text-xs font-medium">
-                  {isRTL ? 'جاهز لبدء جلسة جديدة' : 'Ready to start session'}
+                  {con.type === 'VIP'
+                    ? isRTL
+                      ? 'غرفة VIP جاهزة للحجز أو اللعب'
+                      : 'VIP Room ready for session'
+                    : isRTL
+                    ? 'جاهز لبدء جلسة جديدة'
+                    : 'Ready to start session'}
                 </span>
               </div>
             )}
@@ -267,15 +297,48 @@ export default function ConsoleCard({
       {/* Bottom Actions */}
       <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 flex-wrap">
         {con.status === 'available' && (
-          <Button
-            variant="primary"
-            size="sm"
-            fullWidth
-            icon={<Play className="w-3.5 h-3.5" />}
-            onClick={onSelect}
-          >
-            {isRTL ? 'بدء جلسة' : 'Start Session'}
-          </Button>
+          <div className="flex items-center gap-1.5 w-full">
+            <Button
+              variant="primary"
+              size="sm"
+              className="flex-1"
+              icon={<Play className="w-3.5 h-3.5" />}
+              onClick={onSelect}
+            >
+              {isRTL ? 'بدء جلسة' : 'Start Session'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Bookmark className="w-3.5 h-3.5 text-purple-500" />}
+              onClick={onToggleReserve}
+              title={isRTL ? 'حجز الجهاز' : 'Mark as Reserved'}
+            >
+              {isRTL ? 'حجز' : 'Reserve'}
+            </Button>
+          </div>
+        )}
+
+        {con.status === 'reserved' && (
+          <div className="flex items-center gap-1.5 w-full">
+            <Button
+              variant="primary"
+              size="sm"
+              className="flex-1"
+              icon={<Play className="w-3.5 h-3.5" />}
+              onClick={onSelect}
+            >
+              {isRTL ? 'بدء الجلسة المحجوزة' : 'Start Reserved'}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={onToggleReserve}
+              title={isRTL ? 'إلغاء الحجز وجعله متاحاً' : 'Cancel reservation'}
+            >
+              {isRTL ? 'إلغاء' : 'Cancel'}
+            </Button>
+          </div>
         )}
 
         {con.status === 'occupied' && (

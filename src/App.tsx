@@ -188,6 +188,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <Navbar
           screen={screen}
+          setScreen={setScreen}
           theme={theme}
           setTheme={setTheme}
           lang={lang}
@@ -197,7 +198,7 @@ export default function App() {
           role={role}
           onLogout={() => { setCurrentUser(null); setScreen('dashboard'); }}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          lowStockCount={lowStockItems.length}
+          lowStockItems={lowStockItems}
           t={t}
         />
 
