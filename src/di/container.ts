@@ -1,14 +1,24 @@
 import {
-  LocalStorageConsoleRepository,
-  LocalStorageMenuRepository,
-  LocalStoragePricingRepository,
-  LocalStorageControllerRepository,
-  LocalStorageShiftRepository,
-  LocalStorageAuthRepository,
-  LocalStorageAuditRepository,
-  LocalStorageCompanyRepository,
+  ApiConsoleRepository,
+  ApiMenuRepository,
+  ApiPricingRepository,
+  ApiControllerRepository,
+  ApiShiftRepository,
+  ApiAuthRepository,
+  ApiAuditRepository,
+  ApiCompanyRepository,
   storageClient,
 } from "../data"
+import type {
+  IConsoleRepository,
+  IMenuRepository,
+  IPricingRepository,
+  IControllerRepository,
+  IShiftRepository,
+  IAuthRepository,
+  IAuditRepository,
+  ICompanyRepository,
+} from "../domain/repositories"
 import {
   ConsoleService,
   POSService,
@@ -22,14 +32,14 @@ import {
 
 export interface AppServices {
   // Repositories
-  consoleRepo: LocalStorageConsoleRepository
-  menuRepo: LocalStorageMenuRepository
-  pricingRepo: LocalStoragePricingRepository
-  controllerRepo: LocalStorageControllerRepository
-  shiftRepo: LocalStorageShiftRepository
-  authRepo: LocalStorageAuthRepository
-  auditRepo: LocalStorageAuditRepository
-  companyRepo: LocalStorageCompanyRepository
+  consoleRepo: IConsoleRepository & { resetToDefaults?: () => Promise<unknown> }
+  menuRepo: IMenuRepository & { resetToDefaults?: () => Promise<unknown> }
+  pricingRepo: IPricingRepository & { resetToDefaults?: () => Promise<unknown> }
+  controllerRepo: IControllerRepository & { resetToDefaults?: () => Promise<unknown> }
+  shiftRepo: IShiftRepository & { resetToDefaults?: () => Promise<unknown> }
+  authRepo: IAuthRepository & { resetToDefaults?: () => Promise<unknown> }
+  auditRepo: IAuditRepository & { resetToDefaults?: () => Promise<unknown> }
+  companyRepo: ICompanyRepository
 
   // Domain Services
   consoleService: ConsoleService
@@ -46,15 +56,15 @@ export interface AppServices {
 }
 
 export function createContainer(): AppServices {
-  // 1. Repositories
-  const consoleRepo = new LocalStorageConsoleRepository()
-  const menuRepo = new LocalStorageMenuRepository()
-  const pricingRepo = new LocalStoragePricingRepository()
-  const controllerRepo = new LocalStorageControllerRepository()
-  const shiftRepo = new LocalStorageShiftRepository()
-  const authRepo = new LocalStorageAuthRepository()
-  const auditRepo = new LocalStorageAuditRepository()
-  const companyRepo = new LocalStorageCompanyRepository()
+  // 1. Repositories (HTTP API backed by Neon PostgreSQL)
+  const consoleRepo = new ApiConsoleRepository()
+  const menuRepo = new ApiMenuRepository()
+  const pricingRepo = new ApiPricingRepository()
+  const controllerRepo = new ApiControllerRepository()
+  const shiftRepo = new ApiShiftRepository()
+  const authRepo = new ApiAuthRepository()
+  const auditRepo = new ApiAuditRepository()
+  const companyRepo = new ApiCompanyRepository()
 
   // 2. Services
   const auditService = new AuditService(auditRepo)
