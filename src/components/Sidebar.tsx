@@ -85,7 +85,7 @@ export default function Sidebar({
       <aside
         className={`fixed lg:static top-0 bottom-0 ${
           isRTL ? 'right-0' : 'left-0'
-        } z-40 w-64 shrink-0 bg-[#07090e] border-e border-[#1a2233] flex flex-col h-full transition-transform duration-300 ease-in-out ${
+        } z-40 w-64 shrink-0 bg-white dark:bg-[#07090e] border-e border-slate-200 dark:border-[#1a2233] flex flex-col h-full transition-transform duration-300 ease-in-out ${
           mobileOpen
             ? 'translate-x-0 shadow-2xl'
             : isRTL
@@ -94,16 +94,16 @@ export default function Sidebar({
         }`}
       >
         {/* Brand Header */}
-        <div className="p-4 border-b border-[#1a2233] flex items-center justify-between">
+        <div className="p-4 border-b border-slate-200 dark:border-[#1a2233] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0070d1] to-[#00a2ff] text-white flex items-center justify-center shadow-lg shadow-[#0070d1]/30">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0070d1] to-[#00a2ff] text-white flex items-center justify-center shadow-lg shadow-[#0070d1]/30 shrink-0">
               <Gamepad2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-white font-bold text-base tracking-wide flex items-center gap-1.5">
-                PS Café <span className="text-[10px] px-1.5 py-0.2 bg-[#0070d1]/30 text-sky-400 rounded-md">PRO</span>
+              <div className="text-slate-900 dark:text-white font-bold text-base tracking-wide flex items-center gap-1.5">
+                PS Café <span className="text-[10px] px-1.5 py-0.5 bg-[#0070d1]/15 text-[#0070d1] dark:bg-[#0070d1]/30 dark:text-sky-400 font-bold rounded-md">PRO</span>
               </div>
-              <div className="text-slate-400 text-xs truncate max-w-[130px]">
+              <div className="text-slate-500 dark:text-slate-400 text-xs truncate max-w-[130px]">
                 {currentUser.name}
               </div>
             </div>
@@ -113,7 +113,7 @@ export default function Sidebar({
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60"
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -133,13 +133,13 @@ export default function Sidebar({
                 onClick={() => handleNavClick(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-start group ${
                   active
-                    ? 'bg-[#0070d1] text-white shadow-md shadow-[#0070d1]/30 font-semibold'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-[#121724]'
+                    ? 'bg-[#0070d1] text-white shadow-md shadow-[#0070d1]/25 font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-[#121724]'
                 }`}
               >
                 <Icon
                   className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
-                    active ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                    active ? 'text-white' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200'
                   }`}
                 />
                 <span className="truncate flex-1">{label}</span>
@@ -149,7 +149,7 @@ export default function Sidebar({
                     className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                       active
                         ? 'bg-white text-[#0070d1]'
-                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-300 dark:border-amber-500/30'
                     }`}
                   >
                     {lowStockCount}
@@ -163,8 +163,8 @@ export default function Sidebar({
         </nav>
 
         {/* Footer info */}
-        <div className="p-3 border-t border-[#1a2233] text-center">
-          <div className="text-[11px] text-slate-500">
+        <div className="p-3 border-t border-slate-200 dark:border-[#1a2233] text-center">
+          <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
             PlayStation Cafe System v2.0
           </div>
         </div>

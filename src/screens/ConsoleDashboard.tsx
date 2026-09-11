@@ -391,9 +391,9 @@ export default function ConsoleDashboard({
   });
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#07090e] p-4 sm:p-6 select-none">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] p-4 sm:p-6 select-none">
       {/* Top Header & Fast Metric Cards */}
-      <div className="shrink-0 space-y-4 mb-4">
+      <div className="space-y-4 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5">
@@ -518,7 +518,7 @@ export default function ConsoleDashboard({
       </div>
 
       {/* Main Console Cards Grid - Fully Responsive */}
-      <div className="flex-1 overflow-y-auto pr-1 pb-16 lg:pb-4">
+      <div className="pb-24 lg:pb-8">
         {filteredConsoles.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-400">
             <Gamepad2 className="w-12 h-12 stroke-1 opacity-40 mb-2" />
