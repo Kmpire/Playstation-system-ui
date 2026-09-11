@@ -3,6 +3,7 @@ import type { AuditEntry, UserRole, ShiftReport } from "@/domain"
 import type { Account } from "../../domain"
 import { money } from "@/domain"
 import { todayKey } from "@/domain"
+import { useServices } from "../context/ServicesContext"
 
 interface Props {
   auditLog: AuditEntry[]
@@ -40,6 +41,7 @@ type SubTab = "staff" | "shift" | "audit"
 let srSeq = 500
 
 export default function StaffShifts(props: Props) {
+  const services = useServices()
   const { auditLog, role, setShiftReports, currentUser, toast, isRTL } = props
   const consoles = (props.consoles || []) as any[]
   const liveCash = consoles.reduce((sum, c) => sum + (c.dailyTotal || 0), 0)
@@ -60,7 +62,7 @@ export default function StaffShifts(props: Props) {
     if (!countedCash) return
     const counted = parseFloat(countedCash)
     const report: ShiftReport = {
-      id: `sr${srSeq++}`,
+      id: `sr${Date.now()}`,
       date: todayKey(),
       staff: currentUser.role === "admin" ? "Admin" : "Cashier",
       countedCash: counted,
@@ -69,6 +71,7 @@ export default function StaffShifts(props: Props) {
       notes,
     }
     setShiftReports((prev) => [report, ...prev])
+    services.shiftRepo.addShiftReport(report).catch(console.error)
     setSubmitted(true)
     setTimeout(() => setSubmitted(false), 3000)
     setCountedCash("")

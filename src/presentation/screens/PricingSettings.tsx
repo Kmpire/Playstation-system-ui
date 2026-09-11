@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { PricingConfig, ConsoleType } from "@/domain"
 import { money } from "@/domain"
+import { useServices } from "../context/ServicesContext"
 
 interface Props {
   pricing: PricingConfig[]
@@ -48,6 +49,7 @@ export default function PricingSettings({
   t,
   isRTL,
 }: Props) {
+  const services = useServices()
   const [draft, setDraft] = useState<PricingConfig[]>(
     pricing.map((p) => ({ ...p })),
   )
@@ -68,7 +70,9 @@ export default function PricingSettings({
   }
 
   function save() {
-    setPricing(draft.map((p) => ({ ...p })))
+    const updated = draft.map((p) => ({ ...p }))
+    setPricing(updated)
+    services.pricingRepo.saveAll(updated).catch(console.error)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }

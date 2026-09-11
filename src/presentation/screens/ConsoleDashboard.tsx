@@ -39,6 +39,7 @@ import TransferModal from "./dashboard/modals/TransferModal"
 import EditTimeModal from "./dashboard/modals/EditTimeModal"
 import AddConsoleModal from "./dashboard/modals/AddConsoleModal"
 import ExpiredAlertModal from "./dashboard/modals/ExpiredAlertModal"
+import { useServices } from "@/presentation/context/ServicesContext"
 
 interface Props {
   consoles: GameConsole[]
@@ -64,6 +65,7 @@ export default function ConsoleDashboard({
   isRTL,
   theme,
 }: Props) {
+  const services = useServices()
   const [, setTick] = useState(0)
   const [filter, setFilter] = useState<"all" | ConsoleStatus>("all")
   const [typeFilter, setTypeFilter] = useState<"all" | ConsoleType>("all")
@@ -121,6 +123,7 @@ export default function ConsoleDashboard({
   useEffect(() => {
     for (const con of consoles) {
       if (
+        con.status === "occupied" &&
         con.session &&
         con.session.mode === "prepaid" &&
         con.session.targetDurationMin != null
@@ -200,11 +203,17 @@ export default function ConsoleDashboard({
       tab: [],
     }
 
+    const updatedCon: GameConsole = {
+      ...con,
+      status: "occupied",
+      session: newSession,
+    }
+
     setConsoles((prev) =>
-      prev.map((c) =>
-        c.id === conId ? { ...c, status: "occupied", session: newSession } : c,
-      ),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
+
     toast(
       isRTL
         ? `تم بدء تشغيل ${con.name} بنجاح`
@@ -213,53 +222,75 @@ export default function ConsoleDashboard({
   }
 
   const handlePause = (conId: number) => {
+    const con = consoles.find((c) => c.id === conId)
+    if (!con || !con.session) return
+
+    const updatedCon: GameConsole = {
+      ...con,
+      status: "paused",
+      session: { ...con.session, pausedAt: Date.now() },
+    }
+
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId || !c.session) return c
-        return {
-          ...c,
-          status: "paused",
-          session: { ...c.session, pausedAt: Date.now() },
-        }
-      }),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
+
     toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
   }
 
   const handleResume = (conId: number) => {
+    const con = consoles.find((c) => c.id === conId)
+    if (!con || !con.session || !con.session.pausedAt) return
+    const pauseDuration = Date.now() - con.session.pausedAt
+
+    const updatedCon: GameConsole = {
+      ...con,
+      status: "occupied",
+      session: {
+        ...con.session,
+        pausedAt: undefined,
+        totalPausedMs: con.session.totalPausedMs + pauseDuration,
+      },
+    }
+
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId || !c.session || !c.session.pausedAt) return c
-        const pauseDuration = Date.now() - c.session.pausedAt
-        return {
-          ...c,
-          status: "occupied",
-          session: {
-            ...c.session,
-            pausedAt: undefined,
-            totalPausedMs: c.session.totalPausedMs + pauseDuration,
-          },
-        }
-      }),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
+
     toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
   }
 
   const handleEndSession = (conId: number, finalAmount: number) => {
+    const con = consoles.find((c) => c.id === conId)
+    if (!con) return
+
+    const updatedCon: GameConsole = {
+      ...con,
+      status: "available",
+      dailyTotal: con.dailyTotal + finalAmount,
+      session: null as any,
+    }
+
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId) return c
-        return {
-          ...c,
-          status: "available",
-          dailyTotal: c.dailyTotal + finalAmount,
-          session: undefined,
-        }
-      }),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
     alertedSessions.current.delete(conId)
     setEndSessionCon(null)
     setExpiredAlertCon(null)
+
+    services.consoleRepo.save(updatedCon).catch(console.error)
+    services.auditRepo
+      .addLog({
+        id: "a_" + Date.now(),
+        timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+        staff: "Staff",
+        actionType: "Session Ended",
+        details: `${con.name} ended. Total collected: $${finalAmount.toFixed(2)}`,
+      })
+      .catch(console.error)
+
     toast(
       isRTL
         ? `تم إنهاء الجلسة واستلام ${money(finalAmount, isRTL)}`
@@ -268,28 +299,32 @@ export default function ConsoleDashboard({
   }
 
   const handleTogglePlayer = (conId: number, newPlayerType: PlayerType) => {
-    setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId || !c.session) return c
-        const elapsed = getElapsedMs(c.session)
-        const newRate = getRate(c.type, newPlayerType)
-        return {
-          ...c,
-          session: {
-            ...c.session,
+    const con = consoles.find((c) => c.id === conId)
+    if (!con || !con.session) return
+    const elapsed = getElapsedMs(con.session)
+    const newRate = getRate(con.type, newPlayerType)
+
+    const updatedCon: GameConsole = {
+      ...con,
+      session: {
+        ...con.session,
+        playerType: newPlayerType,
+        priceSegments: [
+          ...con.session.priceSegments,
+          {
+            startElapsedMs: elapsed,
+            ratePerHour: newRate,
             playerType: newPlayerType,
-            priceSegments: [
-              ...c.session.priceSegments,
-              {
-                startElapsedMs: elapsed,
-                ratePerHour: newRate,
-                playerType: newPlayerType,
-              },
-            ],
           },
-        }
-      }),
+        ],
+      },
+    }
+
+    setConsoles((prev) =>
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
+
     toast(
       isRTL
         ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
@@ -303,28 +338,32 @@ export default function ConsoleDashboard({
       return
     }
 
+    const con = consoles.find((c) => c.id === conId)
+    if (!con || !con.session) return
+
+    const existing = con.session.tab.find((t) => t.id === item.id)
+    const newTab = existing
+      ? con.session.tab.map((t) =>
+          t.id === item.id ? { ...t, qty: t.qty + 1 } : t,
+        )
+      : [...con.session.tab, { ...item, qty: 1 }]
+
+    const updatedCon: GameConsole = {
+      ...con,
+      session: { ...con.session, tab: newTab },
+    }
+
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId || !c.session) return c
-        const existing = c.session.tab.find((t) => t.id === item.id)
-        const newTab = existing
-          ? c.session.tab.map((t) =>
-              t.id === item.id ? { ...t, qty: t.qty + 1 } : t,
-            )
-          : [...c.session.tab, { ...item, qty: 1 }]
-        return {
-          ...c,
-          session: { ...c.session, tab: newTab },
-        }
-      }),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
 
     // Deduct stock
+    const updatedItem = { ...item, stock: Math.max(0, item.stock - 1) }
     setMenuItems((prev) =>
-      prev.map((i) =>
-        i.id === item.id ? { ...i, stock: Math.max(0, i.stock - 1) } : i,
-      ),
+      prev.map((i) => (i.id === item.id ? updatedItem : i)),
     )
+    services.menuRepo.saveItem(updatedItem).catch(console.error)
 
     toast(
       isRTL
@@ -339,17 +378,26 @@ export default function ConsoleDashboard({
     if (!fromCon || !toCon || !fromCon.session || toCon.status !== "available")
       return
 
+    const fromUpdated: GameConsole = {
+      ...fromCon,
+      status: "available",
+      session: null as any,
+    }
+    const toUpdated: GameConsole = {
+      ...toCon,
+      status: "occupied",
+      session: fromCon.session,
+    }
+
     setConsoles((prev) =>
       prev.map((c) => {
-        if (c.id === fromId) {
-          return { ...c, status: "available", session: undefined }
-        }
-        if (c.id === toId) {
-          return { ...c, status: "occupied", session: fromCon.session }
-        }
+        if (c.id === fromId) return fromUpdated
+        if (c.id === toId) return toUpdated
         return c
       }),
     )
+    services.consoleRepo.save(fromUpdated).catch(console.error)
+    services.consoleRepo.save(toUpdated).catch(console.error)
 
     setTransferFromCon(null)
     toast(
@@ -364,17 +412,22 @@ export default function ConsoleDashboard({
     mode: "edit" | "add",
     minutes: number,
   ) => {
+    const con = consoles.find((c) => c.id === conId)
+    if (!con || !con.session) return
+    const cur = con.session.targetDurationMin ?? 60
+    const elapsedMin = Math.ceil(getElapsedMs(con.session) / 60_000)
+    const newDuration =
+      mode === "edit" ? minutes : Math.max(cur, elapsedMin) + minutes
+
+    const updatedCon: GameConsole = {
+      ...con,
+      session: { ...con.session, targetDurationMin: newDuration },
+    }
+
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== conId || !c.session) return c
-        const cur = c.session.targetDurationMin ?? 60
-        const newDuration = mode === "edit" ? minutes : cur + minutes
-        return {
-          ...c,
-          session: { ...c.session, targetDurationMin: newDuration },
-        }
-      }),
+      prev.map((c) => (c.id === conId ? updatedCon : c)),
     )
+    services.consoleRepo.save(updatedCon).catch(console.error)
 
     alertedSessions.current.delete(conId)
     setTimeModalState(null)
@@ -385,14 +438,17 @@ export default function ConsoleDashboard({
   }
 
   const handleAddConsole = (name: string, type: ConsoleType) => {
+    const all = consoles
+    const newId = all.length > 0 ? Math.max(...all.map((c) => c.id)) + 1 : 1
     const newCon: GameConsole = {
-      id: Date.now(),
+      id: newId,
       name,
       type,
       status: "available",
       dailyTotal: 0,
     }
     setConsoles((prev) => [...prev, newCon])
+    services.consoleRepo.save(newCon).catch(console.error)
     toast(isRTL ? `تم إضافة ${name} إلى الصالة` : `Added ${name} to lounge`)
   }
 

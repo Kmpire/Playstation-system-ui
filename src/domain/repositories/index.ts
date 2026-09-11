@@ -27,6 +27,7 @@ export interface IMenuRepository {
   getCategories(): Promise<Category[]>
   saveCategory(cat: Category): Promise<void>
   saveAllCategories(categories: Category[]): Promise<void>
+  deleteCategory?(id: string): Promise<void>
 }
 
 export interface IPricingRepository {
@@ -38,6 +39,7 @@ export interface IControllerRepository {
   getAll(): Promise<Controller[]>
   save(controller: Controller): Promise<void>
   saveAll(controllers: Controller[]): Promise<void>
+  delete?(id: string): Promise<void>
   getMaintenanceRecords(): Promise<MaintenanceRecord[]>
   addMaintenanceRecord(record: MaintenanceRecord): Promise<void>
   saveAllMaintenanceRecords(records: MaintenanceRecord[]): Promise<void>

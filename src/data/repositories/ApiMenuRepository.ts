@@ -45,6 +45,12 @@ export class ApiMenuRepository implements IMenuRepository {
     })
   }
 
+  async deleteCategory(id: string): Promise<void> {
+    await apiClient<void>(`/menu/categories/${id}`, {
+      method: "DELETE",
+    })
+  }
+
   async resetToDefaults(): Promise<void> {
     await apiClient<void>("/menu/items/reset", { method: "POST" })
     await apiClient<void>("/menu/categories/reset", { method: "POST" })

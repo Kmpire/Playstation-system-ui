@@ -18,6 +18,7 @@ import type {
 import { money } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { useServices } from "../context/ServicesContext"
 
 const CTRL_STATUS: {
   id: ControllerStatus
@@ -87,6 +88,7 @@ export default function Controllers({
   toast,
   isRTL,
 }: Props) {
+  const services = useServices()
   const [subTab, setSubTab] = useState<SubTab>("controllers")
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_RECORD)
@@ -95,6 +97,11 @@ export default function Controllers({
   const [newCtrlId, setNewCtrlId] = useState("")
 
   function setStatus(id: string, status: ControllerStatus) {
+    const target = controllers.find((ct) => ct.id === id)
+    if (target) {
+      const updated = { ...target, status }
+      services.controllerRepo.save(updated).catch(console.error)
+    }
     setControllers((prev) =>
       prev.map((ct) => (ct.id === id ? { ...ct, status } : ct)),
     )
@@ -104,10 +111,14 @@ export default function Controllers({
   function addController() {
     const number = newCtrlId.trim()
     if (!number) return
-    setControllers((prev) => [
-      ...prev,
-      { id: `ctrl${nextId++}`, number, assignedTo: null, status: "working" },
-    ])
+    const newCtrl: Controller = {
+      id: `ctrl${Date.now()}`,
+      number,
+      assignedTo: null,
+      status: "working",
+    }
+    setControllers((prev) => [...prev, newCtrl])
+    services.controllerRepo.save(newCtrl).catch(console.error)
     setNewCtrlId("")
     setShowAddCtrl(false)
     toast(
@@ -116,18 +127,19 @@ export default function Controllers({
   }
 
   function toggleMaintenance(consoleId: number) {
+    const target = consoles.find((c) => c.id === consoleId)
+    if (!target) return
+    const newStatus =
+      target.status === "maintenance" ? "available" : "maintenance"
+    const updated: GameConsole = {
+      ...target,
+      status: newStatus,
+      session: newStatus === "maintenance" ? null as any : target.session,
+    }
     setConsoles((prev) =>
-      prev.map((c) => {
-        if (c.id !== consoleId) return c
-        const newStatus =
-          c.status === "maintenance" ? "available" : "maintenance"
-        return {
-          ...c,
-          status: newStatus,
-          session: newStatus === "maintenance" ? undefined : c.session,
-        }
-      }),
+      prev.map((c) => (c.id === consoleId ? updated : c)),
     )
+    services.consoleRepo.save(updated).catch(console.error)
     toast(
       isRTL ? "تم تغيير وضع صيانة الجهاز" : "Toggled console maintenance mode",
     )
@@ -135,7 +147,9 @@ export default function Controllers({
 
   function addRecord() {
     if (!form.date || !form.issue) return
-    setMaintenanceRecords((prev) => [...prev, { id: `mr${nextId++}`, ...form }])
+    const record: MaintenanceRecord = { id: `mr${Date.now()}`, ...form }
+    setMaintenanceRecords((prev) => [...prev, record])
+    services.controllerRepo.addMaintenanceRecord(record).catch(console.error)
     setForm(EMPTY_RECORD)
     setShowForm(false)
     toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")

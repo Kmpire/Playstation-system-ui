@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { MenuItem, Category } from "@/domain"
 import { money } from "@/domain"
+import { useServices } from "../context/ServicesContext"
 
 interface Props {
   menuItems: MenuItem[]
@@ -32,6 +33,7 @@ export default function MenuManagement({
   t,
   isRTL,
 }: Props) {
+  const services = useServices()
   const [editItem, setEditItem] = useState<MenuItem | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Omit<MenuItem, "id">>(EMPTY_ITEM)
@@ -64,33 +66,35 @@ export default function MenuManagement({
 
   function saveItem() {
     if (!formData.name || !formData.category) return
+    const item: MenuItem = editItem
+      ? { ...editItem, ...formData }
+      : { id: `m${Date.now()}`, ...formData }
     if (editItem) {
       setMenuItems((prev) =>
-        prev.map((i) =>
-          i.id === editItem.id ? { ...editItem, ...formData } : i,
-        ),
+        prev.map((i) => (i.id === editItem.id ? item : i)),
       )
     } else {
-      setMenuItems((prev) => [...prev, { id: `m${nextId++}`, ...formData }])
+      setMenuItems((prev) => [...prev, item])
     }
+    services.menuRepo.saveItem(item).catch(console.error)
     setShowForm(false)
   }
 
   function deleteItem(id: string) {
     setMenuItems((prev) => prev.filter((i) => i.id !== id))
+    services.menuRepo.deleteItem(id).catch(console.error)
     setDeleteConfirm(null)
   }
 
   function addCategory() {
     if (!catInput.trim()) return
-    setCategories((prev) => [
-      ...prev,
-      {
-        id: `cat${nextId++}`,
-        name: catInput.trim(),
-        nameAr: catInputAr.trim() || catInput.trim(),
-      },
-    ])
+    const newCat: Category = {
+      id: `cat${Date.now()}`,
+      name: catInput.trim(),
+      nameAr: catInputAr.trim() || catInput.trim(),
+    }
+    setCategories((prev) => [...prev, newCat])
+    services.menuRepo.saveCategory(newCat).catch(console.error)
     setCatInput("")
     setCatInputAr("")
     setShowCatForm(false)
@@ -98,6 +102,7 @@ export default function MenuManagement({
 
   function deleteCategory(id: string) {
     setCategories((prev) => prev.filter((c) => c.id !== id))
+    services.menuRepo.deleteCategory?.(id)?.catch(console.error)
   }
 
   const filtered = menuItems

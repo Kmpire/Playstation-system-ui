@@ -16,16 +16,24 @@ export class ApiConsoleRepository implements IConsoleRepository {
   }
 
   async save(console: GameConsole): Promise<void> {
+    const payload = {
+      ...console,
+      session: console.session ?? null,
+    }
     await apiClient<GameConsole>("/consoles", {
       method: "POST",
-      body: JSON.stringify(console),
+      body: JSON.stringify(payload),
     })
   }
 
   async saveAll(consoles: GameConsole[]): Promise<void> {
+    const payload = consoles.map((c) => ({
+      ...c,
+      session: c.session ?? null,
+    }))
     await apiClient<GameConsole[]>("/consoles/batch", {
       method: "POST",
-      body: JSON.stringify(consoles),
+      body: JSON.stringify(payload),
     })
   }
 
