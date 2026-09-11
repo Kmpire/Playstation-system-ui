@@ -2,8 +2,6 @@ import type { UserAccount } from "../../domain/models/types"
 import type { IAuthRepository } from "../../domain/repositories"
 import { apiClient, setAuthToken } from "../api/apiClient"
 
-const CURRENT_USER_KEY = "ps_current_user_data"
-
 export class ApiAuthRepository implements IAuthRepository {
   async getAccounts(): Promise<UserAccount[]> {
     return apiClient<UserAccount[]>("/auth/accounts")
@@ -51,8 +49,6 @@ export class ApiAuthRepository implements IAuthRepository {
 
   async getCurrentUser(): Promise<UserAccount | null> {
     try {
-      const stored = localStorage.getItem(CURRENT_USER_KEY)
-      if (stored) return JSON.parse(stored)
       const res = await apiClient<{ user: UserAccount }>("/auth/me")
       return res.user || (res as unknown as UserAccount) || null
     } catch {
@@ -61,15 +57,8 @@ export class ApiAuthRepository implements IAuthRepository {
   }
 
   async setCurrentUser(user: UserAccount | null): Promise<void> {
-    try {
-      if (user) {
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
-      } else {
-        localStorage.removeItem(CURRENT_USER_KEY)
-        setAuthToken(null)
-      }
-    } catch {
-      // Ignore
+    if (!user) {
+      setAuthToken(null)
     }
   }
 
