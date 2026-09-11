@@ -25,15 +25,19 @@ type SubTab = 'staff' | 'shift' | 'audit';
 
 let srSeq = 500;
 
-export default function StaffShifts({ auditLog, role, setShiftReports, currentUser, toast, isRTL }: Props) {
-  const [subTab, setSubTab] = useState<SubTab>('staff');
+export default function StaffShifts(props: Props) {
+  const { auditLog, role, setShiftReports, currentUser, toast, isRTL } = props;
+  const consoles = (props.consoles || []) as any[];
+  const liveCash = consoles.reduce((sum, c) => sum + (c.dailyTotal || 0), 0);
+  const expectedCash = liveCash > 0 ? liveCash : 892.75;
+
+  const [subTab, setSubTab] = useState<SubTab>(role === 'admin' ? 'staff' : 'shift');
   const [countedCash, setCountedCash] = useState('');
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [filterStaff, setFilterStaff] = useState('');
   const [filterAction, setFilterAction] = useState('');
 
-  const expectedCash = 892.75;
   const variance = parseFloat(countedCash || '0') - expectedCash;
 
   function submitShift() {
@@ -63,29 +67,41 @@ export default function StaffShifts({ auditLog, role, setShiftReports, currentUs
 
   const actionTypes = [...new Set(auditLog.map(e => e.actionType))];
 
-  const TABS: { id: SubTab; label: string; labelAr: string }[] = [
+  const TABS: { id: SubTab; label: string; labelAr: string }[] = role === 'admin' ? [
     { id: 'staff', label: 'Staff', labelAr: 'الموظفون' },
     { id: 'shift', label: 'Shift Handover', labelAr: 'تسليم الوردية' },
-    ...(role === 'admin' ? [{ id: 'audit' as SubTab, label: 'Audit Trail', labelAr: 'سجل المراجعة' }] : []),
+    { id: 'audit', label: 'Audit Trail', labelAr: 'سجل المراجعة' },
+  ] : [
+    { id: 'shift', label: 'Shift Handover', labelAr: 'تسليم الوردية' },
   ];
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
       {/* Header */}
       <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4">
-        <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{isRTL ? 'الموظفون والورديات' : 'Staff & Shifts'}</h1>
-        <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">{isRTL ? 'إدارة الموظفين والورديات وسجل المراجعة' : 'Staff management, shift handover, and audit trail'}</p>
+        <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {role === 'admin'
+            ? (isRTL ? 'الموظفون والورديات' : 'Staff & Shifts')
+            : (isRTL ? 'تسليم الوردية' : 'Shift Handover')}
+        </h1>
+        <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">
+          {role === 'admin'
+            ? (isRTL ? 'إدارة الموظفين والورديات وسجل المراجعة' : 'Staff management, shift handover, and audit trail')
+            : (isRTL ? 'تسجيل النقدية الفعلية وإرسال تقرير تقفيل الوردية' : 'Count drawer cash and submit end-of-shift report')}
+        </p>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 overflow-x-auto scrollbar-none">
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setSubTab(tab.id)}
-            className={`px-4 sm:px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${subTab === tab.id ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-            {isRTL ? tab.labelAr : tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Sub-tabs (only if multiple tabs exist) */}
+      {TABS.length > 1 && (
+        <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 overflow-x-auto scrollbar-none">
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setSubTab(tab.id)}
+              className={`px-4 sm:px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${subTab === tab.id ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+              {isRTL ? tab.labelAr : tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="p-4 sm:p-6 pb-24 lg:pb-8">
         {/* Staff list */}

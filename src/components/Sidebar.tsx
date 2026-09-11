@@ -33,7 +33,7 @@ const NAV: NavItem[] = [
   { id: 'menu', icon: UtensilsCrossed, enLabel: 'Menu Management', arLabel: 'قائمة الطلبات' },
   { id: 'pricing', icon: Tag, enLabel: 'Pricing Rates', arLabel: 'أسعار الألعاب', adminOnly: true },
   { id: 'reports', icon: BarChart3, enLabel: 'Reports & Analytics', arLabel: 'التقارير المالية', adminOnly: true },
-  { id: 'staff', icon: Users, enLabel: 'Staff & Shifts', arLabel: 'الموظفون والورديات', adminOnly: true },
+  { id: 'staff', icon: Clock, enLabel: 'Staff & Shifts', arLabel: 'الموظفون والورديات' },
   { id: 'shiftReports', icon: Clock, enLabel: 'Shift Reports', arLabel: 'تقارير الورديات', adminOnly: true },
   { id: 'inventory', icon: Boxes, enLabel: 'Inventory & Stock', arLabel: 'إدارة المخزون' },
   { id: 'controllers', icon: Gamepad2, enLabel: 'Controllers & Maint.', arLabel: 'الأذرع والصيانة' },
@@ -125,7 +125,9 @@ export default function Sidebar({
           {NAV.filter((item) => !item.adminOnly || role === 'admin').map((item) => {
             const active = screen === item.id;
             const Icon = item.icon;
-            const label = isRTL ? item.arLabel : item.enLabel;
+            const label = isRTL
+              ? (item.id === 'staff' && role === 'cashier' ? 'تسليم الوردية' : item.arLabel)
+              : (item.id === 'staff' && role === 'cashier' ? 'Shift Handover' : item.enLabel);
 
             return (
               <button

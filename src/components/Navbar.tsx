@@ -68,8 +68,8 @@ export default function Navbar({
   };
 
   const currentTitle = isRTL
-    ? SCREEN_NAMES[screen]?.ar || screen
-    : SCREEN_NAMES[screen]?.en || screen;
+    ? (screen === 'staff' && role === 'cashier' ? 'تسليم الوردية' : SCREEN_NAMES[screen]?.ar || screen)
+    : (screen === 'staff' && role === 'cashier' ? 'Shift Handover' : SCREEN_NAMES[screen]?.en || screen);
 
   return (
     <>

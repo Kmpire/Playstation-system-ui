@@ -5,18 +5,20 @@ import {
   Coffee,
   Clock,
 } from 'lucide-react';
-import type { Screen } from '../types';
+import type { Screen, UserRole } from '../types';
 
 interface BottomNavProps {
   screen: Screen;
   setScreen: (s: Screen) => void;
   onOpenMore?: () => void;
+  role: UserRole;
   isRTL: boolean;
 }
 
 export default function BottomNav({
   screen,
   setScreen,
+  role,
   isRTL,
 }: BottomNavProps) {
   const items = [
@@ -36,9 +38,11 @@ export default function BottomNav({
       label: isRTL ? 'القائمة' : 'Menu',
     },
     {
-      id: 'shiftReports' as Screen,
+      id: (role === 'admin' ? 'shiftReports' : 'staff') as Screen,
       icon: Clock,
-      label: isRTL ? 'الوردية' : 'Shift',
+      label: isRTL
+        ? (role === 'admin' ? 'الورديات' : 'تسليم الوردية')
+        : (role === 'admin' ? 'Shifts' : 'Handover'),
     },
   ];
 
@@ -48,7 +52,9 @@ export default function BottomNav({
       className="lg:hidden shrink-0 w-full bg-white/95 dark:bg-[#090c13]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 px-3 py-1.5 flex items-center justify-around z-30 safe-bottom select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
     >
       {items.map((item) => {
-        const active = screen === item.id;
+        const active =
+          screen === item.id ||
+          (item.id === 'shiftReports' && screen === 'staff');
         const Icon = item.icon;
         return (
           <button

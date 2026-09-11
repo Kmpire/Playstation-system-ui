@@ -51,7 +51,7 @@ export interface Toast {
 let toastSeq = 0;
 
 // Screens the cashier is NOT allowed to see
-const ADMIN_ONLY: Screen[] = ['reports', 'pricing', 'staff', 'shiftReports', 'dataManagement'];
+const ADMIN_ONLY: Screen[] = ['reports', 'pricing', 'shiftReports', 'dataManagement'];
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('dashboard');
@@ -208,7 +208,7 @@ export default function App() {
           {screen === 'menu' && <MenuManagement {...sharedProps} />}
           {screen === 'pricing' && role === 'admin' && <PricingSettings {...sharedProps} />}
           {screen === 'reports' && role === 'admin' && <Reports {...sharedProps} />}
-          {screen === 'staff' && role === 'admin' && <StaffShifts {...sharedProps} />}
+          {screen === 'staff' && <StaffShifts {...sharedProps} />}
           {screen === 'shiftReports' && role === 'admin' && <ShiftReports {...sharedProps} />}
           {screen === 'inventory' && <Inventory {...sharedProps} />}
           {screen === 'controllers' && <Controllers {...sharedProps} />}
@@ -221,6 +221,7 @@ export default function App() {
         <BottomNav
           screen={screen}
           setScreen={setScreen}
+          role={role}
           isRTL={isRTL}
         />
       </div>
