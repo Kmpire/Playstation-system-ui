@@ -199,8 +199,9 @@ export default function ConsoleDashboard({
           ? `تم بدء تشغيل ${updatedCon.name} بنجاح`
           : `Session started for ${updatedCon.name}`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error starting session:", err)
+      toast(isRTL ? `فشل بدء الجلسة: ${err.message || err}` : `Failed to start session: ${err.message || err}`)
     }
   }
 
@@ -211,8 +212,9 @@ export default function ConsoleDashboard({
         prev.map((c) => (c.id === conId ? updatedCon : c)),
       )
       toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error pausing session:", err)
+      toast(isRTL ? `فشل إيقاف الجلسة: ${err.message || err}` : `Failed to pause: ${err.message || err}`)
     }
   }
 
@@ -223,8 +225,9 @@ export default function ConsoleDashboard({
         prev.map((c) => (c.id === conId ? updatedCon : c)),
       )
       toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error resuming session:", err)
+      toast(isRTL ? `فشل استئناف الجلسة: ${err.message || err}` : `Failed to resume: ${err.message || err}`)
     }
   }
 
@@ -246,8 +249,9 @@ export default function ConsoleDashboard({
           ? `تم إنهاء الجلسة واستلام ${money(finalAmount, isRTL)}`
           : `Session ended. Collected ${money(finalAmount, isRTL)}`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error ending session:", err)
+      toast(isRTL ? `فشل إنهاء الجلسة: ${err.message || err}` : `Failed to end session: ${err.message || err}`)
     }
   }
 
@@ -265,8 +269,9 @@ export default function ConsoleDashboard({
           ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
           : `Switched to ${newPlayerType} player rate`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error toggling player type:", err)
+      toast(isRTL ? `فشل تغيير نوع اللعب: ${err.message || err}` : `Failed to switch player mode: ${err.message || err}`)
     }
   }
 
@@ -298,8 +303,9 @@ export default function ConsoleDashboard({
           ? `تمت إضافة ${item.nameAr || item.name} إلى الحساب`
           : `Added ${item.name} to tab`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding to tab:", err)
+      toast(isRTL ? `فشل إضافة الطلب: ${err.message || err}` : `Failed to add to tab: ${err.message || err}`)
     }
   }
 
@@ -322,8 +328,9 @@ export default function ConsoleDashboard({
           ? `تم نقل الجلسة من ${from.name} إلى ${to.name}`
           : `Transferred session to ${to.name}`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error transferring session:", err)
+      toast(isRTL ? `فشل نقل الجلسة: ${err.message || err}` : `Failed to transfer: ${err.message || err}`)
     }
   }
 
@@ -349,8 +356,9 @@ export default function ConsoleDashboard({
           ? `تم تحديث مدة اللعب بنجاح`
           : `Updated session time successfully`,
       )
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error editing session time:", err)
+      toast(isRTL ? `فشل تعديل الوقت: ${err.message || err}` : `Failed to edit time: ${err.message || err}`)
     }
   }
 
@@ -360,8 +368,9 @@ export default function ConsoleDashboard({
       setConsoles((prev) => [...prev, newCon])
       setIsAddConsoleOpen(false)
       toast(isRTL ? `تم إضافة ${name} إلى الصالة` : `Added ${name} to lounge`)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding console:", err)
+      toast(isRTL ? `فشل إضافة الجهاز: ${err.message || err}` : `Failed to add console: ${err.message || err}`)
     }
   }
 
