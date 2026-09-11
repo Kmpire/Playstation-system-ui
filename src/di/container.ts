@@ -7,7 +7,6 @@ import {
   ApiAuthRepository,
   ApiAuditRepository,
   ApiCompanyRepository,
-  storageClient,
 } from "../data"
 import type {
   IConsoleRepository,
@@ -77,14 +76,13 @@ export function createContainer(): AppServices {
   const authService = new AuthService(authRepo)
 
   const resetAllDataToDefaults = async () => {
-    await storageClient.clearAllAppKeys()
-    await consoleRepo.resetToDefaults()
-    await menuRepo.resetToDefaults()
-    await pricingRepo.resetToDefaults()
-    await controllerRepo.resetToDefaults()
-    await shiftRepo.resetToDefaults()
-    await authRepo.resetToDefaults()
-    await auditRepo.resetToDefaults()
+    await consoleRepo.resetToDefaults?.()
+    await menuRepo.resetToDefaults?.()
+    await pricingRepo.resetToDefaults?.()
+    await controllerRepo.resetToDefaults?.()
+    await shiftRepo.resetToDefaults?.()
+    await authRepo.resetToDefaults?.()
+    await auditRepo.resetToDefaults?.()
   }
 
   return {

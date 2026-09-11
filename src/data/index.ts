@@ -1,3 +1,2 @@
-export * from "./mock/seedData"
-export * from "./storage/localStorageClient"
+export * from "./api/apiClient"
 export * from "./repositories"
