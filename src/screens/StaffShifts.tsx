@@ -70,15 +70,15 @@ export default function StaffShifts({ auditLog, role, setShiftReports, currentUs
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f111a] overflow-hidden">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
       {/* Header */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 shrink-0">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4">
         <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{isRTL ? 'الموظفون والورديات' : 'Staff & Shifts'}</h1>
         <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">{isRTL ? 'إدارة الموظفين والورديات وسجل المراجعة' : 'Staff management, shift handover, and audit trail'}</p>
       </div>
 
       {/* Sub-tabs */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 shrink-0 overflow-x-auto scrollbar-none">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 overflow-x-auto scrollbar-none">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setSubTab(tab.id)}
             className={`px-4 sm:px-5 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${subTab === tab.id ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
@@ -87,7 +87,7 @@ export default function StaffShifts({ auditLog, role, setShiftReports, currentUs
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6">
+      <div className="p-4 sm:p-6 pb-24 lg:pb-8">
         {/* Staff list */}
         {subTab === 'staff' && (
           <div className="max-w-2xl space-y-3 sm:space-y-4">

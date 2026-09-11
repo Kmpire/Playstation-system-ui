@@ -202,7 +202,7 @@ export default function App() {
           t={t}
         />
 
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 min-h-0 overflow-hidden relative">
           {screen === 'dashboard' && <ConsoleDashboard {...sharedProps} />}
           {screen === 'pos' && <POSSales {...sharedProps} />}
           {screen === 'menu' && <MenuManagement {...sharedProps} />}

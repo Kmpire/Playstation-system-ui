@@ -45,7 +45,7 @@ export default function BottomNav({
   return (
     <nav
       aria-label="Mobile quick navigation"
-      className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#090c13]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 px-3 py-1.5 flex items-center justify-around z-30 safe-bottom select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
+      className="lg:hidden shrink-0 w-full bg-white/95 dark:bg-[#090c13]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 px-3 py-1.5 flex items-center justify-around z-30 safe-bottom select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
     >
       {items.map((item) => {
         const active = screen === item.id;

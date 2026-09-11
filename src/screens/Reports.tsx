@@ -138,7 +138,7 @@ export default function Reports({ isRTL }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#07090e] overflow-hidden select-none print:bg-white print:text-black">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] select-none print:bg-white print:text-black">
       {/* Printable Header (Visible only in Print / PDF mode) */}
       <div className="hidden print:block p-6 border-b border-black/20 text-center mb-4">
         <h1 className="text-2xl font-bold">PS Café — تقرير المبيعات والإيرادات المالية</h1>
@@ -146,7 +146,7 @@ export default function Reports({ isRTL }: Props) {
       </div>
 
       {/* Screen Header */}
-      <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-4 shrink-0 flex items-center justify-between gap-3 flex-wrap print:hidden">
+      <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-4 flex items-center justify-between gap-3 flex-wrap print:hidden">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#0070d1]" />
@@ -179,7 +179,7 @@ export default function Reports({ isRTL }: Props) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6 space-y-6">
+      <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
         {/* Today's Summary Stat Cards - Responsive Grid */}
         <div>
           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">

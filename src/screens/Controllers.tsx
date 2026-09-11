@@ -111,9 +111,9 @@ export default function Controllers({
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#07090e] overflow-hidden select-none">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] select-none">
       {/* Header */}
-      <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-4 shrink-0 flex items-center justify-between gap-3">
+      <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Gamepad2 className="w-5 h-5 text-[#0070d1]" />
@@ -146,7 +146,7 @@ export default function Controllers({
       </div>
 
       {/* Tabs */}
-      <div className="bg-white/80 dark:bg-[#0e121b]/90 border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 flex gap-2 shrink-0">
+      <div className="bg-white/80 dark:bg-[#0e121b]/90 border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 flex gap-2">
         {[
           { id: 'controllers' as SubTab, label: isRTL ? 'أذرع التحكم' : 'Controllers Pool', icon: Gamepad2 },
           { id: 'maintenance' as SubTab, label: isRTL ? 'سجلات الصيانة' : 'Maintenance Log', icon: Wrench },
@@ -170,7 +170,7 @@ export default function Controllers({
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 lg:pb-6 space-y-6">
+      <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
         {/* Controllers Tab Content */}
         {subTab === 'controllers' && (
           <div className="space-y-6">

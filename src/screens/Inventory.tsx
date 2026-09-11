@@ -30,9 +30,9 @@ export default function Inventory({ menuItems, setMenuItems, consoles, controlle
   const lowConsumables = menuItems.filter(i => i.stock <= i.lowStockThreshold);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f111a] overflow-hidden">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
       {/* Header */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 shrink-0 flex items-center justify-between">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{isRTL ? 'المخزون' : 'Inventory'}</h1>
           <p className="text-slate-500 dark:text-slate-500 text-sm">{isRTL ? 'المستهلكات والأجهزة' : 'Consumables & physical assets'}</p>
@@ -45,7 +45,7 @@ export default function Inventory({ menuItems, setMenuItems, consoles, controlle
       </div>
 
       {/* Category tabs */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 shrink-0 overflow-x-auto">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 overflow-x-auto">
         {([
           { id: 'consumables', label: 'Consumables', labelAr: 'مستهلكات' },
           { id: 'consoles', label: 'Consoles', labelAr: 'أجهزة الألعاب' },
@@ -58,14 +58,14 @@ export default function Inventory({ menuItems, setMenuItems, consoles, controlle
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="pb-24 lg:pb-8">
         {/* Consumables */}
         {cat === 'consumables' && (
           <div>
             {/* Desktop Table View */}
             <div className="hidden md:block">
               <table className="w-full">
-                <thead className="sticky top-0 bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50 z-10">
+                <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
                   <tr>
                     {[isRTL ? 'العنصر' : 'Item', isRTL ? 'الكمية' : 'Stock', isRTL ? 'حد التنبيه' : 'Min. Threshold', isRTL ? 'الحالة' : 'Status', isRTL ? 'الإجراءات' : 'Actions'].map((h, i) => (
                       <th key={i} className="px-4 py-3 text-start text-xs font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider">{h}</th>

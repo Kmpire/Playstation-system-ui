@@ -38,7 +38,7 @@ export default function Login({
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none">
+    <div className="min-h-screen bg-[#07090e] flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto select-none">
       {/* PlayStation Ambient Glow Elements */}
       <div className="absolute top-1/4 -start-32 w-96 h-96 rounded-full bg-[#0070d1]/15 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -end-32 w-96 h-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />

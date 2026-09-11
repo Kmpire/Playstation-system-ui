@@ -76,9 +76,9 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f111a] overflow-hidden">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
       {/* Header */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-6 py-4 shrink-0 flex items-center justify-between">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{isRTL ? 'إدارة القائمة' : 'Menu Management'}</h1>
           <p className="text-slate-500 dark:text-slate-500 text-sm">{menuItems.length} {isRTL ? 'عنصر' : 'items'}</p>
@@ -95,7 +95,7 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
 
       {/* Category manager */}
       {showCatForm && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800/50 px-6 py-3 shrink-0">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800/50 px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex gap-2 flex-wrap">
               {categories.map(cat => (
@@ -119,7 +119,7 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
       )}
 
       {/* Filters */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-4 sm:px-6 py-3 shrink-0 flex flex-wrap items-center gap-2.5 sm:gap-3">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
         <input type="search" placeholder={isRTL ? 'بحث…' : 'Search…'} value={search} onChange={e => setSearch(e.target.value)}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 flex-1 sm:flex-none sm:w-52 bg-white dark:bg-[#1a1d26] dark:text-slate-100" />
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
@@ -131,11 +131,11 @@ export default function MenuManagement({ menuItems, setMenuItems, categories, se
       </div>
 
       {/* Content Area: Desktop Table & Mobile Cards */}
-      <div className="flex-1 overflow-auto">
+      <div className="pb-24 lg:pb-8">
         {/* Desktop Table View */}
         <div className="hidden md:block">
           <table className="w-full">
-            <thead className="sticky top-0 bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50 z-10">
+            <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
               <tr>
                 {[
                   isRTL ? 'الاسم' : 'Name',

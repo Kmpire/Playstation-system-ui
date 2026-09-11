@@ -189,9 +189,9 @@ export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
   return (
     <div className="flex h-full bg-slate-50 dark:bg-[#07090e] overflow-hidden select-none relative">
       {/* Left / Main area: Item browser */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         {/* Category Filter Pills */}
-        <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-3 flex items-center gap-2 shrink-0 overflow-x-auto scrollbar-none">
+        <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-3 flex items-center gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setSelCat('')}
             className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
@@ -209,7 +209,7 @@ export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
               className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
                 selCat === cat.id
                   ? 'bg-[#0070d1] text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               {isRTL ? cat.nameAr : cat.name}
@@ -218,7 +218,7 @@ export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
         </div>
 
         {/* Items Grid - Responsive */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6">
+        <div className="p-4 sm:p-6 pb-28 lg:pb-8">
           <div className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">
             {isRTL ? `${filtered.length} صنف متاح` : `${filtered.length} items available`}
           </div>
@@ -277,7 +277,7 @@ export default function POSSales({ menuItems, categories, t, isRTL }: Props) {
 
       {/* Floating Mobile Cart Bar (visible on <lg screens) */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-16 inset-x-4 z-20">
+        <div className="lg:hidden absolute bottom-3 inset-x-4 z-20">
           <button
             onClick={() => setMobileCartOpen(true)}
             className="w-full p-3.5 bg-[#0070d1] text-white rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"

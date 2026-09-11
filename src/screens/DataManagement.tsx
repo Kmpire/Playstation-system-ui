@@ -79,13 +79,13 @@ export default function DataManagement(props: Props) {
   const lastBackup = localStorage.getItem('ps_last_backup');
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0f111a] overflow-hidden">
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 shrink-0">
+    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
+      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4">
         <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{isRTL ? 'إدارة البيانات' : 'Data Management'}</h1>
         <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">{isRTL ? 'تصدير واستيراد نسخة كاملة من قاعدة البيانات' : 'Export and import a full snapshot of the database'}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6">
+      <div className="p-4 sm:p-6 pb-24 sm:pb-8">
         <div className="max-w-2xl mx-auto space-y-4 sm:space-y-5">
           {lastAction && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-2xl p-4 text-green-700 dark:text-green-400 text-xs sm:text-sm flex items-center gap-2">✅ {lastAction}</div>
