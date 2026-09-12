@@ -18,7 +18,15 @@ import type {
 import { money } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
-import { useServices } from "../context/ServicesContext"
+import { useControllersViewModel } from "../viewmodels/useControllersViewModel"
+import {
+  CardGridSkeleton,
+  TableSkeleton,
+} from "@/presentation/components/states/LoadingSkeleton"
+import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
+import EmptyStateCard from "@/presentation/components/states/EmptyStateCard"
+import RefreshButton from "@/presentation/components/states/RefreshButton"
+import PullToRefresh from "@/presentation/components/common/PullToRefresh"
 
 const CTRL_STATUS: {
   id: ControllerStatus
@@ -53,20 +61,19 @@ const CTRL_STATUS: {
 ]
 
 interface Props {
-  controllers: Controller[]
-  setControllers: React.Dispatch<React.SetStateAction<Controller[]>>
-  maintenanceRecords: MaintenanceRecord[]
-  setMaintenanceRecords: React.Dispatch<React.SetStateAction<MaintenanceRecord[]>>
-  consoles: GameConsole[]
-  setConsoles: React.Dispatch<React.SetStateAction<GameConsole[]>>
-  t: (k: string) => string
-  isRTL: boolean
-  toast: (m: string) => void
+  controllers?: Controller[]
+  setControllers?: React.Dispatch<React.SetStateAction<Controller[]>>
+  maintenanceRecords?: MaintenanceRecord[]
+  setMaintenanceRecords?: React.Dispatch<React.SetStateAction<MaintenanceRecord[]>>
+  consoles?: GameConsole[]
+  setConsoles?: React.Dispatch<React.SetStateAction<GameConsole[]>>
+  t?: (k: string) => string
+  isRTL?: boolean
+  toast?: (m: string) => void
   [key: string]: unknown
 }
 
 type SubTab = "controllers" | "maintenance"
-let nextId = 200
 
 const EMPTY_RECORD = {
   date: new Date().toISOString().split("T")[0],
@@ -78,17 +85,15 @@ const EMPTY_RECORD = {
   resolvedBy: "",
 }
 
-export default function Controllers({
-  controllers,
-  setControllers,
-  maintenanceRecords,
-  setMaintenanceRecords,
-  consoles,
-  setConsoles,
-  toast,
-  isRTL,
-}: Props) {
-  const services = useServices()
+export default function Controllers(props: Props) {
+  const vm = useControllersViewModel()
+  const isRTL = props.isRTL ?? true
+  const toast = props.toast ?? ((_m: string) => {})
+
+  const controllers = vm.controllers
+  const maintenanceRecords = vm.maintenanceRecords
+  const consoles = vm.consoles || []
+
   const [subTab, setSubTab] = useState<SubTab>("controllers")
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_RECORD)
@@ -98,17 +103,15 @@ export default function Controllers({
 
   async function setStatus(id: string, status: ControllerStatus) {
     try {
-      const updated = await services.controllerService.updateControllerStatus(
-        id,
-        status,
-      )
-      setControllers((prev) =>
-        prev.map((ct) => (ct.id === id ? updated : ct)),
-      )
+      await vm.updateStatus(id, status)
       toast(isRTL ? "تم تحديث حالة ذراع التحكم" : "Updated controller status")
     } catch (err: any) {
       console.error("Error updating controller status:", err)
-      toast(isRTL ? `فشل تحديث الحالة: ${err.message || err}` : `Failed to update status: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل تحديث الحالة: ${err.message || err}`
+          : `Failed to update status: ${err.message || err}`,
+      )
     }
   }
 
@@ -116,8 +119,7 @@ export default function Controllers({
     const number = newCtrlId.trim()
     if (!number) return
     try {
-      const created = await services.controllerService.addController(number)
-      setControllers((prev) => [...prev, created])
+      await vm.addController(number)
       setNewCtrlId("")
       setShowAddCtrl(false)
       toast(
@@ -125,46 +127,46 @@ export default function Controllers({
       )
     } catch (err: any) {
       console.error("Error adding controller:", err)
-      toast(isRTL ? `فشل إضافة ذراع التحكم: ${err.message || err}` : `Failed to add controller: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل إضافة ذراع التحكم: ${err.message || err}`
+          : `Failed to add controller: ${err.message || err}`,
+      )
     }
   }
 
   async function toggleMaintenance(consoleId: number) {
-    const target = consoles.find((c) => c.id === consoleId)
-    if (!target) return
-    const newStatus =
-      target.status === "maintenance" ? "available" : "maintenance"
-    const updated: GameConsole = {
-      ...target,
-      status: newStatus,
-      session: newStatus === "maintenance" ? null as any : target.session,
-    }
-    setConsoles((prev) =>
-      prev.map((c) => (c.id === consoleId ? updated : c)),
-    )
     try {
-      await services.consoleRepo.save(updated)
+      await vm.toggleConsoleMaintenance(consoleId)
       toast(
-        isRTL ? "تم تغيير وضع صيانة الجهاز" : "Toggled console maintenance mode",
+        isRTL
+          ? "تم تغيير وضع صيانة الجهاز"
+          : "Toggled console maintenance mode",
       )
     } catch (err: any) {
       console.error("Error toggling maintenance:", err)
-      toast(isRTL ? `فشل تحديث الصيانة: ${err.message || err}` : `Failed to update maintenance: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل تحديث الصيانة: ${err.message || err}`
+          : `Failed to update maintenance: ${err.message || err}`,
+      )
     }
   }
 
   async function addRecord() {
     if (!form.date || !form.issue) return
     try {
-      const created =
-        await services.controllerService.addMaintenanceRecord(form)
-      setMaintenanceRecords((prev) => [...prev, created])
+      await vm.addMaintenanceRecord(form)
       setForm(EMPTY_RECORD)
       setShowForm(false)
       toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")
     } catch (err: any) {
       console.error("Error adding maintenance record:", err)
-      toast(isRTL ? `فشل حفظ سجل الصيانة: ${err.message || err}` : `Failed to save record: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل حفظ سجل الصيانة: ${err.message || err}`
+          : `Failed to save record: ${err.message || err}`,
+      )
     }
   }
 
@@ -175,7 +177,7 @@ export default function Controllers({
   )
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] select-none">
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#07090e] select-none">
       {/* Header */}
       <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -192,25 +194,32 @@ export default function Controllers({
           </p>
         </div>
 
-        {subTab === "maintenance" ? (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowForm(true)}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            {isRTL ? "إضافة سجل صيانة" : "Add Record"}
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowAddCtrl(true)}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            {isRTL ? "إضافة ذراع تحكم" : "Add Controller"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={vm.refresh}
+            isRefreshing={vm.isRefreshing}
+            isRTL={isRTL}
+          />
+          {subTab === "maintenance" ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowForm(true)}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              {isRTL ? "إضافة سجل صيانة" : "Add Record"}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowAddCtrl(true)}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              {isRTL ? "إضافة ذراع تحكم" : "Add Controller"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -246,20 +255,36 @@ export default function Controllers({
         })}
       </div>
 
-      <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
-        {/* Controllers Tab Content */}
-        {subTab === "controllers" && (
-          <div className="space-y-6">
-            {/* Maintenance Mode Toggles for Consoles */}
-            <div>
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                {isRTL
-                  ? "وضع الصيانة للأجهزة (تعطيل/تفعيل)"
-                  : "Console Maintenance Mode (Lock/Unlock)"}
-              </div>
+      {/* Main Area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {vm.status === "loading" ? (
+          <div className="p-4 sm:p-6 space-y-6">
+            <CardGridSkeleton count={6} />
+          </div>
+        ) : vm.status === "error" ? (
+          <div className="p-4 sm:p-6">
+            <ErrorStateCard
+              message={vm.error || undefined}
+              onRetry={vm.refresh}
+              isRTL={isRTL}
+            />
+          </div>
+        ) : (
+          <PullToRefresh onRefresh={vm.refresh} isRTL={isRTL}>
+            <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
+              {/* Controllers Tab Content */}
+              {subTab === "controllers" && (
+                <div className="space-y-6">
+                  {/* Maintenance Mode Toggles for Consoles */}
+                  <div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      {isRTL
+                        ? "وضع الصيانة للأجهزة (تعطيل/تفعيل)"
+                        : "Console Maintenance Mode (Lock/Unlock)"}
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {consoles.map((con) => {
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(consoles || []).map((con) => {
                   const isMaint = con.status === "maintenance"
                   return (
                     <div
@@ -591,10 +616,13 @@ export default function Controllers({
                     : "No records match search"}
                 </div>
               )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </PullToRefresh>
+    )}
+  </div>
 
       {/* Add Maintenance Record Modal */}
       <Modal

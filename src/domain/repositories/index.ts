@@ -61,7 +61,11 @@ export interface IAuthRepository {
   getTrialStart(): Promise<number>
   setTrialStart(startMs: number): Promise<void>
   login?(username: string, pass: string): Promise<UserAccount | null>
-  changePassword?(username: string, newPassword: string, currentPassword?: string): Promise<boolean>
+  changePassword?(
+    username: string,
+    newPassword: string,
+    currentPassword?: string,
+  ): Promise<boolean>
 }
 
 export interface IAuditRepository {

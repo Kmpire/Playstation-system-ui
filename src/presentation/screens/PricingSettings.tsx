@@ -1,11 +1,16 @@
-import { useState } from "react"
-import type { PricingConfig, ConsoleType } from "@/domain"
+import React from "react"
+import type { ConsoleType } from "@/domain"
 import { money } from "@/domain"
-import { useServices } from "../context/ServicesContext"
+import { usePricingViewModel } from "../viewmodels/usePricingViewModel"
+import {
+  CardGridSkeleton,
+  ErrorStateCard,
+  EmptyStateCard,
+  RefreshButton,
+} from "../components/states"
+import { PullToRefresh } from "../components/common/PullToRefresh"
 
 interface Props {
-  pricing: PricingConfig[]
-  setPricing: React.Dispatch<React.SetStateAction<PricingConfig[]>>
   t: (k: string) => string
   isRTL: boolean
   toast?: (msg: string) => void
@@ -44,177 +49,228 @@ const TYPE_META: Record<ConsoleType, {
   },
 }
 
-export default function PricingSettings({
-  pricing,
-  setPricing,
-  t,
-  isRTL,
-  toast,
-}: Props) {
-  const services = useServices()
-  const [draft, setDraft] = useState<PricingConfig[]>(
-    pricing.map((p) => ({ ...p })),
-  )
-  const [saved, setSaved] = useState(false)
+const ORDER: ConsoleType[] = ["PS4", "PS5", "Xbox", "VIP"]
 
-  function updateRate(
-    type: ConsoleType,
-    field: "singleRate" | "multiRate",
-    value: string,
-  ) {
-    const num = parseFloat(value)
-    setDraft((prev) =>
-      prev.map((p) =>
-        p.type === type ? { ...p, [field]: isNaN(num) ? 0 : num } : p,
-      ),
-    )
-    setSaved(false)
-  }
+export default function PricingSettings({ isRTL, toast }: Props) {
+  const {
+    draft,
+    status,
+    error,
+    isRefreshing,
+    isSaving,
+    saved,
+    refresh,
+    retry,
+    updateRate,
+    save,
+  } = usePricingViewModel()
 
-  async function save() {
-    const updated = draft.map((p) => ({ ...p }))
+  const handleSave = async () => {
     try {
-      const savedList = await services.pricingService.updatePricing(updated)
-      setPricing(savedList)
-      setSaved(true)
-      toast?.(isRTL ? "تم حفظ الأسعار بنجاح" : "Pricing saved successfully")
-      setTimeout(() => setSaved(false), 2000)
+      await save()
+      toast?.(isRTL ? "تم حفظ الأسعار بنجاح ✓" : "Pricing saved successfully ✓")
     } catch (err: any) {
-      console.error("Error saving pricing:", err)
-      toast?.(isRTL ? `فشل حفظ الأسعار: ${err.message || err}` : `Failed to save pricing: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل حفظ الأسعار: ${err.message || err}`
+          : `Failed to save pricing: ${err.message || err}`,
+      )
     }
   }
 
-  const ORDER: ConsoleType[] = ["PS4", "PS5", "Xbox", "VIP"]
-
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between flex-wrap gap-2.5 sm:gap-0">
+    <PullToRefresh
+      onRefresh={refresh}
+      isRTL={isRTL}
+      className="bg-slate-50 dark:bg-[#0f111a]"
+    >
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#1a1d26]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between flex-wrap gap-2.5 sm:gap-0">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             {isRTL ? "إعدادات الأسعار" : "Pricing Settings"}
           </h1>
-          <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
             {isRTL ? "سعر كل نوع جهاز / ساعة" : "Hourly rate per console type"}
           </p>
         </div>
-        <div className="flex items-center gap-3 ms-auto sm:ms-0">
+
+        <div className="flex items-center gap-2.5 ms-auto sm:ms-0">
+          <RefreshButton
+            onRefresh={refresh}
+            isRefreshing={isRefreshing}
+            isRTL={isRTL}
+            showLabel
+          />
+
           {saved && (
             <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm flex items-center gap-1">
               ✓ {isRTL ? "تم الحفظ" : "Saved"}
             </span>
           )}
+
           <button
-            onClick={save}
-            className="px-4 sm:px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs sm:text-sm transition-colors shadow-sm active:scale-95"
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || status === "loading"}
+            className="px-4 sm:px-5 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isRTL ? "حفظ الأسعار" : "Save Pricing"}
+            {isSaving
+              ? isRTL
+                ? "جارٍ الحفظ..."
+                : "Saving..."
+              : isRTL
+                ? "حفظ الأسعار"
+                : "Save Pricing"}
           </button>
         </div>
       </div>
 
       <div className="p-3.5 sm:p-6 pb-24 sm:pb-8">
         <div className="max-w-2xl mx-auto space-y-4">
-          {/* Notice */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-3.5 sm:p-4 text-xs sm:text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
-            💡{" "}
-            {isRTL
-              ? "الأسعار مطبقة لكل نوع جهاز (وليس لكل جهاز على حدة). التغييرات لا تؤثر على الجلسات الجارية."
-              : "Rates apply to all consoles of a given type. Changes do not affect sessions already in progress."}
-          </div>
+          {/* Loading Skeleton */}
+          {status === "loading" && (
+            <div className="space-y-4">
+              <div className="h-14 rounded-2xl bg-slate-200/60 dark:bg-slate-800/40 animate-pulse" />
+              <CardGridSkeleton count={4} cols="grid-cols-1" />
+            </div>
+          )}
 
-          {ORDER.map((type) => {
-            const p = draft.find((x) => x.type === type)
-            if (!p) return null
-            const meta = TYPE_META[type]
-            return (
-              <div
-                key={type}
-                className={`bg-white dark:bg-[#1a1d26] border-2 ${meta.border} rounded-2xl p-4 sm:p-5 shadow-xs`}
-              >
-                <div className="flex items-center gap-3 mb-4 sm:mb-5">
-                  <span className="text-2xl sm:text-3xl">{meta.icon}</span>
-                  <div>
-                    <div className={`font-bold text-base ${meta.color}`}>
-                      {type}
-                    </div>
-                    <div className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">
-                      {meta.label}
-                    </div>
-                  </div>
-                </div>
+          {/* Error State */}
+          {status === "error" && (
+            <ErrorStateCard
+              message={error || undefined}
+              onRetry={retry}
+              isRTL={isRTL}
+            />
+          )}
 
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 items-end">
-                  <div className="flex flex-col">
-                    <label className="min-h-[2.5rem] flex items-end text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      <span>👤 {isRTL ? "فردي / ساعة" : "Single / hour"}</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-mono text-xs font-bold">
-                        {isRTL ? "ج.م" : "EGP"}
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={p.singleRate}
-                        onChange={(e) =>
-                          updateRate(type, "singleRate", e.target.value)
-                        }
-                        className="w-full border border-slate-200 dark:border-slate-600 rounded-xl ps-12 sm:ps-14 pe-3 py-2.5 sm:py-3 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 bg-white dark:bg-[#1a1d26]"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="min-h-[2.5rem] flex items-end text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      <span>👥 {isRTL ? "مالتي / ساعة" : "Multi / hour"}</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-mono text-xs font-bold">
-                        {isRTL ? "ج.م" : "EGP"}
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={p.multiRate}
-                        onChange={(e) =>
-                          updateRate(type, "multiRate", e.target.value)
-                        }
-                        className="w-full border border-slate-200 dark:border-slate-600 rounded-xl ps-12 sm:ps-14 pe-3 py-2.5 sm:py-3 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 bg-white dark:bg-[#1a1d26]"
-                      />
-                    </div>
-                  </div>
-                </div>
+          {/* Empty State */}
+          {status === "empty" && (
+            <EmptyStateCard
+              title={
+                isRTL ? "لا توجد أسعار معرفة" : "No pricing configurations"
+              }
+              description={
+                isRTL
+                  ? "لم يتم العثور على إعدادات أسعار الأجهزة. اضغط على تحديث أو أعد المحاولة."
+                  : "No console pricing rates found. Try refreshing the page."
+              }
+              actionLabel={isRTL ? "تحديث" : "Refresh"}
+              onAction={refresh}
+              isRTL={isRTL}
+            />
+          )}
 
-                <div className="mt-3.5 sm:mt-4 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 bg-slate-50 dark:bg-[#252a36] rounded-xl px-3.5 sm:px-4 py-2.5 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
-                  <span>
-                    {isRTL ? "30 دقيقة فردي:" : "30m single:"}{" "}
-                    <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
-                      {money(p.singleRate / 2, isRTL)}
-                    </strong>
-                  </span>
-                  <span className="hidden sm:inline w-px h-3 bg-slate-300 dark:bg-slate-600" />
-                  <span>
-                    {isRTL ? "ساعة مالتي:" : "1h multi:"}{" "}
-                    <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
-                      {money(p.multiRate, isRTL)}
-                    </strong>
-                  </span>
-                  <span className="hidden sm:inline w-px h-3 bg-slate-300 dark:bg-slate-600" />
-                  <span>
-                    {isRTL ? "ساعتان فردي:" : "2h single:"}{" "}
-                    <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
-                      {money(p.singleRate * 2, isRTL)}
-                    </strong>
-                  </span>
-                </div>
+          {/* Success Content */}
+          {status === "success" && (
+            <>
+              {/* Notice */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-2xl p-3.5 sm:p-4 text-xs sm:text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
+                💡{" "}
+                {isRTL
+                  ? "الأسعار مطبقة لكل نوع جهاز (وليس لكل جهاز على حدة). التغييرات لا تؤثر على الجلسات الجارية."
+                  : "Rates apply to all consoles of a given type. Changes do not affect sessions already in progress."}
               </div>
-            )
-          })}
+
+              {ORDER.map((type) => {
+                const p = draft.find((x) => x.type === type)
+                if (!p) return null
+                const meta = TYPE_META[type]
+                return (
+                  <div
+                    key={type}
+                    className={`bg-white dark:bg-[#1a1d26] border-2 ${meta.border} rounded-2xl p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-md`}
+                  >
+                    <div className="flex items-center gap-3 mb-4 sm:mb-5">
+                      <span className="text-2xl sm:text-3xl">{meta.icon}</span>
+                      <div>
+                        <div className={`font-bold text-base ${meta.color}`}>
+                          {type}
+                        </div>
+                        <div className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                          {meta.label}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 items-end">
+                      <div className="flex flex-col">
+                        <label className="min-h-[2.5rem] flex items-end text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                          <span>
+                            👤 {isRTL ? "فردي / ساعة" : "Single / hour"}
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-mono text-xs font-bold">
+                            {isRTL ? "ج.م" : "EGP"}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={p.singleRate}
+                            onChange={(e) =>
+                              updateRate(type, "singleRate", e.target.value)
+                            }
+                            className="w-full border border-slate-200 dark:border-slate-600 rounded-xl ps-12 sm:ps-14 pe-3 py-2.5 sm:py-3 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 bg-white dark:bg-[#1a1d26]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <label className="min-h-[2.5rem] flex items-end text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                          <span>
+                            👥 {isRTL ? "مالتي / ساعة" : "Multi / hour"}
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-mono text-xs font-bold">
+                            {isRTL ? "ج.م" : "EGP"}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={p.multiRate}
+                            onChange={(e) =>
+                              updateRate(type, "multiRate", e.target.value)
+                            }
+                            className="w-full border border-slate-200 dark:border-slate-600 rounded-xl ps-12 sm:ps-14 pe-3 py-2.5 sm:py-3 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 bg-white dark:bg-[#1a1d26]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3.5 sm:mt-4 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1.5 bg-slate-50 dark:bg-[#252a36] rounded-xl px-3.5 sm:px-4 py-2.5 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+                      <span>
+                        {isRTL ? "30 دقيقة فردي:" : "30m single:"}{" "}
+                        <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
+                          {money(p.singleRate / 2, isRTL)}
+                        </strong>
+                      </span>
+                      <span className="hidden sm:inline w-px h-3 bg-slate-300 dark:bg-slate-600" />
+                      <span>
+                        {isRTL ? "ساعة مالتي:" : "1h multi:"}{" "}
+                        <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
+                          {money(p.multiRate, isRTL)}
+                        </strong>
+                      </span>
+                      <span className="hidden sm:inline w-px h-3 bg-slate-300 dark:bg-slate-600" />
+                      <span>
+                        {isRTL ? "ساعتان فردي:" : "2h single:"}{" "}
+                        <strong className="text-slate-700 dark:text-slate-300 font-mono font-bold">
+                          {money(p.singleRate * 2, isRTL)}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </PullToRefresh>
   )
 }

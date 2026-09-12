@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React from "react"
 import {
   BarChart3,
   Printer,
@@ -12,56 +12,19 @@ import {
 } from "lucide-react"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
+import {
+  useReportsViewModel,
+  type ReportPeriod,
+} from "../viewmodels/useReportsViewModel"
+import { CardGridSkeleton } from "@/presentation/components/states/LoadingSkeleton"
+import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
+import RefreshButton from "@/presentation/components/states/RefreshButton"
+import PullToRefresh from "@/presentation/components/common/PullToRefresh"
 
 interface Props {
-  t: (k: string) => string
-  isRTL: boolean
+  t?: (k: string) => string
+  isRTL?: boolean
   [key: string]: unknown
-}
-
-type Period = "daily" | "weekly" | "monthly"
-
-const TOP_ITEMS = [
-  { name: "Pepsi", nameAr: "بيبسي كولا", sold: 34, revenue: 68 },
-  { name: "Coffee Latte", nameAr: "قهوة لاتيه", sold: 18, revenue: 90 },
-  { name: "Chips & Dip", nameAr: "شيبس مقرمش", sold: 25, revenue: 75 },
-  {
-    name: "Red Bull Energy",
-    nameAr: "مشروب طاقة ريد بول",
-    sold: 11,
-    revenue: 66,
-  },
-  { name: "Burger Meal", nameAr: "وجبة برغر كومبو", sold: 9, revenue: 108 },
-]
-
-const PERIOD_DATA: Record<Period, {
-  revenue: number
-  profit: number
-  sessions: number
-  activeHours: number
-  expenses: number
-}> = {
-  daily: {
-    revenue: 1247.5,
-    profit: 834.2,
-    sessions: 28,
-    activeHours: 34.5,
-    expenses: 413.3,
-  },
-  weekly: {
-    revenue: 7840.0,
-    profit: 5120.6,
-    sessions: 187,
-    activeHours: 215.0,
-    expenses: 2719.4,
-  },
-  monthly: {
-    revenue: 34200.0,
-    profit: 22100.0,
-    sessions: 820,
-    activeHours: 940.0,
-    expenses: 12100.0,
-  },
 }
 
 function StatCard({
@@ -107,10 +70,10 @@ function StatCard({
   )
 }
 
-export default function Reports({ isRTL }: Props) {
-  const [period, setPeriod] = useState<Period>("daily")
-  const data = PERIOD_DATA[period]
-  const maxRev = Math.max(...TOP_ITEMS.map((i) => i.revenue))
+export default function Reports({ isRTL = true }: Props) {
+  const vm = useReportsViewModel()
+  const data = vm.currentStats
+  const maxRev = Math.max(1, ...vm.topItems.map((i) => i.revenue))
 
   // Real Working PDF Print Action
   const handlePrintPDF = () => {
@@ -120,9 +83,9 @@ export default function Reports({ isRTL }: Props) {
   // CSV / Financial Text Export
   const handleExportCSV = () => {
     const periodLabel =
-      period === "daily"
+      vm.period === "daily"
         ? "اليومي"
-        : period === "weekly"
+        : vm.period === "weekly"
           ? "الأسبوعي"
           : "الشهري"
     let csv = `تقرير بلايستيشن كافيه - ${periodLabel}\n`
@@ -134,7 +97,7 @@ export default function Reports({ isRTL }: Props) {
     csv += `عدد الجلسات,${data.sessions}\n`
     csv += `ساعات اللعب النشطة,${data.activeHours}\n\n`
     csv += `المنتجات الأكثر مبيعاً\nالصنف,الكمية المباعة,الإيراد\n`
-    TOP_ITEMS.forEach((it) => {
+    vm.topItems.forEach((it) => {
       csv += `${isRTL ? it.nameAr : it.name},${it.sold},${it.revenue} EGP\n`
     })
 
@@ -142,14 +105,17 @@ export default function Reports({ isRTL }: Props) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.setAttribute("download", `PS_Cafe_Report_${period}_${Date.now()}.csv`)
+    link.setAttribute(
+      "download",
+      `PS_Cafe_Report_${vm.period}_${Date.now()}.csv`,
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] select-none print:bg-white print:text-black">
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#07090e] select-none print:bg-white print:text-black">
       {/* Printable Header (Visible only in Print / PDF mode) */}
       <div className="hidden print:block p-6 border-b border-black/20 text-center mb-4">
         <h1 className="text-2xl font-bold">
@@ -174,8 +140,14 @@ export default function Reports({ isRTL }: Props) {
           </p>
         </div>
 
-        {/* Action Buttons: Real PDF Print + CSV Download */}
+        {/* Action Buttons: Refresh + Real PDF Print + CSV Download */}
         <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={vm.refresh}
+            isRefreshing={vm.isRefreshing}
+            isRTL={isRTL}
+          />
+
           <Button
             variant="secondary"
             size="sm"
@@ -196,161 +168,195 @@ export default function Reports({ isRTL }: Props) {
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
-        {/* Today's Summary Stat Cards - Responsive Grid */}
-        <div>
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-            {isRTL ? "ملخص اليوم المباشر" : "Today's Live Metrics"}
+      {/* Content Area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {vm.status === "loading" ? (
+          <div className="p-4 sm:p-6 space-y-6">
+            <CardGridSkeleton count={4} />
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-            <StatCard
-              label={isRTL ? "الإيرادات اليوم" : "Revenue Today"}
-              value={money(1247.5, isRTL)}
-              icon={<DollarSign className="w-4 h-4 text-[#0070d1]" />}
-              accent
-            />
-            <StatCard
-              label={isRTL ? "ساعات اللعب" : "Active Hours"}
-              value="34.5h"
-              sub={isRTL ? "إجمالي الساعات" : "across all sessions"}
-              icon={<Clock className="w-4 h-4 text-purple-400" />}
-            />
-            <StatCard
-              label={isRTL ? "الأجهزة النشطة" : "Consoles in Use"}
-              value="7 / 9"
-              sub={isRTL ? "7 قيد اللعب" : "7 currently active"}
-              icon={<Gamepad2 className="w-4 h-4 text-emerald-400" />}
-            />
-            <StatCard
-              label={isRTL ? "النقد في الدرج" : "Cash in Drawer"}
-              value={money(892.75, isRTL)}
-              icon={<Receipt className="w-4 h-4 text-sky-400" />}
-            />
-            <StatCard
-              label={isRTL ? "مبيعات الكافية" : "POS Snack Sales"}
-              value={money(214, isRTL)}
-              sub={isRTL ? "18 طلب بيع" : "18 transactions"}
-              icon={<TrendingUp className="w-4 h-4 text-amber-400" />}
+        ) : vm.status === "error" ? (
+          <div className="p-4 sm:p-6">
+            <ErrorStateCard
+              message={vm.error || undefined}
+              onRetry={vm.refresh}
+              isRTL={isRTL}
             />
           </div>
-        </div>
+        ) : (
+          <PullToRefresh onRefresh={vm.refresh} isRTL={isRTL}>
+            <div className="p-4 sm:p-6 pb-24 lg:pb-8 space-y-6">
+              {/* Today's Summary Stat Cards - Responsive Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                <StatCard
+                  label={isRTL ? "إجمالي الإيرادات" : "Total Revenue"}
+                  value={money(data.revenue, isRTL)}
+                  sub={
+                    isRTL
+                      ? `${data.sessions} جلسة مكتملة`
+                      : `${data.sessions} sessions`
+                  }
+                  icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+                  accent
+                />
+                <StatCard
+                  label={isRTL ? "صافي الأرباح" : "Net Profit"}
+                  value={money(data.profit, isRTL)}
+                  sub={
+                    isRTL
+                      ? `هامش ${((data.profit / (data.revenue || 1)) * 100).toFixed(0)}%`
+                      : `${((data.profit / (data.revenue || 1)) * 100).toFixed(0)}% margin`
+                  }
+                  icon={<TrendingUp className="w-4 h-4 text-[#0070d1]" />}
+                />
+                <StatCard
+                  label={isRTL ? "إجمالي المصروفات" : "Expenses"}
+                  value={money(data.expenses, isRTL)}
+                  sub={isRTL ? "صيانة ومشتريات" : "Maint & restock"}
+                  icon={<Receipt className="w-4 h-4 text-rose-500" />}
+                />
+                <StatCard
+                  label={isRTL ? "جلسات اللعب" : "Gaming Sessions"}
+                  value={String(data.sessions)}
+                  sub={
+                    isRTL
+                      ? `معدل ${+(data.sessions / 8).toFixed(1)} / جهاز`
+                      : `${+(data.sessions / 8).toFixed(1)} / console`
+                  }
+                  icon={<Gamepad2 className="w-4 h-4 text-amber-500" />}
+                />
+                <StatCard
+                  label={isRTL ? "ساعات اللعب النشطة" : "Active Hours"}
+                  value={`${data.activeHours}h`}
+                  sub={
+                    isRTL
+                      ? `${+(data.activeHours / 8).toFixed(1)} س/جهاز`
+                      : `${+(data.activeHours / 8).toFixed(1)} h/unit`
+                  }
+                  icon={<Clock className="w-4 h-4 text-purple-500" />}
+                />
+              </div>
 
-        {/* Periodic Analytics Filter & Cards */}
-        <div>
-          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              {isRTL ? "التقارير الدورية والأرباح" : "Periodic Financials"}
-            </div>
-
-            <div className="flex p-1 rounded-xl bg-slate-100 dark:bg-[#141926] border border-slate-200 dark:border-slate-800">
-              {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    period === p
-                      ? "bg-[#0070d1] text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  }`}
-                >
-                  {p === "daily"
-                    ? isRTL
-                      ? "يومي"
-                      : "Daily"
-                    : p === "weekly"
-                      ? isRTL
-                        ? "أسبوعي"
-                        : "Weekly"
-                      : isRTL
-                        ? "شهري"
-                        : "Monthly"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                {isRTL ? "إجمالي الإيرادات" : "Gross Revenue"}
-              </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-[#0070d1] dark:text-sky-400">
-                {money(data.revenue, isRTL)}
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                {isRTL ? "صافي الربح" : "Net Profit"}
-              </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-emerald-500">
-                +{money(data.profit, isRTL)}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {isRTL
-                  ? `المصروفات: ${money(data.expenses, isRTL)}`
-                  : `Expenses: ${money(data.expenses, isRTL)}`}
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                {isRTL ? "نشاط الجلسات" : "Usage & Sessions"}
-              </div>
-              <div className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 dark:text-white">
-                {data.sessions}{" "}
-                <span className="text-sm font-normal text-slate-400">
-                  {isRTL ? "جلسة" : "sessions"}
-                </span>
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {data.activeHours}{" "}
-                {isRTL ? "ساعة تشغيل للأجهزة" : "hours active"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Top 5 Selling Items */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#0070d1]" />
-            <span>
-              {isRTL
-                ? "المنتجات الأكثر مبيعاً في الكافيه"
-                : "Top 5 Selling Items"}
-            </span>
-          </h3>
-
-          <div className="space-y-3">
-            {TOP_ITEMS.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 text-xs sm:text-sm"
-              >
-                <span className="w-6 font-mono font-bold text-slate-400 text-center">
-                  #{i + 1}
-                </span>
-                <span className="w-32 sm:w-44 font-semibold text-slate-800 dark:text-slate-200 truncate">
-                  {isRTL ? item.nameAr : item.name}
-                </span>
-                <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full bg-[#0070d1] rounded-full transition-all duration-500"
-                    style={{ width: `${(item.revenue / maxRev) * 100}%` }}
-                  />
+              {/* Period Selector Tabs */}
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 flex-wrap gap-2 print:hidden">
+                <div className="flex gap-1 bg-slate-100 dark:bg-[#0e121b] p-1 rounded-xl">
+                  {(["daily", "weekly", "monthly"] as ReportPeriod[]).map(
+                    (p) => (
+                      <button
+                        key={p}
+                        onClick={() => vm.setPeriod(p)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          vm.period === p
+                            ? "bg-white dark:bg-[#1a2234] text-[#0070d1] shadow-xs"
+                            : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        {p === "daily"
+                          ? isRTL
+                            ? "اليوم"
+                            : "Today"
+                          : p === "weekly"
+                            ? isRTL
+                              ? "هذا الأسبوع"
+                              : "This Week"
+                            : isRTL
+                              ? "هذا الشهر"
+                              : "This Month"}
+                      </button>
+                    ),
+                  )}
                 </div>
-                <span className="w-12 text-slate-400 text-center">
-                  {item.sold} {isRTL ? "طلب" : "qty"}
-                </span>
-                <span className="w-20 font-mono font-bold text-slate-900 dark:text-white text-end">
-                  {money(item.revenue, isRTL)}
-                </span>
+
+                <div className="text-xs text-slate-400">
+                  {isRTL
+                    ? "البيانات محدثة مباشرة من جلسات الأجهزة والورديات"
+                    : "Data computed live from active consoles and shift logs"}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              {/* Financial Summary & Breakdown Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Financial Summary Table */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-[#0070d1]" />
+                    <span>
+                      {isRTL ? "ملخص البيان المالي" : "Financial Statement"}
+                    </span>
+                  </h3>
+
+                  <div className="space-y-2.5 text-xs sm:text-sm">
+                    <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500">
+                        {isRTL ? "إجمالي إيراد الأجهزة والطلبات" : "Gross Revenue"}
+                      </span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        {money(data.revenue, isRTL)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500">
+                        {isRTL ? "تكاليف الصيانة والمصروفات" : "Maintenance & Expenses"}
+                      </span>
+                      <span className="font-mono font-bold text-rose-500">
+                        - {money(data.expenses, isRTL)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between py-2 border-t-2 border-slate-200 dark:border-slate-700 font-bold">
+                      <span className="text-slate-900 dark:text-white">
+                        {isRTL ? "صافي الدخل التشغيلي" : "Net Operating Income"}
+                      </span>
+                      <span className="font-mono text-base text-emerald-500">
+                        {money(data.profit, isRTL)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Selling Products / Cafe Sales */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    <span>
+                      {isRTL
+                        ? "الأصناف الأكثر طلباً (الكافيه)"
+                        : "Top Cafe Items"}
+                    </span>
+                  </h3>
+
+                  <div className="space-y-3">
+                    {vm.topItems.map((item, i) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center gap-3 text-xs sm:text-sm"
+                      >
+                        <span className="w-6 font-mono font-bold text-slate-400 text-center">
+                          #{i + 1}
+                        </span>
+                        <span className="w-32 sm:w-44 font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {isRTL ? item.nameAr : item.name}
+                        </span>
+                        <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-[#0070d1] rounded-full transition-all duration-500"
+                            style={{ width: `${(item.revenue / maxRev) * 100}%` }}
+                          />
+                        </div>
+                        <span className="w-12 text-slate-400 text-center">
+                          {item.sold} {isRTL ? "طلب" : "qty"}
+                        </span>
+                        <span className="w-20 font-mono font-bold text-slate-900 dark:text-white text-end">
+                          {money(item.revenue, isRTL)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PullToRefresh>
+        )}
       </div>
     </div>
   )

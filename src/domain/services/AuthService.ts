@@ -44,7 +44,11 @@ export class AuthService {
     currentPassword?: string,
   ): Promise<boolean> {
     if (this.authRepo.changePassword) {
-      return this.authRepo.changePassword(username, newPassword, currentPassword)
+      return this.authRepo.changePassword(
+        username,
+        newPassword,
+        currentPassword,
+      )
     }
 
     const accounts = await this.authRepo.getAccounts()

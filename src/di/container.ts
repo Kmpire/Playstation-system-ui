@@ -34,7 +34,9 @@ export interface AppServices {
   consoleRepo: IConsoleRepository & { resetToDefaults?: () => Promise<unknown> }
   menuRepo: IMenuRepository & { resetToDefaults?: () => Promise<unknown> }
   pricingRepo: IPricingRepository & { resetToDefaults?: () => Promise<unknown> }
-  controllerRepo: IControllerRepository & { resetToDefaults?: () => Promise<unknown> }
+  controllerRepo: IControllerRepository & {
+    resetToDefaults?: () => Promise<unknown>
+  }
   shiftRepo: IShiftRepository & { resetToDefaults?: () => Promise<unknown> }
   authRepo: IAuthRepository & { resetToDefaults?: () => Promise<unknown> }
   auditRepo: IAuditRepository & { resetToDefaults?: () => Promise<unknown> }

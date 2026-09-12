@@ -2,16 +2,10 @@ import React, { useState, useEffect, useRef } from "react"
 import {
   Gamepad2,
   Plus,
-  Play,
-  Tv,
-  Crown,
-  Filter,
-  DollarSign,
   Activity,
   CheckCircle,
-  Pause,
   Wrench,
-  Search,
+  DollarSign,
 } from "lucide-react"
 import type {
   GameConsole,
@@ -20,8 +14,6 @@ import type {
   PlayerType,
   SessionMode,
   MenuItem,
-  Category,
-  PricingConfig,
   Theme,
 } from "@/domain"
 import { money } from "@/domain"
@@ -39,35 +31,52 @@ import TransferModal from "./dashboard/modals/TransferModal"
 import EditTimeModal from "./dashboard/modals/EditTimeModal"
 import AddConsoleModal from "./dashboard/modals/AddConsoleModal"
 import ExpiredAlertModal from "./dashboard/modals/ExpiredAlertModal"
-import { useServices } from "@/presentation/context/ServicesContext"
+import { useDashboardViewModel } from "../viewmodels/useDashboardViewModel"
+import {
+  CardGridSkeleton,
+  ErrorStateCard,
+  EmptyStateCard,
+  RefreshButton,
+} from "../components/states"
+import { PullToRefresh } from "../components/common/PullToRefresh"
 
 interface Props {
-  consoles: GameConsole[]
-  setConsoles: React.Dispatch<React.SetStateAction<GameConsole[]>>
-  menuItems: MenuItem[]
-  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>
-  categories: Category[]
-  pricing: PricingConfig[]
   toast: (msg: string) => void
   isRTL: boolean
-  theme: Theme
+  theme?: Theme
   currentUser?: { name?: string; username?: string; role?: string }
   [key: string]: unknown
 }
 
 export default function ConsoleDashboard({
-  consoles,
-  setConsoles,
-  menuItems,
-  setMenuItems,
-  categories,
-  pricing,
   toast,
   isRTL,
-  theme,
+  theme = "dark",
   currentUser,
 }: Props) {
-  const services = useServices()
+  const {
+    consoles,
+    pricing,
+    menuItems,
+    categories,
+    status,
+    error,
+    isRefreshing,
+    refresh,
+    retry,
+    startSession,
+    pauseSession,
+    resumeSession,
+    endSession,
+    togglePlayerType,
+    addTabItem,
+    removeTabItem,
+    transferSession,
+    editSessionTime,
+    toggleReserve,
+    createConsole,
+  } = useDashboardViewModel()
+
   const [, setTick] = useState(0)
   const [filter, setFilter] = useState<"all" | ConsoleStatus>("all")
   const [typeFilter, setTypeFilter] = useState<"all" | ConsoleType>("all")
@@ -93,7 +102,7 @@ export default function ConsoleDashboard({
 
   const alertedSessions = useRef<Set<number>>(new Set())
 
-  // Real-time 1s re-render ticker
+  // Real-time 1s re-render ticker for timers
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
@@ -157,11 +166,7 @@ export default function ConsoleDashboard({
 
   const handleToggleReserve = async (conId: number) => {
     try {
-      const { console: updated, isReserved } =
-        await services.consoleService.toggleReserve(conId)
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updated : c)),
-      )
+      const { console: updated, isReserved } = await toggleReserve(conId)
       toast(
         isReserved
           ? isRTL
@@ -172,7 +177,6 @@ export default function ConsoleDashboard({
             : `Reservation canceled for ${updated.name}`,
       )
     } catch (err: any) {
-      console.error("Error toggling reservation:", err)
       toast(
         isRTL
           ? `فشل تحديث الحجز: ${err.message || err}`
@@ -181,8 +185,7 @@ export default function ConsoleDashboard({
     }
   }
 
-  // ── Session Handlers ────────────────────────────────────────────────────────
-
+  // Session Handlers
   const handleStartSession = async (
     conId: number,
     mode: SessionMode,
@@ -190,15 +193,12 @@ export default function ConsoleDashboard({
     playerType: PlayerType,
   ) => {
     try {
-      const updatedCon = await services.consoleService.startSession(
+      const updatedCon = await startSession(
         conId,
         mode,
         durationMin,
         playerType,
         (currentUser as any)?.name || "Staff",
-      )
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
       )
       toast(
         isRTL
@@ -206,46 +206,46 @@ export default function ConsoleDashboard({
           : `Session started for ${updatedCon.name}`,
       )
     } catch (err: any) {
-      console.error("Error starting session:", err)
-      toast(isRTL ? `فشل بدء الجلسة: ${err.message || err}` : `Failed to start session: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل بدء الجلسة: ${err.message || err}`
+          : `Failed to start session: ${err.message || err}`,
+      )
     }
   }
 
   const handlePause = async (conId: number) => {
     try {
-      const updatedCon = await services.consoleService.pauseSession(conId)
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
-      )
+      await pauseSession(conId)
       toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
     } catch (err: any) {
-      console.error("Error pausing session:", err)
-      toast(isRTL ? `فشل إيقاف الجلسة: ${err.message || err}` : `Failed to pause: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل إيقاف الجلسة: ${err.message || err}`
+          : `Failed to pause: ${err.message || err}`,
+      )
     }
   }
 
   const handleResume = async (conId: number) => {
     try {
-      const updatedCon = await services.consoleService.resumeSession(conId)
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
-      )
+      await resumeSession(conId)
       toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
     } catch (err: any) {
-      console.error("Error resuming session:", err)
-      toast(isRTL ? `فشل استئناف الجلسة: ${err.message || err}` : `Failed to resume: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل استئناف الجلسة: ${err.message || err}`
+          : `Failed to resume: ${err.message || err}`,
+      )
     }
   }
 
   const handleEndSession = async (conId: number, finalAmount: number) => {
     try {
-      const updatedCon = await services.consoleService.endSession(
+      await endSession(
         conId,
         finalAmount,
         (currentUser as any)?.name || "Staff",
-      )
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
       )
       alertedSessions.current.delete(conId)
       setEndSessionCon(null)
@@ -256,28 +256,31 @@ export default function ConsoleDashboard({
           : `Session ended. Collected ${money(finalAmount, isRTL)}`,
       )
     } catch (err: any) {
-      console.error("Error ending session:", err)
-      toast(isRTL ? `فشل إنهاء الجلسة: ${err.message || err}` : `Failed to end session: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل إنهاء الجلسة: ${err.message || err}`
+          : `Failed to end session: ${err.message || err}`,
+      )
     }
   }
 
-  const handleTogglePlayer = async (conId: number, newPlayerType: PlayerType) => {
+  const handleTogglePlayer = async (
+    conId: number,
+    newPlayerType: PlayerType,
+  ) => {
     try {
-      const updatedCon = await services.consoleService.togglePlayerType(
-        conId,
-        newPlayerType,
-      )
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
-      )
+      await togglePlayerType(conId, newPlayerType)
       toast(
         isRTL
           ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
           : `Switched to ${newPlayerType} player rate`,
       )
     } catch (err: any) {
-      console.error("Error toggling player type:", err)
-      toast(isRTL ? `فشل تغيير نوع اللعب: ${err.message || err}` : `Failed to switch player mode: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل تغيير نوع اللعب: ${err.message || err}`
+          : `Failed to switch player mode: ${err.message || err}`,
+      )
     }
   }
 
@@ -288,55 +291,36 @@ export default function ConsoleDashboard({
     }
 
     try {
-      const updatedCon = await services.consoleService.addTabItem(
-        conId,
-        item,
-        1,
-      )
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
-      )
-
-      // Deduct stock in inventory
-      const updatedItem = { ...item, stock: Math.max(0, item.stock - 1) }
-      setMenuItems((prev) =>
-        prev.map((i) => (i.id === item.id ? updatedItem : i)),
-      )
-      services.menuRepo.saveItem(updatedItem).catch(console.error)
-
+      await addTabItem(conId, item, 1)
       toast(
         isRTL
           ? `تمت إضافة ${item.nameAr || item.name} إلى الحساب`
           : `Added ${item.name} to tab`,
       )
     } catch (err: any) {
-      console.error("Error adding to tab:", err)
-      toast(isRTL ? `فشل إضافة الطلب: ${err.message || err}` : `Failed to add to tab: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل إضافة الطلب: ${err.message || err}`
+          : `Failed to add to tab: ${err.message || err}`,
+      )
     }
   }
 
   const handleTransfer = async (fromId: number, toId: number) => {
     try {
-      const { from, to } = await services.consoleService.transferSession(
-        fromId,
-        toId,
-      )
-      setConsoles((prev) =>
-        prev.map((c) => {
-          if (c.id === fromId) return from
-          if (c.id === toId) return to
-          return c
-        }),
-      )
+      const { to } = await transferSession(fromId, toId)
       setTransferFromCon(null)
       toast(
         isRTL
-          ? `تم نقل الجلسة من ${from.name} إلى ${to.name}`
+          ? `تم نقل الجلسة إلى ${to.name}`
           : `Transferred session to ${to.name}`,
       )
     } catch (err: any) {
-      console.error("Error transferring session:", err)
-      toast(isRTL ? `فشل نقل الجلسة: ${err.message || err}` : `Failed to transfer: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل نقل الجلسة: ${err.message || err}`
+          : `Failed to transfer: ${err.message || err}`,
+      )
     }
   }
 
@@ -346,56 +330,61 @@ export default function ConsoleDashboard({
     minutes: number,
   ) => {
     try {
-      const updatedCon = await services.consoleService.editSessionTime(
-        conId,
-        mode,
-        minutes,
-      )
-      setConsoles((prev) =>
-        prev.map((c) => (c.id === conId ? updatedCon : c)),
-      )
-      alertedSessions.current.delete(conId)
+      await editSessionTime(conId, mode, minutes)
       setTimeModalState(null)
-      setExpiredAlertCon(null)
       toast(
-        isRTL
-          ? `تم تحديث مدة اللعب بنجاح`
-          : `Updated session time successfully`,
+        mode === "add"
+          ? isRTL
+            ? `تم تمديد الوقت ${minutes} دقيقة`
+            : `Added ${minutes}m to session`
+          : isRTL
+            ? `تم تعديل الوقت إلى ${minutes} دقيقة`
+            : `Updated session to ${minutes}m`,
       )
     } catch (err: any) {
-      console.error("Error editing session time:", err)
-      toast(isRTL ? `فشل تعديل الوقت: ${err.message || err}` : `Failed to edit time: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل تعديل الوقت: ${err.message || err}`
+          : `Failed to edit time: ${err.message || err}`,
+      )
     }
   }
 
   const handleAddConsole = async (name: string, type: ConsoleType) => {
     try {
-      const newCon = await services.consoleService.createConsole(name, type)
-      setConsoles((prev) => [...prev, newCon])
+      const created = await createConsole(name, type)
       setIsAddConsoleOpen(false)
-      toast(isRTL ? `تم إضافة ${name} إلى الصالة` : `Added ${name} to lounge`)
+      toast(
+        isRTL
+          ? `تمت إضافة جهاز ${created.name} بنجاح`
+          : `Added console ${created.name}`,
+      )
     } catch (err: any) {
-      console.error("Error adding console:", err)
-      toast(isRTL ? `فشل إضافة الجهاز: ${err.message || err}` : `Failed to add console: ${err.message || err}`)
+      toast(
+        isRTL
+          ? `فشل إضافة الجهاز: ${err.message || err}`
+          : `Failed to add console: ${err.message || err}`,
+      )
     }
   }
 
-  // ── Metrics ────────────────────────────────────────────────────────────────
-  const activeCount = consoles.filter(
-    (c) => c.status === "occupied" || c.status === "paused",
-  ).length
+  // Summary Metrics
+  const activeCount = consoles.filter((c) => c.status === "occupied").length
   const availableCount = consoles.filter((c) => c.status === "available").length
   const maintenanceCount = consoles.filter(
     (c) => c.status === "maintenance",
   ).length
+
   const totalLiveRevenue = consoles.reduce((sum, c) => {
-    const elapsed = c.session ? getElapsedMs(c.session) : 0
-    const cost = c.session ? calcCost(c.session, elapsed) : 0
-    const tab = c.session ? tabSum(c.session) : 0
-    return sum + c.dailyTotal + cost + tab
+    if (c.status === "occupied" && c.session) {
+      const elapsed = getElapsedMs(c.session)
+      const cost = calcCost(c.session, elapsed)
+      const items = tabSum(c.session)
+      return sum + cost + items
+    }
+    return sum
   }, 0)
 
-  // Filtered consoles
   const filteredConsoles = consoles.filter((con) => {
     if (filter !== "all" && con.status !== filter) return false
     if (typeFilter !== "all" && con.type !== typeFilter) return false
@@ -403,7 +392,11 @@ export default function ConsoleDashboard({
   })
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#07090e] p-4 sm:p-6 select-none">
+    <PullToRefresh
+      onRefresh={refresh}
+      isRTL={isRTL}
+      className="bg-slate-50 dark:bg-[#07090e] p-4 sm:p-6 select-none"
+    >
       {/* Top Header & Fast Metric Cards */}
       <div className="space-y-4 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -419,13 +412,22 @@ export default function ConsoleDashboard({
             </p>
           </div>
 
-          <Button
-            variant="primary"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsAddConsoleOpen(true)}
-          >
-            {isRTL ? "إضافة جهاز" : "Add Console"}
-          </Button>
+          <div className="flex items-center gap-2 ms-auto sm:ms-0">
+            <RefreshButton
+              onRefresh={refresh}
+              isRefreshing={isRefreshing}
+              isRTL={isRTL}
+              showLabel
+            />
+
+            <Button
+              variant="primary"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => setIsAddConsoleOpen(true)}
+            >
+              {isRTL ? "إضافة جهاز" : "Add Console"}
+            </Button>
+          </div>
         </div>
 
         {/* Metric Summary Ribbon */}
@@ -478,7 +480,7 @@ export default function ConsoleDashboard({
             </div>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isRTL ? "دخل اليوم" : "Daily Revenue"}
+                {isRTL ? "دخل الجلسات الحالية" : "Live Revenue"}
               </div>
               <div className="text-lg sm:text-xl font-bold font-mono text-[#0070d1] dark:text-sky-400 truncate">
                 {money(totalLiveRevenue, isRTL)}
@@ -499,8 +501,9 @@ export default function ConsoleDashboard({
             ].map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setFilter(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   filter === tab.id
                     ? "bg-[#0070d1] text-white shadow-sm"
                     : "bg-white dark:bg-[#0e121b] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200/70 dark:border-slate-800"
@@ -515,11 +518,12 @@ export default function ConsoleDashboard({
             {(["all", "PS5", "PS4", "Xbox", "VIP"] as const).map((t) => (
               <button
                 key={t}
+                type="button"
                 onClick={() => setTypeFilter(t)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   typeFilter === t
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-black"
-                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                    ? "bg-[#0070d1]/15 text-[#0070d1] border border-[#0070d1]/30"
+                    : "text-slate-400 hover:text-slate-200"
                 }`}
               >
                 {t === "all" ? (isRTL ? "الكل" : "All") : t}
@@ -529,49 +533,70 @@ export default function ConsoleDashboard({
         </div>
       </div>
 
-      {/* Main Console Cards Grid - Fully Responsive */}
-      <div className="pb-24 lg:pb-8">
-        {filteredConsoles.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-            <Gamepad2 className="w-12 h-12 stroke-1 opacity-40 mb-2" />
-            <p className="text-sm">
-              {isRTL
-                ? "لا توجد أجهزة مطابقة للفلتر المحدد."
-                : "No consoles match the selected filter."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
-            {filteredConsoles.map((con) => {
-              const isExpired =
-                con.session?.mode === "prepaid" &&
-                con.session.targetDurationMin != null &&
-                getElapsedMs(con.session) >=
-                  con.session.targetDurationMin * 60_000
+      {/* Main Content ViewStates */}
+      {status === "loading" && (
+        <div className="space-y-4">
+          <CardGridSkeleton
+            count={8}
+            cols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          />
+        </div>
+      )}
 
-              return (
-                <ConsoleCard
-                  key={con.id}
-                  con={con}
-                  isRTL={isRTL}
-                  isExpired={isExpired}
-                  theme={theme}
-                  onSelect={() => setStartSessionCon(con)}
-                  onPause={() => handlePause(con.id)}
-                  onResume={() => handleResume(con.id)}
-                  onEnd={() => setEndSessionCon(con)}
-                  onTransfer={() => setTransferFromCon(con)}
-                  onAddToTab={() => setAddToTabCon(con)}
-                  onTogglePlayer={(pt) => handleTogglePlayer(con.id, pt)}
-                  onShowTab={() => setViewTabCon(con)}
-                  onEditTime={() => setTimeModalState({ con, mode: "edit" })}
-                  onToggleReserve={() => handleToggleReserve(con.id)}
-                />
-              )
-            })}
-          </div>
-        )}
-      </div>
+      {status === "error" && (
+        <ErrorStateCard
+          message={error || undefined}
+          onRetry={retry}
+          isRTL={isRTL}
+        />
+      )}
+
+      {status === "empty" && (
+        <EmptyStateCard
+          title={isRTL ? "لا توجد أجهزة مضافة" : "No consoles added yet"}
+          description={
+            isRTL
+              ? "لم يتم العثور على أي أجهزة في الصالة. يمكنك إضافة أول جهاز للبدء."
+              : "No consoles found. Click Add Console to set up your first station."
+          }
+          actionLabel={isRTL ? "＋ إضافة جهاز" : "＋ Add Console"}
+          onAction={() => setIsAddConsoleOpen(true)}
+          isRTL={isRTL}
+        />
+      )}
+
+      {status === "success" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-24 lg:pb-8">
+          {filteredConsoles.map((con) => {
+            const expired =
+              con.status === "occupied" &&
+              con.session?.mode === "prepaid" &&
+              con.session.targetDurationMin != null &&
+              getElapsedMs(con.session) >=
+                con.session.targetDurationMin * 60_000
+
+            return (
+              <ConsoleCard
+                key={con.id}
+                con={con}
+                isRTL={isRTL}
+                isExpired={expired}
+                theme={theme}
+                onSelect={() => setStartSessionCon(con)}
+                onPause={() => handlePause(con.id)}
+                onResume={() => handleResume(con.id)}
+                onEnd={() => setEndSessionCon(con)}
+                onTransfer={() => setTransferFromCon(con)}
+                onAddToTab={() => setAddToTabCon(con)}
+                onTogglePlayer={(pt) => handleTogglePlayer(con.id, pt)}
+                onShowTab={() => setViewTabCon(con)}
+                onEditTime={() => setTimeModalState({ con, mode: "edit" })}
+                onToggleReserve={() => handleToggleReserve(con.id)}
+              />
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Sub-Modals (Separated & Modular) ─────────────────────────────────── */}
       <StartSessionModal
@@ -616,18 +641,16 @@ export default function ConsoleDashboard({
         }
       />
 
-      {timeModalState && (
-        <EditTimeModal
-          con={timeModalState.con}
-          mode={timeModalState.mode}
-          isRTL={isRTL}
-          onClose={() => setTimeModalState(null)}
-          onConfirm={(min) =>
-            timeModalState &&
-            handleTimeConfirm(timeModalState.con.id, timeModalState.mode, min)
-          }
-        />
-      )}
+      <EditTimeModal
+        con={timeModalState?.con || null}
+        mode={timeModalState?.mode || "edit"}
+        isRTL={isRTL}
+        onClose={() => setTimeModalState(null)}
+        onConfirm={(min) =>
+          timeModalState &&
+          handleTimeConfirm(timeModalState.con.id, timeModalState.mode, min)
+        }
+      />
 
       <AddConsoleModal
         isOpen={isAddConsoleOpen}
@@ -636,20 +659,20 @@ export default function ConsoleDashboard({
         onAdd={handleAddConsole}
       />
 
-      {expiredAlertCon && (
-        <ExpiredAlertModal
-          con={expiredAlertCon}
-          isRTL={isRTL}
-          onExtend={() => {
+      <ExpiredAlertModal
+        con={expiredAlertCon}
+        isRTL={isRTL}
+        onExtend={() => {
+          if (expiredAlertCon) {
             setTimeModalState({ con: expiredAlertCon, mode: "add" })
             setExpiredAlertCon(null)
-          }}
-          onEnd={() => {
-            setEndSessionCon(expiredAlertCon)
-            setExpiredAlertCon(null)
-          }}
-        />
-      )}
-    </div>
+          }
+        }}
+        onEnd={() => {
+          setEndSessionCon(expiredAlertCon)
+          setExpiredAlertCon(null)
+        }}
+      />
+    </PullToRefresh>
   )
 }

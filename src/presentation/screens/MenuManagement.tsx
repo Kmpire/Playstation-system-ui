@@ -1,13 +1,16 @@
-import { useState } from "react"
-import type { MenuItem, Category } from "@/domain"
+import React, { useState } from "react"
+import type { MenuItem } from "@/domain"
 import { money } from "@/domain"
-import { useServices } from "../context/ServicesContext"
+import { useMenuViewModel } from "../viewmodels/useMenuViewModel"
+import {
+  TableSkeleton,
+  ErrorStateCard,
+  EmptyStateCard,
+  RefreshButton,
+} from "../components/states"
+import { PullToRefresh } from "../components/common/PullToRefresh"
 
 interface Props {
-  menuItems: MenuItem[]
-  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>
-  categories: Category[]
-  setCategories: React.Dispatch<React.SetStateAction<Category[]>>
   t: (k: string) => string
   isRTL: boolean
   toast?: (msg: string) => void
@@ -24,18 +27,22 @@ const EMPTY_ITEM: Omit<MenuItem, "id"> = {
   lowStockThreshold: 5,
 }
 
-let nextId = 100
+export default function MenuManagement({ isRTL, toast }: Props) {
+  const {
+    menuItems,
+    categories,
+    status,
+    error,
+    isRefreshing,
+    refresh,
+    retry,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+    addCategory,
+    deleteCategory,
+  } = useMenuViewModel()
 
-export default function MenuManagement({
-  menuItems,
-  setMenuItems,
-  categories,
-  setCategories,
-  t,
-  isRTL,
-  toast,
-}: Props) {
-  const services = useServices()
   const [editItem, setEditItem] = useState<MenuItem | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Omit<MenuItem, "id">>(EMPTY_ITEM)
@@ -71,61 +78,74 @@ export default function MenuManagement({
     try {
       if (editItem) {
         const item: MenuItem = { ...editItem, ...formData }
-        const updated = await services.inventoryService.updateMenuItem(item)
-        setMenuItems((prev) =>
-          prev.map((i) => (i.id === editItem.id ? updated : i)),
+        await updateMenuItem(item)
+        toast?.(
+          isRTL ? "تم تحديث الصنف بنجاح ✓" : "Item updated successfully ✓",
         )
-        toast?.(isRTL ? "تم تحديث الصنف بنجاح" : "Item updated successfully")
       } else {
-        const created = await services.inventoryService.addMenuItem(formData)
-        setMenuItems((prev) => [...prev, created])
-        toast?.(isRTL ? "تم إضافة الصنف بنجاح" : "Item added successfully")
+        await addMenuItem(formData)
+        toast?.(isRTL ? "تم إضافة الصنف بنجاح ✓" : "Item added successfully ✓")
       }
       setShowForm(false)
     } catch (err: any) {
       console.error("Error saving menu item:", err)
-      toast?.(isRTL ? `فشل حفظ الصنف: ${err.message || err}` : `Failed to save item: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل حفظ الصنف: ${err.message || err}`
+          : `Failed to save item: ${err.message || err}`,
+      )
     }
   }
 
-  async function deleteItem(id: string) {
+  async function handleDelete(id: string) {
     try {
-      await services.inventoryService.deleteMenuItem(id)
-      setMenuItems((prev) => prev.filter((i) => i.id !== id))
+      await deleteMenuItem(id)
       setDeleteConfirm(null)
       toast?.(isRTL ? "تم حذف الصنف" : "Item deleted")
     } catch (err: any) {
       console.error("Error deleting menu item:", err)
-      toast?.(isRTL ? `فشل حذف الصنف: ${err.message || err}` : `Failed to delete item: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل حذف الصنف: ${err.message || err}`
+          : `Failed to delete item: ${err.message || err}`,
+      )
     }
   }
 
-  async function addCategory() {
+  async function handleAddCategory() {
     if (!catInput.trim()) return
     try {
-      const created = await services.inventoryService.addCategory({
+      await addCategory({
         name: catInput.trim(),
         nameAr: catInputAr.trim() || catInput.trim(),
       })
-      setCategories((prev) => [...prev, created])
       setCatInput("")
       setCatInputAr("")
       setShowCatForm(false)
-      toast?.(isRTL ? "تمت إضافة التصنيف بنجاح" : "Category added successfully")
+      toast?.(
+        isRTL ? "تمت إضافة التصنيف بنجاح ✓" : "Category added successfully ✓",
+      )
     } catch (err: any) {
       console.error("Error adding category:", err)
-      toast?.(isRTL ? `فشل إضافة التصنيف: ${err.message || err}` : `Failed to add category: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل إضافة التصنيف: ${err.message || err}`
+          : `Failed to add category: ${err.message || err}`,
+      )
     }
   }
 
-  async function deleteCategory(id: string) {
+  async function handleDeleteCategory(id: string) {
     try {
-      await services.inventoryService.deleteCategory(id)
-      setCategories((prev) => prev.filter((c) => c.id !== id))
+      await deleteCategory(id)
       toast?.(isRTL ? "تم حذف التصنيف" : "Category deleted")
     } catch (err: any) {
       console.error("Error deleting category:", err)
-      toast?.(isRTL ? `فشل حذف التصنيف: ${err.message || err}` : `Failed to delete category: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل حذف التصنيف: ${err.message || err}`
+          : `Failed to delete category: ${err.message || err}`,
+      )
     }
   }
 
@@ -139,52 +159,68 @@ export default function MenuManagement({
     )
 
   const catName = (id: string) => {
-    const c = categories.find((c) => c.id === id)
+    const c = categories.find((cat) => cat.id === id)
     return c ? (isRTL ? c.nameAr : c.name) : "—"
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50 dark:bg-[#0f111a]">
+    <PullToRefresh
+      onRefresh={refresh}
+      isRTL={isRTL}
+      className="bg-slate-50 dark:bg-[#0f111a]"
+    >
       {/* Header */}
-      <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+      <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#1a1d26]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             {isRTL ? "إدارة القائمة" : "Menu Management"}
           </h1>
-          <p className="text-slate-500 dark:text-slate-500 text-sm">
-            {menuItems.length} {isRTL ? "عنصر" : "items"}
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+            {menuItems.length} {isRTL ? "عنصر مسجل" : "items registered"}
           </p>
         </div>
+
         <div className="flex items-center gap-2">
+          <RefreshButton
+            onRefresh={refresh}
+            isRefreshing={isRefreshing}
+            isRTL={isRTL}
+            showLabel
+          />
+
           <button
+            type="button"
             onClick={() => setShowCatForm((v) => !v)}
-            className="px-3 py-2 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg text-sm transition-colors"
+            className="px-3 py-2 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
           >
             ＋ {isRTL ? "فئة" : "Category"}
           </button>
+
           <button
+            type="button"
             onClick={openAdd}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-sm transition-colors"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs sm:text-sm transition-colors cursor-pointer shadow-sm"
           >
             ＋ {isRTL ? "إضافة عنصر" : "Add Item"}
           </button>
         </div>
       </div>
 
-      {/* Category manager */}
+      {/* Category manager form */}
       {showCatForm && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800/50 px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex gap-2 flex-wrap">
-              {categories.map((cat) => (
+              {categories.map((c) => (
                 <span
-                  key={cat.id}
-                  className="inline-flex items-center gap-1 bg-white dark:bg-[#252a36] border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 text-sm text-slate-700 dark:text-slate-300"
+                  key={c.id}
+                  className="inline-flex items-center gap-1.5 bg-white dark:bg-[#252a36] border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs"
                 >
-                  {isRTL ? cat.nameAr : cat.name}
+                  {isRTL ? c.nameAr : c.name}
                   <button
-                    onClick={() => deleteCategory(cat.id)}
-                    className="text-slate-400 dark:text-slate-500 hover:text-red-500 ms-1 text-xs leading-none"
+                    type="button"
+                    onClick={() => handleDeleteCategory(c.id)}
+                    className="text-slate-400 hover:text-red-500 ms-1 text-sm leading-none cursor-pointer"
                   >
                     ×
                   </button>
@@ -194,21 +230,22 @@ export default function MenuManagement({
             <div className="flex gap-2 ms-auto">
               <input
                 type="text"
-                placeholder={isRTL ? "اسم بالعربي" : "Name (EN)"}
+                placeholder={isRTL ? "اسم بالإنجليزية" : "Name (EN)"}
                 value={catInput}
                 onChange={(e) => setCatInput(e.target.value)}
-                className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
               />
               <input
                 type="text"
-                placeholder={isRTL ? "Name (AR)" : "اسم (AR)"}
+                placeholder={isRTL ? "الاسم بالعربي" : "Name (AR)"}
                 value={catInputAr}
                 onChange={(e) => setCatInputAr(e.target.value)}
-                className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
               />
               <button
-                onClick={addCategory}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500 transition-colors"
+                type="button"
+                onClick={handleAddCategory}
+                className="px-3.5 py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors cursor-pointer"
               >
                 {isRTL ? "إضافة" : "Add"}
               </button>
@@ -221,15 +258,15 @@ export default function MenuManagement({
       <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
         <input
           type="search"
-          placeholder={isRTL ? "بحث…" : "Search…"}
+          placeholder={isRTL ? "بحث في القائمة…" : "Search menu…"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 flex-1 sm:flex-none sm:w-52 bg-white dark:bg-[#1a1d26] dark:text-slate-100"
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-300 flex-1 sm:flex-none sm:w-56 bg-white dark:bg-[#1a1d26] dark:text-slate-100"
         />
         <select
           value={filterCat}
           onChange={(e) => setFilterCat(e.target.value)}
-          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] text-slate-700 dark:text-slate-300"
+          className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] text-slate-700 dark:text-slate-300"
         >
           <option value="">{isRTL ? "جميع الفئات" : "All categories"}</option>
           {categories.map((c) => (
@@ -243,257 +280,259 @@ export default function MenuManagement({
         </div>
       </div>
 
-      {/* Content Area: Desktop Table & Mobile Cards */}
-      <div className="pb-24 lg:pb-8">
-        {/* Desktop Table View */}
-        <div className="hidden md:block">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
-              <tr>
-                {[
-                  isRTL ? "الاسم" : "Name",
-                  isRTL ? "الفئة" : "Category",
-                  isRTL ? "السعر" : "Price",
-                  isRTL ? "التكلفة" : "Cost",
-                  isRTL ? "المخزون" : "Stock",
-                  isRTL ? "الحد الأدنى" : "Min. Stock",
-                  isRTL ? "الإجراءات" : "Actions",
-                ].map((h, i) => (
-                  <th
-                    key={i}
-                    className={`px-4 py-3 text-[11px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider text-start ${
-                      i === 6 ? "text-end" : ""
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
+      <div className="p-3.5 sm:p-6 pb-24 lg:pb-8">
+        {/* Loading State */}
+        {status === "loading" && (
+          <div className="space-y-4">
+            <TableSkeleton rows={6} cols={7} />
+          </div>
+        )}
+
+        {/* Error State */}
+        {status === "error" && (
+          <ErrorStateCard
+            message={error || undefined}
+            onRetry={retry}
+            isRTL={isRTL}
+          />
+        )}
+
+        {/* Empty State */}
+        {status === "empty" && (
+          <EmptyStateCard
+            title={isRTL ? "قائمة الأصناف فارغة" : "Menu is empty"}
+            description={
+              isRTL
+                ? "لم تتم إضافة أي أصناف إلى القائمة بعد. يمكنك البدء بإضافة صنف جديد."
+                : "No menu items have been added yet. Click Add Item to start."
+            }
+            actionLabel={isRTL ? "＋ إضافة عنصر" : "＋ Add Item"}
+            onAction={openAdd}
+            isRTL={isRTL}
+          />
+        )}
+
+        {/* Success Content */}
+        {status === "success" && (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-2xl border border-slate-200/80 dark:border-[#1e2638] bg-white dark:bg-[#1a1d26] overflow-hidden shadow-xs">
+              <table className="w-full">
+                <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
+                  <tr>
+                    {[
+                      isRTL ? "الاسم" : "Name",
+                      isRTL ? "الفئة" : "Category",
+                      isRTL ? "السعر" : "Price",
+                      isRTL ? "التكلفة" : "Cost",
+                      isRTL ? "المخزون" : "Stock",
+                      isRTL ? "الحد الأدنى" : "Min. Stock",
+                      isRTL ? "الإجراءات" : "Actions",
+                    ].map((h, i) => (
+                      <th
+                        key={i}
+                        className="px-4 py-3 text-start text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
+                  {filtered.map((item) => {
+                    const lowStock = item.stock <= item.lowStockThreshold
+                    return (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                            {isRTL ? item.nameAr : item.name}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {isRTL ? item.name : item.nameAr}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-500">
+                          {catName(item.category)}
+                        </td>
+                        <td className="px-4 py-3 font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                          {money(item.price, isRTL)}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                          {money(item.costPrice, isRTL)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              lowStock
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                            }`}
+                          >
+                            {item.stock}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-400">
+                          {item.lowStockThreshold}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
+                            >
+                              {isRTL ? "تعديل" : "Edit"}
+                            </button>
+                            <span className="text-slate-300 dark:text-slate-700">
+                              |
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirm(item.id)}
+                              className="text-xs text-red-500 hover:underline font-medium cursor-pointer"
+                            >
+                              {isRTL ? "حذف" : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-3">
               {filtered.map((item) => {
                 const lowStock = item.stock <= item.lowStockThreshold
                 return (
-                  <tr
+                  <div
                     key={item.id}
-                    className="bg-white dark:bg-[#1a1d26] hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="bg-white dark:bg-[#1a1d26] border border-slate-200/80 dark:border-slate-700/40 rounded-2xl p-4 shadow-xs"
                   >
-                    <td className="px-4 py-3">
-                      <div className="text-slate-900 dark:text-slate-100 font-medium text-sm">
-                        {item.name}
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                          {isRTL ? item.nameAr : item.name}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {catName(item.category)}
+                        </div>
                       </div>
-                      <div className="text-slate-400 dark:text-slate-500 text-xs">
-                        {item.nameAr}
+                      <div className="font-mono font-bold text-sm text-blue-600 dark:text-blue-400">
+                        {money(item.price, isRTL)}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs bg-slate-100 dark:bg-[#252a36] text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded-full">
-                        {catName(item.category)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm text-slate-900 dark:text-slate-100">
-                      {money(item.price, isRTL)}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">
-                      {money(item.costPrice, isRTL)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`font-mono text-sm font-semibold ${
-                          lowStock
-                            ? "text-amber-600"
-                            : "text-slate-900 dark:text-slate-100"
-                        }`}
-                      >
-                        {item.stock}
-                      </span>
-                      {lowStock && (
-                        <span className="ms-1.5 text-[10px] text-amber-500 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
-                          {isRTL ? "منخفض" : "Low"}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/40 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`font-mono px-2 py-0.5 rounded-full font-medium ${
+                            lowStock
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                          }`}
+                        >
+                          {isRTL ? "المخزون: " : "Stock: "}
+                          {item.stock}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-sm text-slate-500 dark:text-slate-500">
-                      {item.lowStockThreshold}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
+                      </div>
+
+                      <div className="flex items-center gap-3">
                         <button
+                          type="button"
                           onClick={() => openEdit(item)}
-                          className="px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-lg transition-colors"
+                          className="text-blue-600 dark:text-blue-400 font-medium cursor-pointer"
                         >
                           {isRTL ? "تعديل" : "Edit"}
                         </button>
                         <button
+                          type="button"
                           onClick={() => setDeleteConfirm(item.id)}
-                          className="px-3 py-1.5 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg transition-colors"
+                          className="text-red-500 font-medium cursor-pointer"
                         >
                           {isRTL ? "حذف" : "Delete"}
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards View */}
-        <div className="md:hidden p-3.5 space-y-3">
-          {filtered.map((item) => {
-            const lowStock = item.stock <= item.lowStockThreshold
-            return (
-              <div
-                key={item.id}
-                className="bg-white dark:bg-[#1a1d26] border border-slate-200/80 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm space-y-3"
-              >
-                {/* Title & Category Badge */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                      {item.name}
-                    </div>
-                    <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                      {item.nameAr}
-                    </div>
-                  </div>
-                  <span className="text-xs bg-slate-100 dark:bg-[#252a36] text-slate-600 dark:text-slate-400 px-2.5 py-1 rounded-full font-medium shrink-0">
-                    {catName(item.category)}
-                  </span>
-                </div>
-
-                {/* Pricing & Stock Stats */}
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-[#141721] p-2.5 rounded-xl text-center">
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                      {isRTL ? "السعر" : "Price"}
-                    </div>
-                    <div className="font-mono font-bold text-xs sm:text-sm text-blue-600 dark:text-sky-400">
-                      {money(item.price, isRTL)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                      {isRTL ? "التكلفة" : "Cost"}
-                    </div>
-                    <div className="font-mono font-medium text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                      {money(item.costPrice, isRTL)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                      {isRTL ? "المخزون" : "Stock"}
-                    </div>
-                    <div className="flex items-center justify-center gap-1">
-                      <span
-                        className={`font-mono font-bold text-xs sm:text-sm ${
-                          lowStock
-                            ? "text-amber-500"
-                            : "text-slate-900 dark:text-slate-100"
-                        }`}
-                      >
-                        {item.stock}
-                      </span>
-                      {lowStock && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded px-1">
-                          ⚠️
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    onClick={() => openEdit(item)}
-                    className="flex-1 py-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/60 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800/50 rounded-xl transition-colors text-center"
-                  >
-                    {isRTL ? "تعديل" : "Edit"}
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(item.id)}
-                    className="flex-1 py-2 text-xs font-semibold text-red-500 dark:text-red-400 bg-red-50/60 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded-xl transition-colors text-center"
-                  >
-                    {isRTL ? "حذف" : "Delete"}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-slate-400 text-xs">
-              {isRTL ? "لا توجد عناصر مطابقة" : "No menu items found"}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Add/Edit modal */}
+      {/* Edit/Add Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700/30 flex items-center justify-between sticky top-0 bg-white dark:bg-[#1a1d26] z-10">
-              <h2 className="font-semibold text-slate-900 dark:text-slate-100">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                 {editItem
                   ? isRTL
-                    ? "تعديل عنصر"
+                    ? "تعديل الصنف"
                     : "Edit Item"
                   : isRTL
-                    ? "إضافة عنصر"
-                    : "Add Item"}
-              </h2>
+                    ? "إضافة صنف جديد"
+                    : "Add New Item"}
+              </h3>
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
-                className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-2xl leading-none"
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none cursor-pointer"
               >
                 ×
               </button>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "الاسم (EN)" : "Name (EN)"}
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, name: e.target.value }))
-                    }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 dark:bg-[#1a1d26] dark:text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    الاسم (AR)
-                  </label>
-                  <input
-                    type="text"
-                    dir="rtl"
-                    value={formData.nameAr}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, nameAr: e.target.value }))
-                    }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 dark:bg-[#1a1d26] dark:text-slate-100"
-                  />
-                </div>
-              </div>
+
+            <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  {isRTL ? "الفئة" : "Category"}
+                  {isRTL ? "الاسم (EN) *" : "Name (EN) *"}
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, name: e.target.value }))
+                  }
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 dark:bg-[#1a1d26] dark:text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  {isRTL ? "الاسم (عربي)" : "Name (AR)"}
+                </label>
+                <input
+                  type="text"
+                  value={formData.nameAr}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, nameAr: e.target.value }))
+                  }
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 dark:bg-[#1a1d26] dark:text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  {isRTL ? "الفئة *" : "Category *"}
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, category: e.target.value }))
                   }
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-300"
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 dark:bg-[#1a1d26] dark:text-slate-100"
                 >
+                  <option value="">
+                    {isRTL ? "اختر فئة" : "Select category"}
+                  </option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {isRTL ? c.nameAr : c.name}
@@ -501,10 +540,11 @@ export default function MenuManagement({
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "السعر (ج.م)" : "Price (EGP)"}
+                    {isRTL ? "سعر البيع *" : "Selling Price *"}
                   </label>
                   <input
                     type="number"
@@ -517,12 +557,12 @@ export default function MenuManagement({
                         price: parseFloat(e.target.value) || 0,
                       }))
                     }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "سعر التكلفة (ج.م)" : "Cost Price (EGP)"}
+                    {isRTL ? "سعر التكلفة" : "Cost Price"}
                   </label>
                   <input
                     type="number"
@@ -535,14 +575,15 @@ export default function MenuManagement({
                         costPrice: parseFloat(e.target.value) || 0,
                       }))
                     }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "الكمية" : "Stock Qty"}
+                    {isRTL ? "الكمية بالمخزون" : "Stock Quantity"}
                   </label>
                   <input
                     type="number"
@@ -554,7 +595,7 @@ export default function MenuManagement({
                         stock: parseInt(e.target.value) || 0,
                       }))
                     }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
                   />
                 </div>
                 <div>
@@ -571,21 +612,24 @@ export default function MenuManagement({
                         lowStockThreshold: parseInt(e.target.value) || 0,
                       }))
                     }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-300 font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
                   />
                 </div>
               </div>
             </div>
+
             <div className="px-6 pb-6 flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-sm transition-colors"
+                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-sm transition-colors cursor-pointer"
               >
                 {isRTL ? "إلغاء" : "Cancel"}
               </button>
               <button
+                type="button"
                 onClick={saveItem}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-colors"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer"
               >
                 {isRTL ? "حفظ" : "Save"}
               </button>
@@ -594,29 +638,31 @@ export default function MenuManagement({
         </div>
       )}
 
-      {/* Delete confirm */}
+      {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl p-6 w-80 text-center">
-            <div className="text-2xl mb-2">🗑️</div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl p-6 w-80 text-center animate-in fade-in zoom-in-95 duration-150">
+            <div className="text-3xl mb-2">🗑️</div>
             <div className="text-slate-900 dark:text-slate-100 font-semibold mb-1">
               {isRTL ? "تأكيد الحذف" : "Delete Item?"}
             </div>
-            <div className="text-slate-500 dark:text-slate-500 text-sm mb-5">
+            <div className="text-slate-500 dark:text-slate-400 text-xs mb-5">
               {isRTL
                 ? "لا يمكن التراجع عن هذا الإجراء."
                 : "This action cannot be undone."}
             </div>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 rounded-xl text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                className="flex-1 py-2 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 rounded-xl text-xs sm:text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
               >
                 {isRTL ? "إلغاء" : "Cancel"}
               </button>
               <button
-                onClick={() => deleteItem(deleteConfirm)}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-400 text-white font-semibold rounded-xl text-sm transition-colors"
+                type="button"
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 {isRTL ? "حذف" : "Delete"}
               </button>
@@ -624,6 +670,6 @@ export default function MenuManagement({
           </div>
         </div>
       )}
-    </div>
+    </PullToRefresh>
   )
 }

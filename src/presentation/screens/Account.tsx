@@ -5,7 +5,11 @@ interface Props {
   isRTL: boolean
   toast: (msg: string) => void
   currentUser: Account
-  changePassword: (username: string, newPassword: string, currentPassword?: string) => Promise<boolean> | void
+  changePassword: (
+    username: string,
+    newPassword: string,
+    currentPassword?: string,
+  ) => Promise<boolean> | void
   [key: string]: unknown
 }
 

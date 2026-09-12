@@ -9,7 +9,11 @@ export class ApiAuthRepository implements IAuthRepository {
 
   async login(username: string, pass: string): Promise<UserAccount | null> {
     try {
-      const res = await apiClient<{ success: boolean; token?: string; user?: UserAccount }>("/auth/login", {
+      const res = await apiClient<{
+        success: boolean
+        token?: string
+        user?: UserAccount
+      }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ username, password: pass }),
       })
@@ -27,7 +31,11 @@ export class ApiAuthRepository implements IAuthRepository {
     }
   }
 
-  async changePassword(username: string, newPassword: string, currentPassword?: string): Promise<boolean> {
+  async changePassword(
+    username: string,
+    newPassword: string,
+    currentPassword?: string,
+  ): Promise<boolean> {
     try {
       await apiClient<{ success: boolean }>("/auth/change-password", {
         method: "POST",
@@ -50,7 +58,7 @@ export class ApiAuthRepository implements IAuthRepository {
   async getCurrentUser(): Promise<UserAccount | null> {
     try {
       const res = await apiClient<{ user: UserAccount }>("/auth/me")
-      return res.user || (res as unknown as UserAccount) || null
+      return res.user || res as unknown as UserAccount || null
     } catch {
       return null
     }

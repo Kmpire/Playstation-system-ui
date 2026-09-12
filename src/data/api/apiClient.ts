@@ -1,5 +1,7 @@
 const DEFAULT_API_URL = "http://localhost:5001/api/v1"
-const API_URL = (import.meta.env.VITE_API_URL as string) || DEFAULT_API_URL
+const API_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL as string) ||
+  DEFAULT_API_URL
 const TOKEN_KEY = "ps_auth_token"
 
 export function getAuthToken(): string | null {
@@ -33,15 +35,15 @@ export interface ApiResponse<T> {
 
 export async function apiClient<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const url = endpoint.startsWith("http")
     ? endpoint
     : `${API_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`
-  
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
+    ...options.headers as Record<string, string>,
   }
 
   const token = getAuthToken()
@@ -58,8 +60,13 @@ export async function apiClient<T>(
       headers,
     })
   } catch (netErr: any) {
-    console.error(`[API Network Failed] ${options.method || "GET"} ${url}:`, netErr)
-    throw new Error(`Cannot connect to server at ${url}. Please ensure the backend is running.`)
+    console.error(
+      `[API Network Failed] ${options.method || "GET"} ${url}:`,
+      netErr,
+    )
+    throw new Error(
+      `Cannot connect to server at ${url}. Please ensure the backend is running.`,
+    )
   }
 
   if (!response.ok) {
@@ -70,7 +77,10 @@ export async function apiClient<T>(
     } catch {
       // Keep default error message
     }
-    console.error(`[API Response Error] ${options.method || "GET"} ${url}:`, errorMsg)
+    console.error(
+      `[API Response Error] ${options.method || "GET"} ${url}:`,
+      errorMsg,
+    )
     throw new Error(errorMsg)
   }
 

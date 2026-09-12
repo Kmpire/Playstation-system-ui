@@ -2,13 +2,7 @@ import { useState, useCallback, useEffect } from "react"
 import {
   ServicesProvider,
   useServices,
-  useConsoles,
-  useInventory,
-  useControllers,
-  usePricing,
-  useShifts,
   useAuth,
-  useAudit,
   Sidebar,
   Navbar,
   BottomNav,
@@ -52,30 +46,7 @@ function MainApp() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  // ─── Domain & Data Layer Hooks ───────────────────────────────────────────
-  const { consoles, setConsoles, refresh: refreshConsoles } = useConsoles()
-
-  const {
-    menuItems,
-    setMenuItems,
-    categories,
-    setCategories,
-    lowStockItems,
-    refresh: refreshInventory,
-  } = useInventory()
-
-  const { pricing, setPricing, refresh: refreshPricing } = usePricing()
-
-  const {
-    controllers,
-    setControllers,
-    maintenanceRecords,
-    setMaintenanceRecords,
-    refresh: refreshControllers,
-  } = useControllers()
-
-  const { shiftReports, setShiftReports, refresh: refreshShifts } = useShifts()
-
+  // ─── Authentication & Session State ─────────────────────────────────────────
   const {
     accounts,
     currentUser,
@@ -84,10 +55,7 @@ function MainApp() {
     login,
     changePassword,
     activateLicense,
-    refresh: refreshAuth,
   } = useAuth()
-
-  const { auditLogs: auditLog, refresh: refreshAudit } = useAudit()
 
   // ─── Theme Effect ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -124,27 +92,6 @@ function MainApp() {
     }
   }, [role, screen])
 
-  // Refresh all repositories when data is reset or imported
-  const refreshAll = useCallback(async () => {
-    await Promise.all([
-      refreshConsoles(),
-      refreshInventory(),
-      refreshPricing(),
-      refreshControllers(),
-      refreshShifts(),
-      refreshAuth(),
-      refreshAudit(),
-    ])
-  }, [
-    refreshConsoles,
-    refreshInventory,
-    refreshPricing,
-    refreshControllers,
-    refreshShifts,
-    refreshAuth,
-    refreshAudit,
-  ])
-
   // Shared props passed to all screen views
   const sharedProps = {
     t,
@@ -153,28 +100,11 @@ function MainApp() {
     role,
     theme,
     toast,
-    consoles,
-    setConsoles,
-    menuItems,
-    setMenuItems,
-    categories,
-    setCategories,
-    pricing,
-    setPricing,
-    controllers,
-    setControllers,
-    maintenanceRecords,
-    setMaintenanceRecords,
-    shiftReports,
-    setShiftReports,
-    auditLog,
-    lowStockItems,
     currentUser: currentUser!,
     accounts,
     changePassword,
     resetAllData: async () => {
       await services.resetAllDataToDefaults()
-      await refreshAll()
       toast(
         isRTL
           ? "تمت استعادة البيانات الافتراضية بنجاح"
@@ -242,7 +172,7 @@ function MainApp() {
         isRTL={isRTL}
         role={role}
         currentUser={currentUser}
-        lowStockCount={lowStockItems.length}
+        lowStockCount={0}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
@@ -264,7 +194,7 @@ function MainApp() {
             setScreen("dashboard")
           }}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          lowStockItems={lowStockItems}
+          lowStockItems={[]}
           t={t}
         />
 

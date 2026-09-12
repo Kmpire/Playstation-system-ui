@@ -5,19 +5,21 @@ import {
   Coffee,
   Plus,
   Minus,
-  Trash2,
-  Tag,
-  Receipt,
   AlertTriangle,
-  ArrowRight,
-  ArrowLeft,
+  Receipt,
   X,
-  Sparkles,
 } from "lucide-react"
-import type { MenuItem, Category } from "@/domain"
+import type { MenuItem } from "@/domain"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
-import { useServices } from "../context/ServicesContext"
+import { usePOSViewModel } from "../viewmodels/usePOSViewModel"
+import {
+  CardGridSkeleton,
+  ErrorStateCard,
+  EmptyStateCard,
+  RefreshButton,
+} from "../components/states"
+import { PullToRefresh } from "../components/common/PullToRefresh"
 
 interface CartEntry {
   item: MenuItem
@@ -25,10 +27,10 @@ interface CartEntry {
 }
 
 interface Props {
-  menuItems: MenuItem[]
-  categories: Category[]
   t: (k: string) => string
   isRTL: boolean
+  currentUser?: { name?: string }
+  toast?: (msg: string) => void
   [key: string]: unknown
 }
 
@@ -122,24 +124,29 @@ function ReceiptView({
   )
 }
 
-export default function POSSales({
-  menuItems,
-  setMenuItems,
-  categories,
-  currentUser,
-  t,
-  isRTL,
-  toast,
-}: Props & {
-  setMenuItems?: React.Dispatch<React.SetStateAction<MenuItem[]>>
-  currentUser?: { name?: string }
-  toast?: (msg: string) => void
-}) {
-  const services = useServices()
-  const [selCat, setSelCat] = useState<string>(categories[0]?.id ?? "")
-  const [cart, setCart] = useState<CartEntry[]>([])
-  const [promoCode, setPromoCode] = useState("")
-  const [promoApplied, setPromoApplied] = useState(false)
+export default function POSSales({ currentUser, isRTL, toast }: Props) {
+  const {
+    menuItems,
+    categories,
+    cart,
+    promoCode,
+    setPromoCode,
+    promoApplied,
+    totals,
+    totalItemsCount,
+    status,
+    error,
+    isRefreshing,
+    refresh,
+    retry,
+    addItem,
+    changeQty,
+    applyPromo,
+    checkout,
+    clearCart,
+  } = usePOSViewModel()
+
+  const [selCat, setSelCat] = useState<string>("")
   const [showReceipt, setShowReceipt] = useState(false)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
 
@@ -147,62 +154,23 @@ export default function POSSales({
     ? menuItems.filter((i) => i.category === selCat)
     : menuItems
 
-  const subtotal = cart.reduce((s, e) => s + e.item.price * e.qty, 0)
-  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0
-  const total = subtotal - discount
-  const totalItemsCount = cart.reduce((s, e) => s + e.qty, 0)
-
-  function addItem(item: MenuItem) {
-    if (item.stock <= 0) return
-    setCart((prev) => {
-      const idx = prev.findIndex((e) => e.item.id === item.id)
-      if (idx >= 0) {
-        return prev.map((e, i) => (i === idx ? { ...e, qty: e.qty + 1 } : e))
-      }
-      return [...prev, { item, qty: 1 }]
-    })
-  }
-
-  function changeQty(itemId: string, delta: number) {
-    setCart((prev) =>
-      prev
-        .map((e) => (e.item.id === itemId ? { ...e, qty: e.qty + delta } : e))
-        .filter((e) => e.qty > 0),
-    )
-  }
-
-  function applyPromo() {
-    const valid = ["PLAY10", "CAFE10", "VIP10"]
-    if (valid.includes(promoCode.trim().toUpperCase())) {
-      setPromoApplied(true)
-    }
-  }
-
   async function handleCheckout() {
     if (cart.length === 0) return
     try {
-      await services.posService.processSale(
-        cart,
-        promoApplied ? promoCode : "",
-        (currentUser as any)?.name || "Cashier",
-      )
-      setMenuItems?.((prev) =>
-        prev.map((item) => {
-          const sold = cart.find((c) => c.item.id === item.id)
-          return sold ? { ...item, stock: Math.max(0, item.stock - sold.qty) } : item
-        }),
-      )
+      await checkout(currentUser?.name || "Cashier")
       setShowReceipt(true)
     } catch (err: any) {
       console.error("Error processing sale:", err)
-      toast?.(isRTL ? `فشل إتمام البيع: ${err.message || err}` : `Failed to process sale: ${err.message || err}`)
+      toast?.(
+        isRTL
+          ? `فشل إتمام البيع: ${err.message || err}`
+          : `Failed to process sale: ${err.message || err}`,
+      )
     }
   }
 
   function handleDone() {
-    setCart([])
-    setPromoCode("")
-    setPromoApplied(false)
+    clearCart()
     setShowReceipt(false)
     setMobileCartOpen(false)
   }
@@ -211,8 +179,8 @@ export default function POSSales({
     return (
       <ReceiptView
         entries={cart}
-        total={total}
-        discount={discount}
+        total={totals.total}
+        discount={totals.discount}
         promoLabel={promoCode.toUpperCase() || "PROMO"}
         isRTL={isRTL}
         onDone={handleDone}
@@ -223,102 +191,151 @@ export default function POSSales({
   return (
     <div className="flex h-full bg-slate-50 dark:bg-[#07090e] overflow-hidden select-none relative">
       {/* Left / Main area: Item browser */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Category Filter Pills */}
-        <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-3 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setSelCat("")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
-              selCat === ""
-                ? "bg-[#0070d1] text-white shadow-sm"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-          >
-            {isRTL ? "جميع الأصناف" : "All Categories"}
-          </button>
-          {categories.map((cat) => (
+      <PullToRefresh onRefresh={refresh} isRTL={isRTL} className="flex-1">
+        {/* Category Filter Pills & Refresh */}
+        <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-1">
             <button
-              key={cat.id}
-              onClick={() => setSelCat(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                selCat === cat.id
+              type="button"
+              onClick={() => setSelCat("")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                selCat === ""
                   ? "bg-[#0070d1] text-white shadow-sm"
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
-              {isRTL ? cat.nameAr : cat.name}
+              {isRTL ? "جميع الأصناف" : "All Categories"}
             </button>
-          ))}
-        </div>
-
-        {/* Items Grid - Responsive */}
-        <div className="p-4 sm:p-6 pb-28 lg:pb-8">
-          <div className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">
-            {isRTL
-              ? `${filtered.length} صنف متاح`
-              : `${filtered.length} items available`}
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelCat(cat.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selCat === cat.id
+                    ? "bg-[#0070d1] text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                {isRTL ? cat.nameAr : cat.name}
+              </button>
+            ))}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {filtered.map((item) => {
-              const inCart = cart.find((e) => e.item.id === item.id)
-              const lowStock = item.stock <= item.lowStockThreshold
+          <RefreshButton
+            onRefresh={refresh}
+            isRefreshing={isRefreshing}
+            isRTL={isRTL}
+          />
+        </div>
 
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => addItem(item)}
-                  disabled={item.stock <= 0}
-                  className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border text-start transition-all duration-200 flex flex-col justify-between active:scale-[0.98] ${
-                    item.stock <= 0
-                      ? "opacity-40 pointer-events-none border-slate-200 dark:border-slate-800"
-                      : inCart
-                        ? "border-[#0070d1] ring-2 ring-[#0070d1]/20 shadow-md"
-                        : "border-slate-200/80 dark:border-slate-800/80 hover:border-[#0070d1]/50 hover:shadow-md"
-                  }`}
-                >
-                  {/* Cart badge quantity */}
-                  {inCart && (
-                    <span className="absolute top-2 end-2 bg-[#0070d1] text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
-                      {inCart.qty}
-                    </span>
-                  )}
+        {/* ViewStates */}
+        {status === "loading" && (
+          <div className="p-4 sm:p-6">
+            <CardGridSkeleton
+              count={8}
+              cols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
+            />
+          </div>
+        )}
 
-                  <div className="w-full h-20 rounded-xl bg-slate-100 dark:bg-[#151a26] mb-2.5 flex items-center justify-center text-slate-400">
-                    <Coffee className="w-8 h-8 opacity-60 text-[#0070d1]" />
-                  </div>
+        {status === "error" && (
+          <div className="p-4 sm:p-6">
+            <ErrorStateCard
+              message={error || undefined}
+              onRetry={retry}
+              isRTL={isRTL}
+            />
+          </div>
+        )}
 
-                  <div>
-                    <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                      {isRTL && item.nameAr ? item.nameAr : item.name}
-                    </div>
-                    <div className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400 mt-1">
-                      {money(item.price, isRTL)}
-                    </div>
-                    {lowStock && (
-                      <div className="text-amber-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        <span>
-                          {isRTL
-                            ? `المتبقي: ${item.stock}`
-                            : `Stock: ${item.stock}`}
-                        </span>
-                      </div>
+        {status === "empty" && (
+          <div className="p-4 sm:p-6">
+            <EmptyStateCard
+              title={isRTL ? "لا توجد أصناف للبيع" : "No items available"}
+              description={
+                isRTL
+                  ? "لم يتم العثور على أي أصناف في القائمة حالياً."
+                  : "No menu items found in inventory."
+              }
+              actionLabel={isRTL ? "تحديث" : "Refresh"}
+              onAction={refresh}
+              isRTL={isRTL}
+            />
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="p-4 sm:p-6 pb-28 lg:pb-8">
+            <div className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">
+              {isRTL
+                ? `${filtered.length} صنف متاح`
+                : `${filtered.length} items available`}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {filtered.map((item) => {
+                const inCart = cart.find((e) => e.item.id === item.id)
+                const lowStock = item.stock <= item.lowStockThreshold
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => addItem(item)}
+                    disabled={item.stock <= 0}
+                    className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border text-start transition-all duration-200 flex flex-col justify-between active:scale-[0.98] cursor-pointer ${
+                      item.stock <= 0
+                        ? "opacity-40 pointer-events-none border-slate-200 dark:border-slate-800"
+                        : inCart
+                          ? "border-[#0070d1] ring-2 ring-[#0070d1]/20 shadow-md"
+                          : "border-slate-200/80 dark:border-slate-800/80 hover:border-[#0070d1]/50 hover:shadow-md"
+                    }`}
+                  >
+                    {/* Cart badge quantity */}
+                    {inCart && (
+                      <span className="absolute top-2 end-2 bg-[#0070d1] text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                        {inCart.qty}
+                      </span>
                     )}
-                  </div>
-                </button>
-              )
-            })}
+
+                    <div className="w-full h-20 rounded-xl bg-slate-100 dark:bg-[#151a26] mb-2.5 flex items-center justify-center text-slate-400">
+                      <Coffee className="w-8 h-8 opacity-60 text-[#0070d1]" />
+                    </div>
+
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {isRTL && item.nameAr ? item.nameAr : item.name}
+                      </div>
+                      <div className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400 mt-1">
+                        {money(item.price, isRTL)}
+                      </div>
+                      {lowStock && (
+                        <div className="text-amber-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>
+                            {isRTL
+                              ? `المتبقي: ${item.stock}`
+                              : `Stock: ${item.stock}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </PullToRefresh>
 
       {/* Floating Mobile Cart Bar (visible on <lg screens) */}
       {cart.length > 0 && (
         <div className="lg:hidden absolute bottom-3 inset-x-4 z-20">
           <button
+            type="button"
             onClick={() => setMobileCartOpen(true)}
-            className="w-full p-3.5 bg-[#0070d1] text-white rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"
+            className="w-full p-3.5 bg-[#0070d1] text-white rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
@@ -327,7 +344,9 @@ export default function POSSales({
                 {totalItemsCount}
               </span>
             </div>
-            <span className="font-mono text-base">{money(total, isRTL)}</span>
+            <span className="font-mono text-base">
+              {money(totals.total, isRTL)}
+            </span>
           </button>
         </div>
       )}
@@ -356,10 +375,10 @@ export default function POSSales({
             </span>
           </div>
 
-          {/* Close button for mobile drawer */}
           <button
+            type="button"
             onClick={() => setMobileCartOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -393,8 +412,9 @@ export default function POSSales({
 
                 <div className="flex items-center gap-1 shrink-0">
                   <button
+                    type="button"
                     onClick={() => changeQty(item.id, -1)}
-                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs"
+                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -402,8 +422,9 @@ export default function POSSales({
                     {qty}
                   </span>
                   <button
+                    type="button"
                     onClick={() => changeQty(item.id, 1)}
-                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs"
+                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
@@ -427,7 +448,7 @@ export default function POSSales({
             <Button
               variant="secondary"
               size="sm"
-              onClick={applyPromo}
+              onClick={() => applyPromo(promoCode)}
               disabled={promoApplied || !promoCode.trim()}
             >
               {promoApplied
@@ -444,19 +465,21 @@ export default function POSSales({
             <div className="flex justify-between">
               <span>{isRTL ? "المجموع الجزئي" : "Subtotal"}</span>
               <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
-                {money(subtotal, isRTL)}
+                {money(totals.subtotal, isRTL)}
               </span>
             </div>
-            {discount > 0 && (
+            {totals.discount > 0 && (
               <div className="flex justify-between text-emerald-500 font-semibold">
                 <span>{isRTL ? "الخصم (10%)" : "Discount (10%)"}</span>
-                <span className="font-mono">−{money(discount, isRTL)}</span>
+                <span className="font-mono">
+                  −{money(totals.discount, isRTL)}
+                </span>
               </div>
             )}
             <div className="flex justify-between items-center text-base font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
               <span>{isRTL ? "الإجمالي" : "Total"}</span>
               <span className="font-mono text-xl text-[#0070d1] dark:text-sky-400">
-                {money(total, isRTL)}
+                {money(totals.total, isRTL)}
               </span>
             </div>
           </div>

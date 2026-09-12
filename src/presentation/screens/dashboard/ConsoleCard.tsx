@@ -32,10 +32,11 @@ import Button from "@/presentation/components/ui/Button"
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 export function getElapsedMs(session: Session): number {
+  if (!session) return 0
   const now = Date.now()
-  const raw = now - session.startTime
+  const raw = now - (session.startTime || now)
   const currentPause = session.pausedAt ? now - session.pausedAt : 0
-  return Math.max(0, raw - session.totalPausedMs - currentPause)
+  return Math.max(0, raw - (session.totalPausedMs || 0) - currentPause)
 }
 
 export function formatTime(ms: number): string {
@@ -52,18 +53,28 @@ function pad(n: number): string {
 }
 
 export function calcCost(session: Session, elapsedMs: number): number {
-  const segs = session.priceSegments
+  if (!session) return 0
+  const segs = session.priceSegments || []
   let cost = 0
   for (let i = 0; i < segs.length; i++) {
-    const start = segs[i].startElapsedMs
-    const end = i + 1 < segs.length ? segs[i + 1].startElapsedMs : elapsedMs
-    cost += (Math.max(0, end - start) / 3_600_000) * segs[i].ratePerHour
+    const start = segs[i].startElapsedMs || 0
+    const end = i + 1 < segs.length ? (segs[i + 1].startElapsedMs || 0) : elapsedMs
+    cost += (Math.max(0, end - start) / 3_600_000) * (segs[i].ratePerHour || 0)
   }
   return cost
 }
 
-export function tabSum(session: Session): number {
-  return session.tab.reduce((s, i) => s + i.price * i.qty, 0)
+export function tabSum(sessionOrTab: Session | any[] | undefined | null): number {
+  if (!sessionOrTab) return 0
+  const list = Array.isArray(sessionOrTab)
+    ? sessionOrTab
+    : Array.isArray((sessionOrTab as any).tab)
+      ? (sessionOrTab as any).tab
+      : []
+  return list.reduce(
+    (s: number, i: any) => s + (Number(i?.price) || 0) * (Number(i?.qty) || 0),
+    0,
+  )
 }
 
 const TYPE_ICONS: Record<ConsoleType, React.ReactNode> = {
