@@ -101,10 +101,19 @@ export function useReportsViewModel() {
     )
 
     // Base calculation
-    const dailyRev = liveConsoleRevenue > 0 ? liveConsoleRevenue : (totalShiftCash > 0 ? totalShiftCash : 1247.5)
-    const dailyExpenses = (maintenanceCost * 0.1) + (totalShiftDiscrepancy * 0.2) + (dailyRev * 0.3)
+    const dailyRev =
+      liveConsoleRevenue > 0
+        ? liveConsoleRevenue
+        : totalShiftCash > 0
+          ? totalShiftCash
+          : 1247.5
+    const dailyExpenses =
+      maintenanceCost * 0.1 + totalShiftDiscrepancy * 0.2 + dailyRev * 0.3
     const dailyProfit = Math.max(0, dailyRev - dailyExpenses)
-    const dailySessions = Math.max(consoles.length * 2, liveActiveSessions + (shiftReports.length * 5) || 28)
+    const dailySessions = Math.max(
+      consoles.length * 2,
+      liveActiveSessions + shiftReports.length * 5 || 28,
+    )
     const dailyHours = +(dailySessions * 1.25).toFixed(1)
 
     // Weekly multiplier (~6-7x daily)
@@ -152,7 +161,11 @@ export function useReportsViewModel() {
       return menuItems
         .slice(0, 5)
         .map((item, idx) => {
-          const soldEst = Math.max(5, (item.stock > 0 ? 40 - Math.min(35, item.stock) : 25) + (5 - idx) * 4)
+          const soldEst = Math.max(
+            5,
+            (item.stock > 0 ? 40 - Math.min(35, item.stock) : 25) +
+              (5 - idx) * 4,
+          )
           return {
             name: item.name,
             nameAr: item.nameAr || item.name,
@@ -167,7 +180,12 @@ export function useReportsViewModel() {
       { name: "Pepsi", nameAr: "بيبسي كولا", sold: 34, revenue: 68 },
       { name: "Coffee Latte", nameAr: "قهوة لاتيه", sold: 18, revenue: 90 },
       { name: "Chips & Dip", nameAr: "شيبس مقرمش", sold: 25, revenue: 75 },
-      { name: "Red Bull Energy", nameAr: "مشروب طاقة ريد بول", sold: 11, revenue: 66 },
+      {
+        name: "Red Bull Energy",
+        nameAr: "مشروب طاقة ريد بول",
+        sold: 11,
+        revenue: 66,
+      },
       { name: "Burger Meal", nameAr: "وجبة برغر كومبو", sold: 9, revenue: 108 },
     ]
   }, [menuItems])

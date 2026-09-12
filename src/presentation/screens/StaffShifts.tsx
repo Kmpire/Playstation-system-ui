@@ -92,7 +92,8 @@ export default function StaffShifts(props: Props) {
     vm.accounts.length > 0
       ? vm.accounts.map((acc) => ({
           id: acc.username,
-          name: acc.username === "admin" ? "Ahmed Al-Rashidi" : "Mohammed Saleh",
+          name:
+            acc.username === "admin" ? "Ahmed Al-Rashidi" : "Mohammed Saleh",
           nameAr: acc.username === "admin" ? "أحمد الراشدي" : "محمد صالح",
           role: acc.role === "admin" ? "Admin" : "Cashier",
           username: acc.username,
@@ -108,7 +109,7 @@ export default function StaffShifts(props: Props) {
 
   const actionTypes = [...new Set(vm.auditLogs.map((e) => e.actionType))]
 
-  const TABS: { id: SubTab; label: string; labelAr: string }[] =
+  const TABS: { id: SubTab label: string labelAr: string }[] =
     role === "admin"
       ? [
           { id: "staff", label: "Staff", labelAr: "الموظفون" },
@@ -255,7 +256,9 @@ export default function StaffShifts(props: Props) {
                           {money(vm.expectedCash, isRTL)}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          {isRTL ? "محسوبة من النظام" : "Calculated from system"}
+                          {isRTL
+                            ? "محسوبة من النظام"
+                            : "Calculated from system"}
                         </div>
                       </div>
                       <div
@@ -387,8 +390,7 @@ export default function StaffShifts(props: Props) {
                     )}
 
                     <div className="ms-auto text-xs text-slate-400 font-mono">
-                      {filteredLog.length}{" "}
-                      {isRTL ? "سجلات مراجعة" : "records"}
+                      {filteredLog.length} {isRTL ? "سجلات مراجعة" : "records"}
                     </div>
                   </div>
 

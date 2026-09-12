@@ -58,7 +58,7 @@ export default function Navbar({
   const [showLowStockModal, setShowLowStockModal] = useState(false)
   const lowStockCount = lowStockItems.length
 
-  const SCREEN_NAMES: Record<Screen, { en: string; ar: string }> = {
+  const SCREEN_NAMES: Record<Screen, { en: string ar: string }> = {
     dashboard: { en: "Console Dashboard", ar: "لوحة التحكم بالأجهزة" },
     pos: { en: "POS & Quick Sales", ar: "نقطة البيع السريع" },
     menu: { en: "Menu Management", ar: "إدارة قائمة الطلبات" },

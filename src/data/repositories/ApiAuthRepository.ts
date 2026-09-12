@@ -102,6 +102,24 @@ export class ApiAuthRepository implements IAuthRepository {
     })
   }
 
+  async getTrialDurationDays(): Promise<number> {
+    try {
+      const res = await apiClient<{ value: string }>(
+        "/settings/trial_duration_days",
+      )
+      return res.value ? Number(res.value) : 7
+    } catch {
+      return 7
+    }
+  }
+
+  async setTrialDurationDays(days: number): Promise<void> {
+    await apiClient<void>("/settings/trial_duration_days", {
+      method: "POST",
+      body: JSON.stringify({ value: String(days) }),
+    })
+  }
+
   async resetToDefaults(): Promise<void> {
     await apiClient<void>("/auth/accounts/reset", {
       method: "POST",

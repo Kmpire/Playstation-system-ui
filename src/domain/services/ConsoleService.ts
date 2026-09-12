@@ -257,6 +257,7 @@ export class ConsoleService {
       currentTab.push({
         id: item.id,
         name: item.name,
+        nameAr: item.nameAr || item.name,
         price: item.price,
         qty,
       })

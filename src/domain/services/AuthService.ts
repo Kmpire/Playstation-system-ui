@@ -70,22 +70,39 @@ export class AuthService {
   async getTrialState(): Promise<TrialState> {
     const activated = await this.authRepo.isActivated()
     let trialStart = await this.authRepo.getTrialStart()
+    const trialDays = this.authRepo.getTrialDurationDays
+      ? await this.authRepo.getTrialDurationDays()
+      : AuthService.TRIAL_DAYS
 
     if (!trialStart) {
       trialStart = Date.now()
       await this.authRepo.setTrialStart(trialStart)
     }
 
+    const totalTrialDurationMs = trialDays * 86_400_000
+    const trialEndMs = trialStart + totalTrialDurationMs
+    const remainingMs = Math.max(0, trialEndMs - Date.now())
+
     const daysUsed = Math.floor((Date.now() - trialStart) / 86_400_000)
-    const daysLeft = Math.max(0, AuthService.TRIAL_DAYS - daysUsed)
-    const isExpired = !activated && daysUsed >= AuthService.TRIAL_DAYS
+    const daysLeft = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+    const hoursLeft = Math.floor(
+      (remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+    )
+    const minutesLeft = Math.floor(
+      (remainingMs % (1000 * 60 * 60)) / (1000 * 60),
+    )
+    const isExpired = !activated && remainingMs <= 0
 
     return {
       activated,
+      isSubscribed: activated,
       trialStartMs: trialStart,
-      trialDays: AuthService.TRIAL_DAYS,
+      trialDays,
       daysUsed,
       daysLeft,
+      hoursLeft,
+      minutesLeft,
+      remainingMs,
       isExpired,
     }
   }

@@ -41,7 +41,9 @@ export function useStaffViewModel(currentUser?: Account | null) {
         setStatus("success")
       } catch (err: any) {
         console.error("Failed to fetch staff & shifts data:", err)
-        setError(err?.message || "حدث خطأ أثناء تحميل بيانات الموظفين والورديات")
+        setError(
+          err?.message || "حدث خطأ أثناء تحميل بيانات الموظفين والورديات",
+        )
         setStatus("error")
       } finally {
         setIsRefreshing(false)
@@ -71,8 +73,7 @@ export function useStaffViewModel(currentUser?: Account | null) {
     staffOverride?: string,
   ): Promise<ShiftReport> => {
     const staffName =
-      staffOverride ||
-      (currentUser?.role === "admin" ? "Admin" : "Cashier")
+      staffOverride || (currentUser?.role === "admin" ? "Admin" : "Cashier")
 
     const report = await shiftService.submitReport(
       staffName,

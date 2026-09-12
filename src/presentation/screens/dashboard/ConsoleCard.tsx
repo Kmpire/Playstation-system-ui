@@ -58,13 +58,16 @@ export function calcCost(session: Session, elapsedMs: number): number {
   let cost = 0
   for (let i = 0; i < segs.length; i++) {
     const start = segs[i].startElapsedMs || 0
-    const end = i + 1 < segs.length ? (segs[i + 1].startElapsedMs || 0) : elapsedMs
+    const end =
+      i + 1 < segs.length ? segs[i + 1].startElapsedMs || 0 : elapsedMs
     cost += (Math.max(0, end - start) / 3_600_000) * (segs[i].ratePerHour || 0)
   }
   return cost
 }
 
-export function tabSum(sessionOrTab: Session | any[] | undefined | null): number {
+export function tabSum(
+  sessionOrTab: Session | any[] | undefined | null,
+): number {
   if (!sessionOrTab) return 0
   const list = Array.isArray(sessionOrTab)
     ? sessionOrTab

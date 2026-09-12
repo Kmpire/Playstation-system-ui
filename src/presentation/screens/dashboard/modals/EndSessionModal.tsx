@@ -8,7 +8,7 @@ import {
   Coffee,
   AlertCircle,
 } from "lucide-react"
-import type { GameConsole } from "@/domain"
+import type { GameConsole, MenuItem } from "@/domain"
 import { money } from "@/domain"
 import { getElapsedMs, calcCost, tabSum, formatTime } from "../ConsoleCard"
 import Modal from "@/presentation/components/ui/Modal"
@@ -17,6 +17,7 @@ import Button from "@/presentation/components/ui/Button"
 interface EndSessionModalProps {
   con: GameConsole | null
   isRTL: boolean
+  menuItems?: MenuItem[]
   onClose: () => void
   onConfirm: (amount: number) => void
 }
@@ -24,6 +25,7 @@ interface EndSessionModalProps {
 export default function EndSessionModal({
   con,
   isRTL,
+  menuItems,
   onClose,
   onConfirm,
 }: EndSessionModalProps) {
@@ -127,23 +129,30 @@ export default function EndSessionModal({
               </span>
             </div>
             <div className="max-h-36 overflow-y-auto space-y-1">
-              {session.tab.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-[#141926]"
-                >
-                  <div className="flex items-center gap-2">
-                    <Coffee className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="text-slate-700 dark:text-slate-300 font-medium">
-                      {isRTL && item.nameAr ? item.nameAr : item.name} ×{" "}
-                      {item.qty}
+              {session.tab.map((item) => {
+                const displayName = isRTL
+                  ? item.nameAr ||
+                    menuItems?.find((m) => m.id === item.id)?.nameAr ||
+                    item.name
+                  : item.name
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50 dark:bg-[#141926]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Coffee className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">
+                        {displayName} × {item.qty}
+                      </span>
+                    </div>
+                    <span className="font-mono text-slate-900 dark:text-white">
+                      {money(item.price * item.qty, isRTL)}
                     </span>
                   </div>
-                  <span className="font-mono text-slate-900 dark:text-white">
-                    {money(item.price * item.qty, isRTL)}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}

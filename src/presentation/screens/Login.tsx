@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
   Gamepad2,
   Lock,
@@ -8,8 +8,8 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react"
-import type { Language } from "@/domain"
-import { COMPANY } from "@/data/company"
+import type { Language, CompanyInfo } from "@/domain"
+import { useServices } from "../context/ServicesContext"
 import Button from "@/presentation/components/ui/Button"
 
 interface Props {
@@ -29,6 +29,22 @@ export default function Login({
   activated,
   onLogin,
 }: Props) {
+  const { companyRepo } = useServices()
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    companyRepo
+      .getCompanyInfo()
+      .then((info) => {
+        if (mounted && info) setCompanyInfo(info)
+      })
+      .catch(console.error)
+    return () => {
+      mounted = false
+    }
+  }, [companyRepo])
+
   const [username, setUsername] = useState("admin")
   const [password, setPassword] = useState("admin123")
   const [error, setError] = useState(false)
@@ -67,7 +83,11 @@ export default function Login({
             <Gamepad2 className="w-9 h-9" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            <span>{isRTL ? COMPANY.nameAr : COMPANY.name}</span>
+            <span>
+              {isRTL
+                ? companyInfo?.nameAr || "صالة بلايستيشن كافيه"
+                : companyInfo?.name || "PlayStation Café"}
+            </span>
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#0070d1]/25 text-sky-400 border border-[#0070d1]/40 font-bold">
               PRO
             </span>
@@ -182,10 +202,10 @@ export default function Login({
             >
               {activated
                 ? isRTL
-                  ? "مرخص"
-                  : "Licensed"
+                  ? "نسخة مفعلة (مشترك)"
+                  : "Active Subscription"
                 : isRTL
-                  ? `تجريبي · باقي ${trialDaysLeft} أيام`
+                  ? `نسخة تجريبية · متبقي ${trialDaysLeft} أيام`
                   : `Trial · ${trialDaysLeft}d left`}
             </span>
           </span>

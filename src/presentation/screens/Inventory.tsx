@@ -103,7 +103,7 @@ export default function Inventory({ isRTL, toast }: Props) {
           { id: "consumables", label: "Consumables", labelAr: "مستهلكات" },
           { id: "consoles", label: "Consoles", labelAr: "أجهزة الألعاب" },
           { id: "controllers", label: "Controllers", labelAr: "وحدات التحكم" },
-        ] as { id: CategoryTab; label: string; labelAr: string }[]).map((tab) => (
+        ] as { id: CategoryTab label: string labelAr: string }[]).map((tab) => (
           <button
             key={tab.id}
             type="button"

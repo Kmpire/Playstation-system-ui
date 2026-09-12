@@ -23,7 +23,9 @@ export default function DataManagement(props: Props) {
     try {
       await vm.exportFullBackup()
       setLastAction(isRTL ? "تم تصدير النسخة الاحتياطية" : "Backup exported")
-      toast(isRTL ? "تم تصدير البيانات بنجاح ✓" : "Data exported successfully ✓")
+      toast(
+        isRTL ? "تم تصدير البيانات بنجاح ✓" : "Data exported successfully ✓",
+      )
     } catch (err: any) {
       toast(
         isRTL
@@ -108,7 +110,9 @@ export default function DataManagement(props: Props) {
                 {/* System Database Statistics Summary Card */}
                 <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 sm:p-5">
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    {isRTL ? "حالة قاعدة البيانات الحالية" : "Current Database Status"}
+                    {isRTL
+                      ? "حالة قاعدة البيانات الحالية"
+                      : "Current Database Status"}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                     <div className="p-3 bg-slate-50 dark:bg-[#222734] rounded-xl">
@@ -223,9 +227,7 @@ export default function DataManagement(props: Props) {
                           </>
                         ) : (
                           <span>
-                            {isRTL
-                              ? "⬆ استيراد من ملف"
-                              : "⬆ Import from file"}
+                            {isRTL ? "⬆ استيراد من ملف" : "⬆ Import from file"}
                           </span>
                         )}
                       </button>

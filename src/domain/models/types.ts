@@ -21,6 +21,7 @@ export interface PriceSegment {
 export interface TabItem {
   id: string
   name: string
+  nameAr?: string
   price: number
   qty: number
 }
@@ -144,9 +145,13 @@ export type Account = UserAccount
 
 export interface TrialState {
   activated: boolean
+  isSubscribed: boolean
   trialStartMs: number
   trialDays: number
   daysUsed: number
   daysLeft: number
+  hoursLeft: number
+  minutesLeft: number
+  remainingMs: number
   isExpired: boolean
 }

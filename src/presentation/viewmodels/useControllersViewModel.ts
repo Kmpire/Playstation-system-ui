@@ -12,9 +12,8 @@ export function useControllersViewModel() {
   const { controllerService, controllerRepo, consoleRepo } = useServices()
 
   const [controllers, setControllers] = useState<Controller[]>([])
-  const [maintenanceRecords, setMaintenanceRecords] = useState<
-    MaintenanceRecord[]
-  >([])
+  const [maintenanceRecords, setMaintenanceRecords] =
+    useState<MaintenanceRecord[]>([])
   const [consoles, setConsoles] = useState<GameConsole[]>([])
 
   const [status, setStatus] = useState<ViewStatus>("loading")
@@ -71,7 +70,10 @@ export function useControllersViewModel() {
     id: string,
     newStatus: ControllerStatus,
   ): Promise<Controller> => {
-    const updated = await controllerService.updateControllerStatus(id, newStatus)
+    const updated = await controllerService.updateControllerStatus(
+      id,
+      newStatus,
+    )
     setControllers((prev) =>
       prev.map((ctrl) => (ctrl.id === id ? updated : ctrl)),
     )
@@ -101,7 +103,7 @@ export function useControllersViewModel() {
     const updated: GameConsole = {
       ...target,
       status: newStatus,
-      session: newStatus === "maintenance" ? (null as any) : target.session,
+      session: newStatus === "maintenance" ? null as any : target.session,
     }
 
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))

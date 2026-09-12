@@ -1,6 +1,6 @@
 import React from "react"
 import { Coffee, Trash2 } from "lucide-react"
-import type { GameConsole } from "@/domain"
+import type { GameConsole, MenuItem } from "@/domain"
 import { money } from "@/domain"
 import { tabSum } from "../ConsoleCard"
 import Modal from "@/presentation/components/ui/Modal"
@@ -9,12 +9,14 @@ import Button from "@/presentation/components/ui/Button"
 interface ViewTabModalProps {
   con: GameConsole | null
   isRTL: boolean
+  menuItems?: MenuItem[]
   onClose: () => void
 }
 
 export default function ViewTabModal({
   con,
   isRTL,
+  menuItems,
   onClose,
 }: ViewTabModalProps) {
   if (!con || !con.session) return null
@@ -45,24 +47,32 @@ export default function ViewTabModal({
                 : "No orders added to this tab yet."}
             </div>
           ) : (
-            items.map((it) => (
-              <div
-                key={it.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200/60 dark:border-slate-800"
-              >
-                <div>
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                    {isRTL && it.nameAr ? it.nameAr : it.name}
+            items.map((it) => {
+              const displayName = isRTL
+                ? it.nameAr ||
+                  menuItems?.find((m) => m.id === it.id)?.nameAr ||
+                  it.name
+                : it.name
+
+              return (
+                <div
+                  key={it.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200/60 dark:border-slate-800"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                      {displayName}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {money(it.price, isRTL)} × {it.qty}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">
-                    {money(it.price, isRTL)} × {it.qty}
+                  <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                    {money(it.price * it.qty, isRTL)}
                   </div>
                 </div>
-                <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                  {money(it.price * it.qty, isRTL)}
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
 

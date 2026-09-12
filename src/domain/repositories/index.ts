@@ -60,6 +60,8 @@ export interface IAuthRepository {
   setActivated(activated: boolean): Promise<void>
   getTrialStart(): Promise<number>
   setTrialStart(startMs: number): Promise<void>
+  getTrialDurationDays?(): Promise<number>
+  setTrialDurationDays?(days: number): Promise<void>
   login?(username: string, pass: string): Promise<UserAccount | null>
   changePassword?(
     username: string,

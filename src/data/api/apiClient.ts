@@ -1,6 +1,7 @@
 const DEFAULT_API_URL = "http://localhost:5001/api/v1"
 const API_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL as string) ||
+  (typeof import.meta !== "undefined" &&
+    import.meta.env?.VITE_API_URL as string) ||
   DEFAULT_API_URL
 const TOKEN_KEY = "ps_auth_token"
 

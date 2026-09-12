@@ -27,7 +27,10 @@ export function useContactViewModel() {
           setCompanyInfo((prev) => ({
             ...prev,
             ...info,
-            socials: info.socials && info.socials.length > 0 ? info.socials : prev.socials,
+            socials:
+              info.socials && info.socials.length > 0
+                ? info.socials
+                : prev.socials,
           }))
         }
         setStatus("success")

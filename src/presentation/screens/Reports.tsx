@@ -287,7 +287,9 @@ export default function Reports({ isRTL = true }: Props) {
                   <div className="space-y-2.5 text-xs sm:text-sm">
                     <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500">
-                        {isRTL ? "إجمالي إيراد الأجهزة والطلبات" : "Gross Revenue"}
+                        {isRTL
+                          ? "إجمالي إيراد الأجهزة والطلبات"
+                          : "Gross Revenue"}
                       </span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         {money(data.revenue, isRTL)}
@@ -296,7 +298,9 @@ export default function Reports({ isRTL = true }: Props) {
 
                     <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500">
-                        {isRTL ? "تكاليف الصيانة والمصروفات" : "Maintenance & Expenses"}
+                        {isRTL
+                          ? "تكاليف الصيانة والمصروفات"
+                          : "Maintenance & Expenses"}
                       </span>
                       <span className="font-mono font-bold text-rose-500">
                         - {money(data.expenses, isRTL)}
@@ -340,7 +344,9 @@ export default function Reports({ isRTL = true }: Props) {
                         <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
                             className="h-full bg-[#0070d1] rounded-full transition-all duration-500"
-                            style={{ width: `${(item.revenue / maxRev) * 100}%` }}
+                            style={{
+                              width: `${(item.revenue / maxRev) * 100}%`,
+                            }}
                           />
                         </div>
                         <span className="w-12 text-slate-400 text-center">

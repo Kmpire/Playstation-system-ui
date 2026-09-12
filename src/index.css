@@ -1,12 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Barlow+Semi+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
 @import 'tailwindcss';
 
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: 'Cairo', system-ui, -apple-system, sans-serif;
-  --font-gaming: 'Cairo', 'Barlow Semi Condensed', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-gaming: 'Cairo', system-ui, sans-serif;
+  --font-mono: 'Cairo', system-ui, sans-serif;
 
   /* PlayStation Core Brand Colors */
   --color-ps-blue: #0070d1;
@@ -15,6 +15,12 @@
   --color-ps-surface: #0e121b;
   --color-ps-card: #131824;
   --color-ps-border: #1e2638;
+}
+
+*,
+*::before,
+*::after {
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
 }
 
 html,
@@ -27,14 +33,30 @@ body,
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
 }
 
 body {
-  font-family: 'Cairo', system-ui, sans-serif;
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   position: fixed;
   inset: 0;
+}
+
+input,
+button,
+select,
+textarea,
+optgroup {
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
+}
+
+/* For numeric and currency elements, strictly use Cairo with tabular-nums for perfect alignment */
+.font-mono,
+[class*='font-mono'] {
+  font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Custom sleek scrollbars */

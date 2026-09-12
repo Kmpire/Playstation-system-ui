@@ -44,7 +44,7 @@ interface Props {
   toast: (msg: string) => void
   isRTL: boolean
   theme?: Theme
-  currentUser?: { name?: string; username?: string; role?: string }
+  currentUser?: { name?: string username?: string role?: string }
   [key: string]: unknown
 }
 
@@ -610,6 +610,7 @@ export default function ConsoleDashboard({
       <EndSessionModal
         con={endSessionCon}
         isRTL={isRTL}
+        menuItems={menuItems}
         onClose={() => setEndSessionCon(null)}
         onConfirm={(amt) =>
           endSessionCon && handleEndSession(endSessionCon.id, amt)
@@ -628,6 +629,7 @@ export default function ConsoleDashboard({
       <ViewTabModal
         con={viewTabCon}
         isRTL={isRTL}
+        menuItems={menuItems}
         onClose={() => setViewTabCon(null)}
       />
 

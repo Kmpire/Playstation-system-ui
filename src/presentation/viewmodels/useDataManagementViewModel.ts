@@ -186,7 +186,9 @@ export function useDataManagementViewModel() {
         tasks.push(controllerRepo.saveAll(data.controllers))
       }
       if (Array.isArray(data.maintenanceRecords)) {
-        tasks.push(controllerRepo.saveAllMaintenanceRecords(data.maintenanceRecords))
+        tasks.push(
+          controllerRepo.saveAllMaintenanceRecords(data.maintenanceRecords),
+        )
       }
       if (Array.isArray(data.shiftReports)) {
         tasks.push(shiftRepo.saveAllShiftReports(data.shiftReports))
