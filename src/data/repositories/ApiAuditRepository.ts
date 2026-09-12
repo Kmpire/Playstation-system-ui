@@ -7,6 +7,10 @@ export class ApiAuditRepository implements IAuditRepository {
     return apiClient<AuditEntry[]>("/audit")
   }
 
+  async getAll(): Promise<AuditEntry[]> {
+    return this.getLogs()
+  }
+
   async addLog(entry: AuditEntry): Promise<void> {
     await apiClient<void>("/audit", {
       method: "POST",

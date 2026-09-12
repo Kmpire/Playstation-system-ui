@@ -4,6 +4,7 @@ import type {
   GameConsole,
   MenuItem,
   SessionOrderRecord,
+  ConsoleSessionRecord,
   AuditEntry,
 } from "@/domain"
 import type { ViewStatus } from "../types/uiState"
@@ -35,6 +36,7 @@ export function useReportsViewModel() {
   const [consoles, setConsoles] = useState<GameConsole[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [tabOrders, setTabOrders] = useState<SessionOrderRecord[]>([])
+  const [allSessions, setAllSessions] = useState<ConsoleSessionRecord[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([])
   const [maintenanceCost, setMaintenanceCost] = useState(0)
 
@@ -52,23 +54,36 @@ export function useReportsViewModel() {
       setError(null)
 
       try {
-        const [shifts, consolesData, items, maintRecords, tabs, logs] =
-          await Promise.all([
-            shiftRepo.getShiftReports(),
-            consoleRepo.getAll(),
-            menuRepo.getItems(),
-            controllerRepo.getMaintenanceRecords().catch(() => []),
-            consoleRepo.getAllTabOrders
-              ? consoleRepo.getAllTabOrders()
-              : Promise.resolve([]),
-            auditRepo.getAll().catch(() => []),
-          ])
+        const [
+          shifts,
+          consolesData,
+          items,
+          maintRecords,
+          tabs,
+          logs,
+          sessionsList,
+        ] = await Promise.all([
+          shiftRepo.getShiftReports(),
+          consoleRepo.getAll(),
+          menuRepo.getItems(),
+          controllerRepo.getMaintenanceRecords().catch(() => []),
+          consoleRepo.getAllTabOrders
+            ? consoleRepo.getAllTabOrders()
+            : Promise.resolve([]),
+          auditRepo.getLogs
+            ? auditRepo.getLogs().catch(() => [])
+            : Promise.resolve([]),
+          consoleRepo.getAllSessions
+            ? consoleRepo.getAllSessions()
+            : Promise.resolve([]),
+        ])
 
         setShiftReports(shifts || [])
         setConsoles(consolesData || [])
         setMenuItems(items || [])
         setTabOrders(tabs || [])
         setAuditLogs(logs || [])
+        setAllSessions(sessionsList || [])
 
         const totalMaintCost = (maintRecords || []).reduce(
           (sum, r) => sum + (r.cost || 0),
@@ -112,6 +127,11 @@ export function useReportsViewModel() {
 
     // 2. Aggregate from real shift reports
     const now = new Date()
+    const startOfTodayMs = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime()
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
@@ -128,8 +148,58 @@ export function useReportsViewModel() {
     const sumShortage = (list: ShiftReport[]) =>
       list.reduce((sum, s) => sum + (s.variance < 0 ? Math.abs(s.variance) : 0), 0)
 
-    // Daily stats (live day)
-    const dailyRev = liveConsoleRevenue
+    // Helper: calculate POS walk-in sales revenue for period
+    const getPosRevenue = (sinceMs: number) => {
+      let sum = 0
+      for (const log of auditLogs) {
+        if (log.actionType === "Sale Completed" && log.details) {
+          const t = new Date(log.timestamp || "").getTime()
+          if (!isNaN(t) && t >= sinceMs) {
+            const match = log.details.match(/Total:\s*\$?([0-9.]+)/)
+            if (match && match[1]) {
+              sum += parseFloat(match[1]) || 0
+            }
+          }
+        }
+      }
+      return sum
+    }
+
+    // Helper: calculate gaming session count and active hours from PostgreSQL session history
+    const getGamingSessionMetrics = (sinceMs: number) => {
+      const filtered = allSessions.filter((s) => {
+        const sTime = s.startTime || new Date(s.createdAt).getTime()
+        return !isNaN(sTime) && sTime >= sinceMs
+      })
+
+      let hours = 0
+      for (const s of filtered) {
+        if (s.targetDurationMin && s.targetDurationMin > 0) {
+          hours += s.targetDurationMin / 60
+        } else {
+          const start = s.startTime || new Date(s.createdAt).getTime()
+          const end = s.isActive
+            ? Date.now()
+            : new Date(s.updatedAt || s.createdAt).getTime()
+          const durationMs = Math.max(0, end - start - (s.totalPausedMs || 0))
+          const durationHours = Math.min(8, durationMs / (1000 * 60 * 60))
+          hours += durationHours > 0.05 ? durationHours : 0.5
+        }
+      }
+
+      const totalCount = Math.max(filtered.length, liveActiveSessions)
+      const totalHours = Math.max(hours, liveActiveHours)
+
+      return {
+        sessions: totalCount,
+        activeHours: +totalHours.toFixed(1),
+      }
+    }
+
+    // Daily stats (live day + POS walk-in sales + real database gaming sessions)
+    const posDaily = getPosRevenue(startOfTodayMs)
+    const dailyMetrics = getGamingSessionMetrics(startOfTodayMs)
+    const dailyRev = liveConsoleRevenue + posDaily
     const dailyExpenses =
       maintenanceCost +
       sumShortage(
@@ -141,47 +211,45 @@ export function useReportsViewModel() {
         ),
       )
     const dailyProfit = Math.max(0, dailyRev - dailyExpenses)
-    const dailySessions = liveActiveSessions
-    const dailyHours = +liveActiveHours.toFixed(1)
 
-    // Weekly stats (last 7 days shifts + today's live revenue)
-    const weeklyRev = sumCash(weeklyShifts) + liveConsoleRevenue
+    // Weekly stats (last 7 days shifts + today's live revenue + POS weekly + weekly gaming sessions)
+    const posWeekly = getPosRevenue(sevenDaysAgo.getTime())
+    const weeklyMetrics = getGamingSessionMetrics(sevenDaysAgo.getTime())
+    const weeklyRev = sumCash(weeklyShifts) + liveConsoleRevenue + posWeekly
     const weeklyExpenses = maintenanceCost + sumShortage(weeklyShifts)
     const weeklyProfit = Math.max(0, weeklyRev - weeklyExpenses)
-    const weeklySessions = weeklyShifts.length + liveActiveSessions
-    const weeklyHours = +(weeklySessions * 1.5 + liveActiveHours).toFixed(1)
 
-    // Monthly stats (last 30 days shifts + today's live revenue)
-    const monthlyRev = sumCash(monthlyShifts) + liveConsoleRevenue
+    // Monthly stats (last 30 days shifts + today's live revenue + POS monthly + monthly gaming sessions)
+    const posMonthly = getPosRevenue(thirtyDaysAgo.getTime())
+    const monthlyMetrics = getGamingSessionMetrics(thirtyDaysAgo.getTime())
+    const monthlyRev = sumCash(monthlyShifts) + liveConsoleRevenue + posMonthly
     const monthlyExpenses = maintenanceCost + sumShortage(monthlyShifts)
     const monthlyProfit = Math.max(0, monthlyRev - monthlyExpenses)
-    const monthlySessions = monthlyShifts.length + liveActiveSessions
-    const monthlyHours = +(monthlySessions * 1.5 + liveActiveHours).toFixed(1)
 
     return {
       daily: {
         revenue: +dailyRev.toFixed(2),
         profit: +dailyProfit.toFixed(2),
-        sessions: dailySessions,
-        activeHours: dailyHours,
+        sessions: dailyMetrics.sessions,
+        activeHours: dailyMetrics.activeHours,
         expenses: +dailyExpenses.toFixed(2),
       },
       weekly: {
         revenue: +weeklyRev.toFixed(2),
         profit: +weeklyProfit.toFixed(2),
-        sessions: weeklySessions,
-        activeHours: weeklyHours,
+        sessions: weeklyMetrics.sessions,
+        activeHours: weeklyMetrics.activeHours,
         expenses: +weeklyExpenses.toFixed(2),
       },
       monthly: {
         revenue: +monthlyRev.toFixed(2),
         profit: +monthlyProfit.toFixed(2),
-        sessions: monthlySessions,
-        activeHours: monthlyHours,
+        sessions: monthlyMetrics.sessions,
+        activeHours: monthlyMetrics.activeHours,
         expenses: +monthlyExpenses.toFixed(2),
       },
     }
-  }, [consoles, shiftReports, maintenanceCost])
+  }, [consoles, shiftReports, maintenanceCost, auditLogs, allSessions])
 
   // Aggregate top sold items strictly from real database records (completed tabs + active sessions + POS sales)
   const topItems = useMemo<TopSellingItem[]>(() => {

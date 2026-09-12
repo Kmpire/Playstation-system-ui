@@ -10,6 +10,7 @@ import type {
   UserAccount,
   CompanyInfo,
   SessionOrderRecord,
+  ConsoleSessionRecord,
 } from "../models/types"
 
 export interface IConsoleRepository {
@@ -19,6 +20,7 @@ export interface IConsoleRepository {
   saveAll(consoles: GameConsole[]): Promise<void>
   delete(id: number): Promise<void>
   getAllTabOrders?(): Promise<SessionOrderRecord[]>
+  getAllSessions?(): Promise<ConsoleSessionRecord[]>
 }
 
 export interface IMenuRepository {
@@ -75,6 +77,7 @@ export interface IAuthRepository {
 
 export interface IAuditRepository {
   getLogs(): Promise<AuditEntry[]>
+  getAll?(): Promise<AuditEntry[]>
   addLog(entry: AuditEntry): Promise<void>
   saveAllLogs(logs: AuditEntry[]): Promise<void>
 }

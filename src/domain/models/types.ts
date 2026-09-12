@@ -37,6 +37,20 @@ export interface SessionOrderRecord {
   createdAt?: string
 }
 
+export interface ConsoleSessionRecord {
+  id: number
+  consoleId: number
+  mode: string
+  playerType: string
+  startTime: number
+  pausedAt?: number | null
+  totalPausedMs: number
+  targetDurationMin?: number | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Session {
   mode: SessionMode
   playerType: PlayerType

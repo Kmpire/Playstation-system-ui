@@ -1,4 +1,8 @@
-import type { GameConsole, SessionOrderRecord } from "../../domain/models/types"
+import type {
+  GameConsole,
+  SessionOrderRecord,
+  ConsoleSessionRecord,
+} from "../../domain/models/types"
 import type { IConsoleRepository } from "../../domain/repositories"
 import { apiClient } from "../api/apiClient"
 
@@ -18,6 +22,14 @@ export class ApiConsoleRepository implements IConsoleRepository {
   async getAllTabOrders(): Promise<SessionOrderRecord[]> {
     try {
       return await apiClient<SessionOrderRecord[]>("/consoles/tabs/all")
+    } catch {
+      return []
+    }
+  }
+
+  async getAllSessions(): Promise<ConsoleSessionRecord[]> {
+    try {
+      return await apiClient<ConsoleSessionRecord[]>("/consoles/sessions/all")
     } catch {
       return []
     }
