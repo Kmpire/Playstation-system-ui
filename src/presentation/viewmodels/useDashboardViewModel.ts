@@ -172,6 +172,11 @@ export function useDashboardViewModel() {
     return created
   }
 
+  const deleteConsole = async (consoleId: number, staffName?: string) => {
+    await consoleService.deleteConsole(consoleId, staffName)
+    setConsoles((prev) => prev.filter((c) => c.id !== consoleId))
+  }
+
   return {
     consoles,
     setConsoles,
@@ -194,6 +199,7 @@ export function useDashboardViewModel() {
     editSessionTime,
     toggleReserve,
     createConsole,
+    deleteConsole,
   }
 }
 

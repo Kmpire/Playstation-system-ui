@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Clock,
   Archive,
+  Trash2,
 } from "lucide-react"
 import type {
   Controller,
@@ -100,6 +101,8 @@ export default function Controllers(props: Props) {
   const [filterTarget, setFilterTarget] = useState("")
   const [showAddCtrl, setShowAddCtrl] = useState(false)
   const [newCtrlId, setNewCtrlId] = useState("")
+  const [deleteCtrlTarget, setDeleteCtrlTarget] = useState<Controller | null>(null)
+  const [deleteMaintTarget, setDeleteMaintTarget] = useState<MaintenanceRecord | null>(null)
 
   async function setStatus(id: string, status: ControllerStatus) {
     try {
@@ -131,6 +134,36 @@ export default function Controllers(props: Props) {
         isRTL
           ? `فشل إضافة ذراع التحكم: ${err.message || err}`
           : `Failed to add controller: ${err.message || err}`,
+      )
+    }
+  }
+
+  async function handleDeleteController(ctrl: Controller) {
+    try {
+      await vm.deleteController(ctrl.id, (props.currentUser as any)?.username || "Admin")
+      toast(isRTL ? `تم حذف ذراع التحكم (${ctrl.number}) بنجاح ✓` : `Controller (${ctrl.number}) deleted ✓`)
+      setDeleteCtrlTarget(null)
+    } catch (err: any) {
+      console.error("Error deleting controller:", err)
+      toast(
+        isRTL
+          ? `فشل حذف ذراع التحكم: ${err.message || err}`
+          : `Failed to delete controller: ${err.message || err}`,
+      )
+    }
+  }
+
+  async function handleDeleteMaintenance(record: MaintenanceRecord) {
+    try {
+      await vm.deleteMaintenanceRecord(record.id, (props.currentUser as any)?.username || "Admin")
+      toast(isRTL ? "تم حذف سجل الصيانة بنجاح ✓" : "Maintenance record deleted ✓")
+      setDeleteMaintTarget(null)
+    } catch (err: any) {
+      console.error("Error deleting maintenance record:", err)
+      toast(
+        isRTL
+          ? `فشل حذف سجل الصيانة: ${err.message || err}`
+          : `Failed to delete record: ${err.message || err}`,
       )
     }
   }
@@ -376,63 +409,89 @@ export default function Controllers(props: Props) {
                               <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
                                 {isRTL ? "الحالة الفنية" : "Condition"}
                               </th>
+                              <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-end">
+                                {isRTL ? "إجراءات" : "Actions"}
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                            {controllers.map((ctrl) => {
-                              const assignedCon = ctrl.assignedTo
-                                ? consoles.find((c) => c.id === ctrl.assignedTo)
-                                : null
-                              const statusObj = CTRL_STATUS.find(
-                                (s) => s.id === ctrl.status,
-                              )
-
-                              return (
-                                <tr
-                                  key={ctrl.id}
-                                  className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                            {controllers.length === 0 ? (
+                              <tr>
+                                <td
+                                  colSpan={4}
+                                  className="px-4 py-8 text-center text-slate-400 text-xs sm:text-sm"
                                 >
-                                  <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
-                                    {ctrl.number}
-                                  </td>
-                                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                                    {assignedCon ? (
-                                      <span className="font-semibold text-[#0070d1] dark:text-sky-400">
-                                        {assignedCon.name}
-                                      </span>
-                                    ) : (
-                                      <span className="text-slate-400 font-medium">
-                                        {isRTL
-                                          ? "— متوفر في الصالة"
-                                          : "— Shared Pool"}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <select
-                                      value={ctrl.status}
-                                      onChange={(e) =>
-                                        setStatus(
-                                          ctrl.id,
-                                          e.target.value as ControllerStatus,
-                                        )
-                                      }
-                                      className={`text-xs px-3 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
-                                    >
-                                      {CTRL_STATUS.map((s) => (
-                                        <option
-                                          key={s.id}
-                                          value={s.id}
-                                          className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                                        >
-                                          {isRTL ? s.ar : s.en}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                </tr>
-                              )
-                            })}
+                                  {isRTL
+                                    ? "لا توجد أذرع تحكم مسجلة في النظام"
+                                    : "No controllers registered in the system"}
+                                </td>
+                              </tr>
+                            ) : (
+                              controllers.map((ctrl) => {
+                                const assignedCon = ctrl.assignedTo
+                                  ? consoles.find((c) => c.id === ctrl.assignedTo)
+                                  : null
+                                const statusObj = CTRL_STATUS.find(
+                                  (s) => s.id === ctrl.status,
+                                )
+
+                                return (
+                                  <tr
+                                    key={ctrl.id}
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                                  >
+                                    <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
+                                      {ctrl.number}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                                      {assignedCon ? (
+                                        <span className="font-semibold text-[#0070d1] dark:text-sky-400">
+                                          {assignedCon.name}
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 font-medium">
+                                          {isRTL
+                                            ? "— متوفر في الصالة"
+                                            : "— Shared Pool"}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <select
+                                        value={ctrl.status}
+                                        onChange={(e) =>
+                                          setStatus(
+                                            ctrl.id,
+                                            e.target.value as ControllerStatus,
+                                          )
+                                        }
+                                        className={`text-xs px-3 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
+                                      >
+                                        {CTRL_STATUS.map((s) => (
+                                          <option
+                                            key={s.id}
+                                            value={s.id}
+                                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                          >
+                                            {isRTL ? s.ar : s.en}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="px-4 py-3 text-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteCtrlTarget(ctrl)}
+                                        title={isRTL ? "حذف ذراع التحكم" : "Delete controller"}
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -440,59 +499,77 @@ export default function Controllers(props: Props) {
 
                     {/* Mobile Cards View */}
                     <div className="sm:hidden grid grid-cols-1 gap-2.5">
-                      {controllers.map((ctrl) => {
-                        const assignedCon = ctrl.assignedTo
-                          ? consoles.find((c) => c.id === ctrl.assignedTo)
-                          : null
-                        const statusObj = CTRL_STATUS.find(
-                          (s) => s.id === ctrl.status,
-                        )
+                      {controllers.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 text-xs sm:text-sm bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl">
+                          {isRTL
+                            ? "لا توجد أذرع تحكم مسجلة في النظام"
+                            : "No controllers registered in the system"}
+                        </div>
+                      ) : (
+                        controllers.map((ctrl) => {
+                          const assignedCon = ctrl.assignedTo
+                            ? consoles.find((c) => c.id === ctrl.assignedTo)
+                            : null
+                          const statusObj = CTRL_STATUS.find(
+                            (s) => s.id === ctrl.status,
+                          )
 
-                        return (
-                          <div
-                            key={ctrl.id}
-                            className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-3"
-                          >
-                            <div>
-                              <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                                {ctrl.number}
+                          return (
+                            <div
+                              key={ctrl.id}
+                              className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-3"
+                            >
+                              <div>
+                                <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                                  {ctrl.number}
+                                </div>
+                                <div className="text-xs mt-0.5">
+                                  {assignedCon ? (
+                                    <span className="font-semibold text-[#0070d1] dark:text-sky-400">
+                                      {assignedCon.name}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">
+                                      {isRTL ? "متوفر في الصالة" : "Shared Pool"}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-xs mt-0.5">
-                                {assignedCon ? (
-                                  <span className="font-semibold text-[#0070d1] dark:text-sky-400">
-                                    {assignedCon.name}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400">
-                                    {isRTL ? "متوفر في الصالة" : "Shared Pool"}
-                                  </span>
-                                )}
+
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={ctrl.status}
+                                  onChange={(e) =>
+                                    setStatus(
+                                      ctrl.id,
+                                      e.target.value as ControllerStatus,
+                                    )
+                                  }
+                                  className={`text-xs px-2.5 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
+                                >
+                                  {CTRL_STATUS.map((s) => (
+                                    <option
+                                      key={s.id}
+                                      value={s.id}
+                                      className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    >
+                                      {isRTL ? s.ar : s.en}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteCtrlTarget(ctrl)}
+                                  title={isRTL ? "حذف ذراع التحكم" : "Delete controller"}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
-
-                            <select
-                              value={ctrl.status}
-                              onChange={(e) =>
-                                setStatus(
-                                  ctrl.id,
-                                  e.target.value as ControllerStatus,
-                                )
-                              }
-                              className={`text-xs px-2.5 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
-                            >
-                              {CTRL_STATUS.map((s) => (
-                                <option
-                                  key={s.id}
-                                  value={s.id}
-                                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                                >
-                                  {isRTL ? s.ar : s.en}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )
-                      })}
+                          )
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
@@ -544,39 +621,65 @@ export default function Controllers(props: Props) {
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
                               {isRTL ? "المسؤول" : "Resolved By"}
                             </th>
+                            <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-end">
+                              {isRTL ? "إجراءات" : "Actions"}
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                          {filteredRecords.map((record) => (
-                            <tr
-                              key={record.id}
-                              className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
-                            >
-                              <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
-                                {record.date}
-                              </td>
-                              <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
-                                <span
-                                  className={`px-2 py-0.5 rounded-lg text-xs ${
-                                    record.targetType === "console"
-                                      ? "bg-[#0070d1]/15 text-[#0070d1] dark:text-sky-400"
-                                      : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                                  }`}
-                                >
-                                  {record.targetLabel}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-slate-700 dark:text-slate-300 max-w-sm">
-                                {record.issue}
-                              </td>
-                              <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
-                                {money(record.cost, isRTL)}
-                              </td>
-                              <td className="px-4 py-3 text-slate-500">
-                                {record.resolvedBy}
+                          {filteredRecords.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="px-4 py-8 text-center text-slate-400 text-xs sm:text-sm"
+                              >
+                                {isRTL
+                                  ? "لا توجد سجلات صيانة مسجلة حتى الآن"
+                                  : "No maintenance records found"}
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            filteredRecords.map((record) => (
+                              <tr
+                                key={record.id}
+                                className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                              >
+                                <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">
+                                  {record.date}
+                                </td>
+                                <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-lg text-xs ${
+                                      record.targetType === "console"
+                                        ? "bg-[#0070d1]/15 text-[#0070d1] dark:text-sky-400"
+                                        : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                                    }`}
+                                  >
+                                    {record.targetLabel}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-slate-700 dark:text-slate-300 max-w-sm">
+                                  {record.issue}
+                                </td>
+                                <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
+                                  {money(record.cost, isRTL)}
+                                </td>
+                                <td className="px-4 py-3 text-slate-500">
+                                  {record.resolvedBy}
+                                </td>
+                                <td className="px-4 py-3 text-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteMaintTarget(record)}
+                                    title={isRTL ? "حذف سجل الصيانة" : "Delete record"}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -584,44 +687,55 @@ export default function Controllers(props: Props) {
 
                   {/* Mobile Cards View */}
                   <div className="sm:hidden space-y-3">
-                    {filteredRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                              record.targetType === "console"
-                                ? "bg-[#0070d1]/15 text-[#0070d1] dark:text-sky-400"
-                                : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-                            }`}
-                          >
-                            {record.targetLabel}
-                          </span>
-                          <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                            {money(record.cost, isRTL)}
-                          </span>
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                          {record.issue}
-                        </p>
-
-                        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                          <span className="font-mono">{record.date}</span>
-                          <span className="bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 font-medium">
-                            {record.resolvedBy}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {filteredRecords.length === 0 && (
-                      <div className="text-center py-8 text-slate-400 text-xs">
+                    {filteredRecords.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 text-xs sm:text-sm bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl">
                         {isRTL
-                          ? "لا توجد سجلات تطابق البحث"
-                          : "No records match search"}
+                          ? "لا توجد سجلات صيانة مسجلة حتى الآن"
+                          : "No maintenance records found"}
                       </div>
+                    ) : (
+                      filteredRecords.map((record) => (
+                        <div
+                          key={record.id}
+                          className="bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                record.targetType === "console"
+                                  ? "bg-[#0070d1]/15 text-[#0070d1] dark:text-sky-400"
+                                  : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                              }`}
+                            >
+                              {record.targetLabel}
+                            </span>
+                            <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                              {money(record.cost, isRTL)}
+                            </span>
+                          </div>
+
+                          <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                            {record.issue}
+                          </p>
+
+                          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                            <span className="font-mono">{record.date}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 font-medium">
+                                {record.resolvedBy}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteMaintTarget(record)}
+                                title={isRTL ? "حذف سجل الصيانة" : "Delete record"}
+                                className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
@@ -826,6 +940,86 @@ export default function Controllers(props: Props) {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Controller Modal */}
+      {deleteCtrlTarget && (
+        <Modal
+          isOpen={!!deleteCtrlTarget}
+          onClose={() => setDeleteCtrlTarget(null)}
+          isRTL={isRTL}
+          title={isRTL ? "تأكيد حذف ذراع التحكم" : "Confirm Delete Controller"}
+          subtitle={
+            isRTL
+              ? `هل أنت متأكد من حذف ذراع التحكم (${deleteCtrlTarget.number}) نهائياً؟`
+              : `Are you sure you want to delete controller (${deleteCtrlTarget.number})?`
+          }
+          maxWidth="sm"
+        >
+          <div className="space-y-4 pt-2">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {isRTL
+                ? "سيتم حذف هذا الذراع نهائياً من النظام وقاعدة البيانات. لا يمكن التراجع عن هذا الإجراء."
+                : "This controller will be permanently deleted from the database. This action cannot be undone."}
+            </p>
+            <div className="flex items-center gap-2 justify-end pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteCtrlTarget(null)}
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => handleDeleteController(deleteCtrlTarget)}
+              >
+                {isRTL ? "تأكيد الحذف" : "Delete Controller"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Maintenance Record Modal */}
+      {deleteMaintTarget && (
+        <Modal
+          isOpen={!!deleteMaintTarget}
+          onClose={() => setDeleteMaintTarget(null)}
+          isRTL={isRTL}
+          title={isRTL ? "تأكيد حذف سجل الصيانة" : "Confirm Delete Maintenance Record"}
+          subtitle={
+            isRTL
+              ? `هل أنت متأكد من حذف سجل الصيانة لـ (${deleteMaintTarget.targetLabel})؟`
+              : `Are you sure you want to delete maintenance record for (${deleteMaintTarget.targetLabel})?`
+          }
+          maxWidth="sm"
+        >
+          <div className="space-y-4 pt-2">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {isRTL
+                ? "سيتم حذف سجل الصيانة هذا والتكلفة المرتبطة به نهائياً من قاعدة البيانات."
+                : "This maintenance record and its associated expense will be permanently deleted."}
+            </p>
+            <div className="flex items-center gap-2 justify-end pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteMaintTarget(null)}
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => handleDeleteMaintenance(deleteMaintTarget)}
+              >
+                {isRTL ? "تأكيد الحذف" : "Delete Record"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

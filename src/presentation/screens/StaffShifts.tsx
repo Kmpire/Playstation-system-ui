@@ -22,25 +22,6 @@ interface Props {
   [key: string]: unknown
 }
 
-const DEFAULT_STAFF = [
-  {
-    id: "admin",
-    name: "Ahmed Al-Rashidi",
-    nameAr: "أحمد الراشدي",
-    role: "Admin",
-    username: "admin",
-    since: "2024-01-15",
-  },
-  {
-    id: "cashier",
-    name: "Mohammed Saleh",
-    nameAr: "محمد صالح",
-    role: "Cashier",
-    username: "cashier",
-    since: "2024-06-01",
-  },
-]
-
 type SubTab = "staff" | "shift" | "audit"
 
 export default function StaffShifts(props: Props) {
@@ -88,18 +69,23 @@ export default function StaffShifts(props: Props) {
     }
   }
 
-  const staffList =
-    vm.accounts.length > 0
-      ? vm.accounts.map((acc) => ({
-          id: acc.username,
-          name:
-            acc.username === "admin" ? "Ahmed Al-Rashidi" : "Mohammed Saleh",
-          nameAr: acc.username === "admin" ? "أحمد الراشدي" : "محمد صالح",
-          role: acc.role === "admin" ? "Admin" : "Cashier",
-          username: acc.username,
-          since: "2024-01-15",
-        }))
-      : DEFAULT_STAFF
+  const staffList = vm.accounts.map((acc) => {
+    const formattedSince = acc.createdAt
+      ? new Date(acc.createdAt).toLocaleDateString(
+          isRTL ? "ar-EG" : "en-US",
+          { year: "numeric", month: "short", day: "numeric" },
+        )
+      : "—"
+
+    return {
+      id: String(acc.id || acc.username),
+      name: acc.name || acc.username,
+      nameAr: acc.name || acc.username,
+      role: acc.role === "admin" ? "Admin" : "Cashier",
+      username: acc.username,
+      since: formattedSince,
+    }
+  })
 
   const filteredLog = vm.auditLogs.filter(
     (e) =>
@@ -193,38 +179,46 @@ export default function StaffShifts(props: Props) {
               {/* Staff list */}
               {subTab === "staff" && (
                 <div className="max-w-2xl space-y-3 sm:space-y-4">
-                  {staffList.map((s) => (
-                    <div
-                      key={s.id}
-                      className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4"
-                    >
-                      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0">
-                        {s.name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base truncate">
-                          {isRTL ? s.nameAr : s.name}
-                        </div>
-                        <div className="text-slate-400 text-xs mt-0.5 font-mono">
-                          @{s.username}
-                        </div>
-                      </div>
-                      <div className="text-end shrink-0">
-                        <span
-                          className={`inline-block text-[11px] sm:text-xs px-2.5 py-0.5 sm:py-1 rounded-full font-medium ${
-                            s.role === "Admin"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                              : "bg-slate-100 text-slate-600 dark:bg-[#252a36] dark:text-slate-300"
-                          }`}
-                        >
-                          {s.role}
-                        </span>
-                        <div className="text-slate-400 text-[10px] sm:text-[11px] mt-1">
-                          {isRTL ? `منذ ${s.since}` : `Since ${s.since}`}
-                        </div>
-                      </div>
+                  {staffList.length === 0 ? (
+                    <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-8 text-center text-slate-400 text-sm">
+                      {isRTL
+                        ? "لا توجد حسابات موظفين مسجلة في قاعدة البيانات"
+                        : "No staff accounts found in database"}
                     </div>
-                  ))}
+                  ) : (
+                    staffList.map((s) => (
+                      <div
+                        key={s.id}
+                        className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 sm:p-5 flex items-center gap-3.5 sm:gap-4"
+                      >
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0">
+                          {s.name[0] || "U"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base truncate">
+                            {isRTL ? s.nameAr : s.name}
+                          </div>
+                          <div className="text-slate-400 text-xs mt-0.5 font-mono">
+                            @{s.username}
+                          </div>
+                        </div>
+                        <div className="text-end shrink-0">
+                          <span
+                            className={`inline-block text-[11px] sm:text-xs px-2.5 py-0.5 sm:py-1 rounded-full font-medium ${
+                              s.role === "Admin"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                                : "bg-slate-100 text-slate-600 dark:bg-[#252a36] dark:text-slate-300"
+                            }`}
+                          >
+                            {s.role}
+                          </span>
+                          <div className="text-slate-400 text-[10px] sm:text-[11px] mt-1">
+                            {isRTL ? `منذ ${s.since}` : `Since ${s.since}`}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                   <div className="bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 text-xs sm:text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
                     💡{" "}
                     {isRTL

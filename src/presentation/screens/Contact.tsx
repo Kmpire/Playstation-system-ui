@@ -1,6 +1,7 @@
 import { useContactViewModel } from "../viewmodels/useContactViewModel"
 import { CardGridSkeleton } from "@/presentation/components/states/LoadingSkeleton"
 import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
+import EmptyStateCard from "@/presentation/components/states/EmptyStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
 import { Phone, Mail, MapPin, Headphones } from "lucide-react"
@@ -15,23 +16,25 @@ export default function Contact(props: Props) {
   const vm = useContactViewModel()
   const info = vm.companyInfo
 
-  const rows = [
-    {
-      icon: <Phone className="w-5 h-5 text-blue-500" />,
-      label: isRTL ? "الهاتف" : "Phone",
-      value: info.phone,
-    },
-    {
-      icon: <Mail className="w-5 h-5 text-indigo-500" />,
-      label: isRTL ? "البريد الإلكتروني" : "Email",
-      value: info.email,
-    },
-    {
-      icon: <MapPin className="w-5 h-5 text-rose-500" />,
-      label: isRTL ? "العنوان" : "Address",
-      value: isRTL ? info.addressAr : info.address,
-    },
-  ]
+  const rows = info
+    ? [
+        {
+          icon: <Phone className="w-5 h-5 text-blue-500" />,
+          label: isRTL ? "الهاتف" : "Phone",
+          value: info.phone || "—",
+        },
+        {
+          icon: <Mail className="w-5 h-5 text-indigo-500" />,
+          label: isRTL ? "البريد الإلكتروني" : "Email",
+          value: info.email || "—",
+        },
+        {
+          icon: <MapPin className="w-5 h-5 text-rose-500" />,
+          label: isRTL ? "العنوان" : "Address",
+          value: (isRTL ? info.addressAr : info.address) || "—",
+        },
+      ]
+    : []
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0f111a]">
@@ -70,6 +73,18 @@ export default function Contact(props: Props) {
               isRTL={isRTL}
             />
           </div>
+        ) : !info || vm.status === "empty" ? (
+          <div className="p-4 sm:p-6">
+            <EmptyStateCard
+              title={isRTL ? "لا توجد بيانات تواصل" : "No Contact Details"}
+              description={
+                isRTL
+                  ? "لم يتم تسجيل بيانات الشركة أو قنوات الدعم الفني في قاعدة البيانات حتى الآن."
+                  : "No company or technical support contact information found in the database."
+              }
+              isRTL={isRTL}
+            />
+          </div>
         ) : (
           <PullToRefresh onRefresh={vm.refresh} isRTL={isRTL}>
             <div className="p-4 sm:p-6 pb-24 sm:pb-8">
@@ -78,11 +93,11 @@ export default function Contact(props: Props) {
                 <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg">
-                      PS
+                      {(info.name || "PS")[0]}
                     </div>
                     <div>
                       <div className="text-xl font-bold">
-                        {isRTL ? info.nameAr : info.name}
+                        {isRTL ? info.nameAr || info.name : info.name || info.nameAr}
                       </div>
                       <div className="text-white/70 text-sm">
                         {isRTL ? "صالة ألعاب ومقهى" : "Gaming Lounge & Café"}
@@ -112,7 +127,7 @@ export default function Contact(props: Props) {
                 </div>
 
                 {/* Social Media Links */}
-                {info.socials && info.socials.length > 0 && (
+                {info.socials && info.socials.length > 0 ? (
                   <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5">
                     <div className="text-xs text-slate-400 uppercase tracking-wider mb-3">
                       {isRTL ? "وسائل التواصل الاجتماعي" : "Social Media"}
@@ -135,6 +150,12 @@ export default function Contact(props: Props) {
                         </div>
                       ))}
                     </div>
+                  </div>
+                ) : (
+                  <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 text-center text-slate-400 text-xs sm:text-sm">
+                    {isRTL
+                      ? "لا توجد وسائل تواصل اجتماعي مسجلة"
+                      : "No social media channels registered"}
                   </div>
                 )}
               </div>

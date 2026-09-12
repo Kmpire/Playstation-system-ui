@@ -39,6 +39,18 @@ export class ApiControllerRepository implements IControllerRepository {
     })
   }
 
+  async delete(id: string): Promise<void> {
+    await apiClient<void>(`/controllers/${id}`, {
+      method: "DELETE",
+    })
+  }
+
+  async deleteMaintenanceRecord(id: string): Promise<void> {
+    await apiClient<void>(`/controllers/maintenance/${id}`, {
+      method: "DELETE",
+    })
+  }
+
   async resetToDefaults(): Promise<void> {
     await apiClient<void>("/controllers/reset", {
       method: "POST",

@@ -45,13 +45,17 @@ export default function Login({
     }
   }, [companyRepo])
 
-  const [username, setUsername] = useState("admin")
-  const [password, setPassword] = useState("admin123")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!username.trim() || !password.trim()) {
+      setError(true)
+      return
+    }
     setError(false)
     setLoading(true)
     try {
@@ -168,14 +172,14 @@ export default function Login({
               <button
                 type="button"
                 onClick={() => fillDemo("admin", "admin123")}
-                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center"
+                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center cursor-pointer"
               >
                 👑 {isRTL ? "المدير (Admin)" : "Admin"}
               </button>
               <button
                 type="button"
                 onClick={() => fillDemo("cashier", "cashier123")}
-                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center"
+                className="py-1.5 px-2 rounded-xl bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-sky-400 text-slate-300 text-xs font-semibold border border-slate-700/60 transition-all text-center cursor-pointer"
               >
                 🎮 {isRTL ? "الكاشير (Cashier)" : "Cashier"}
               </button>

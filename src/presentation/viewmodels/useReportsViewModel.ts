@@ -81,7 +81,7 @@ export function useReportsViewModel() {
     await fetchReportsData(true)
   }, [fetchReportsData])
 
-  // Aggregate live period statistics
+  // Aggregate live period statistics strictly from real database entities
   const periodStats = useMemo<Record<ReportPeriod, PeriodStats>>(() => {
     // 1. Live console totals
     const liveConsoleRevenue = consoles.reduce(
@@ -89,46 +89,50 @@ export function useReportsViewModel() {
       0,
     )
     const liveActiveSessions = consoles.filter((c) => c.session).length
+    const liveActiveHours = consoles.reduce((sum, c) => {
+      if (!c.session) return sum
+      const durationHours = (Date.now() - c.session.startTime) / (1000 * 60 * 60)
+      return sum + Math.max(0, durationHours)
+    }, 0)
 
-    // 2. Aggregate from shift reports
-    const totalShiftCash = shiftReports.reduce(
-      (sum, s) => sum + (s.totalCash || 0) + (s.totalCard || 0),
-      0,
-    )
-    const totalShiftDiscrepancy = shiftReports.reduce(
-      (sum, s) => sum + (s.discrepancy < 0 ? Math.abs(s.discrepancy) : 0),
-      0,
-    )
+    // 2. Aggregate from real shift reports
+    const now = new Date()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    // Base calculation
-    const dailyRev =
-      liveConsoleRevenue > 0
-        ? liveConsoleRevenue
-        : totalShiftCash > 0
-          ? totalShiftCash
-          : 1247.5
-    const dailyExpenses =
-      maintenanceCost * 0.1 + totalShiftDiscrepancy * 0.2 + dailyRev * 0.3
+    const isWithin = (dateStr: string, since: Date) => {
+      const d = new Date(dateStr)
+      return !isNaN(d.getTime()) && d >= since
+    }
+
+    const weeklyShifts = shiftReports.filter((s) => isWithin(s.date, sevenDaysAgo))
+    const monthlyShifts = shiftReports.filter((s) => isWithin(s.date, thirtyDaysAgo))
+
+    const sumCash = (list: ShiftReport[]) =>
+      list.reduce((sum, s) => sum + (s.countedCash || 0), 0)
+    const sumShortage = (list: ShiftReport[]) =>
+      list.reduce((sum, s) => sum + (s.variance < 0 ? Math.abs(s.variance) : 0), 0)
+
+    // Daily stats (live day)
+    const dailyRev = liveConsoleRevenue
+    const dailyExpenses = maintenanceCost + sumShortage(shiftReports.filter((s) => isWithin(s.date, new Date(now.getFullYear(), now.getMonth(), now.getDate()))))
     const dailyProfit = Math.max(0, dailyRev - dailyExpenses)
-    const dailySessions = Math.max(
-      consoles.length * 2,
-      liveActiveSessions + shiftReports.length * 5 || 28,
-    )
-    const dailyHours = +(dailySessions * 1.25).toFixed(1)
+    const dailySessions = liveActiveSessions
+    const dailyHours = +liveActiveHours.toFixed(1)
 
-    // Weekly multiplier (~6-7x daily)
-    const weeklyRev = +(dailyRev * 6.2).toFixed(2)
-    const weeklyExpenses = +(dailyExpenses * 6.2).toFixed(2)
-    const weeklyProfit = +(weeklyRev - weeklyExpenses).toFixed(2)
-    const weeklySessions = Math.round(dailySessions * 6.5)
-    const weeklyHours = +(dailyHours * 6.3).toFixed(1)
+    // Weekly stats (last 7 days shifts + today's live revenue)
+    const weeklyRev = sumCash(weeklyShifts) + liveConsoleRevenue
+    const weeklyExpenses = maintenanceCost + sumShortage(weeklyShifts)
+    const weeklyProfit = Math.max(0, weeklyRev - weeklyExpenses)
+    const weeklySessions = weeklyShifts.length + liveActiveSessions
+    const weeklyHours = +(weeklySessions * 1.5 + liveActiveHours).toFixed(1)
 
-    // Monthly multiplier (~26-28x daily)
-    const monthlyRev = +(dailyRev * 26.5).toFixed(2)
-    const monthlyExpenses = +(dailyExpenses * 26.5).toFixed(2)
-    const monthlyProfit = +(monthlyRev - monthlyExpenses).toFixed(2)
-    const monthlySessions = Math.round(dailySessions * 28)
-    const monthlyHours = +(dailyHours * 27.5).toFixed(1)
+    // Monthly stats (last 30 days shifts + today's live revenue)
+    const monthlyRev = sumCash(monthlyShifts) + liveConsoleRevenue
+    const monthlyExpenses = maintenanceCost + sumShortage(monthlyShifts)
+    const monthlyProfit = Math.max(0, monthlyRev - monthlyExpenses)
+    const monthlySessions = monthlyShifts.length + liveActiveSessions
+    const monthlyHours = +(monthlySessions * 1.5 + liveActiveHours).toFixed(1)
 
     return {
       daily: {
@@ -139,56 +143,46 @@ export function useReportsViewModel() {
         expenses: +dailyExpenses.toFixed(2),
       },
       weekly: {
-        revenue: weeklyRev,
-        profit: weeklyProfit,
+        revenue: +weeklyRev.toFixed(2),
+        profit: +weeklyProfit.toFixed(2),
         sessions: weeklySessions,
         activeHours: weeklyHours,
-        expenses: weeklyExpenses,
+        expenses: +weeklyExpenses.toFixed(2),
       },
       monthly: {
-        revenue: monthlyRev,
-        profit: monthlyProfit,
+        revenue: +monthlyRev.toFixed(2),
+        profit: +monthlyProfit.toFixed(2),
         sessions: monthlySessions,
         activeHours: monthlyHours,
-        expenses: monthlyExpenses,
+        expenses: +monthlyExpenses.toFixed(2),
       },
     }
   }, [consoles, shiftReports, maintenanceCost])
 
-  // Dynamically compute top items from actual menu items
+  // Aggregate top sold items strictly from real active tabs and menu
   const topItems = useMemo<TopSellingItem[]>(() => {
-    if (menuItems.length > 0) {
-      return menuItems
-        .slice(0, 5)
-        .map((item, idx) => {
-          const soldEst = Math.max(
-            5,
-            (item.stock > 0 ? 40 - Math.min(35, item.stock) : 25) +
-              (5 - idx) * 4,
-          )
-          return {
-            name: item.name,
-            nameAr: item.nameAr || item.name,
-            sold: soldEst,
-            revenue: +(soldEst * item.price).toFixed(2),
+    const itemMap = new Map<string, TopSellingItem>()
+
+    for (const c of consoles) {
+      if (c.session?.tab && Array.isArray(c.session.tab)) {
+        for (const t of c.session.tab) {
+          const menuItem = menuItems.find((m) => m.name === t.name || m.id === t.id)
+          const nameAr = t.nameAr || menuItem?.nameAr || t.name
+          const existing = itemMap.get(t.name) || {
+            name: t.name,
+            nameAr,
+            sold: 0,
+            revenue: 0,
           }
-        })
-        .sort((a, b) => b.revenue - a.revenue)
+          existing.sold += t.qty
+          existing.revenue = +(existing.revenue + t.price * t.qty).toFixed(2)
+          itemMap.set(t.name, existing)
+        }
+      }
     }
 
-    return [
-      { name: "Pepsi", nameAr: "بيبسي كولا", sold: 34, revenue: 68 },
-      { name: "Coffee Latte", nameAr: "قهوة لاتيه", sold: 18, revenue: 90 },
-      { name: "Chips & Dip", nameAr: "شيبس مقرمش", sold: 25, revenue: 75 },
-      {
-        name: "Red Bull Energy",
-        nameAr: "مشروب طاقة ريد بول",
-        sold: 11,
-        revenue: 66,
-      },
-      { name: "Burger Meal", nameAr: "وجبة برغر كومبو", sold: 9, revenue: 108 },
-    ]
-  }, [menuItems])
+    return Array.from(itemMap.values()).sort((a, b) => b.revenue - a.revenue)
+  }, [consoles, menuItems])
 
   const currentStats = periodStats[period]
 

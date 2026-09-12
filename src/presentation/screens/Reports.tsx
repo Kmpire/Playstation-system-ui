@@ -329,35 +329,43 @@ export default function Reports({ isRTL = true }: Props) {
                     </span>
                   </h3>
 
-                  <div className="space-y-3">
-                    {vm.topItems.map((item, i) => (
-                      <div
-                        key={item.name}
-                        className="flex items-center gap-3 text-xs sm:text-sm"
-                      >
-                        <span className="w-6 font-mono font-bold text-slate-400 text-center">
-                          #{i + 1}
-                        </span>
-                        <span className="w-32 sm:w-44 font-semibold text-slate-800 dark:text-slate-200 truncate">
-                          {isRTL ? item.nameAr : item.name}
-                        </span>
-                        <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                          <div
-                            className="h-full bg-[#0070d1] rounded-full transition-all duration-500"
-                            style={{
-                              width: `${(item.revenue / maxRev) * 100}%`,
-                            }}
-                          />
+                  {vm.topItems.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400 text-xs sm:text-sm">
+                      {isRTL
+                        ? "لا توجد مبيعات أصناف أو طلبات مسجلة حتى الآن"
+                        : "No cafe orders or item sales recorded yet"}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {vm.topItems.map((item, i) => (
+                        <div
+                          key={item.name}
+                          className="flex items-center gap-3 text-xs sm:text-sm"
+                        >
+                          <span className="w-6 font-mono font-bold text-slate-400 text-center">
+                            #{i + 1}
+                          </span>
+                          <span className="w-32 sm:w-44 font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            {isRTL ? item.nameAr : item.name}
+                          </span>
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-[#0070d1] rounded-full transition-all duration-500"
+                              style={{
+                                width: `${(item.revenue / maxRev) * 100}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="w-12 text-slate-400 text-center">
+                            {item.sold} {isRTL ? "طلب" : "qty"}
+                          </span>
+                          <span className="w-20 font-mono font-bold text-slate-900 dark:text-white text-end">
+                            {money(item.revenue, isRTL)}
+                          </span>
                         </div>
-                        <span className="w-12 text-slate-400 text-center">
-                          {item.sold} {isRTL ? "طلب" : "qty"}
-                        </span>
-                        <span className="w-20 font-mono font-bold text-slate-900 dark:text-white text-end">
-                          {money(item.revenue, isRTL)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

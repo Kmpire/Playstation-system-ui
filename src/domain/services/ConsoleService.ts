@@ -401,4 +401,17 @@ export class ConsoleService {
 
     return newConsole
   }
+
+  async deleteConsole(consoleId: number, staffName: string = "Admin"): Promise<void> {
+    const consoleToDelete = await this.consoleRepo.getById(consoleId)
+    await this.consoleRepo.delete(consoleId)
+
+    await this.auditRepo?.addLog({
+      id: "a_" + Date.now(),
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+      staff: staffName,
+      actionType: "Console Deleted",
+      details: `Deleted console #${consoleId} (${consoleToDelete?.name || ""})`,
+    })
+  }
 }

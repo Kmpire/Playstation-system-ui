@@ -111,6 +111,22 @@ export function useControllersViewModel() {
     return updated
   }
 
+  const deleteController = async (
+    id: string,
+    staffName?: string,
+  ): Promise<void> => {
+    await controllerService.deleteController(id, staffName)
+    setControllers((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  const deleteMaintenanceRecord = async (
+    id: string,
+    staffName?: string,
+  ): Promise<void> => {
+    await controllerService.deleteMaintenanceRecord(id, staffName)
+    setMaintenanceRecords((prev) => prev.filter((m) => m.id !== id))
+  }
+
   return {
     controllers,
     setControllers,
@@ -126,5 +142,7 @@ export function useControllersViewModel() {
     updateStatus,
     addMaintenanceRecord,
     toggleConsoleMaintenance,
+    deleteController,
+    deleteMaintenanceRecord,
   }
 }

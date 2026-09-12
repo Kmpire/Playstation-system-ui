@@ -27,10 +27,10 @@ export function useStaffViewModel(currentUser?: Account | null) {
 
       try {
         const [accs, logs, shifts, consolesData] = await Promise.all([
-          authRepo.getAccounts().catch(() => []),
-          auditRepo.getLogs().catch(() => []),
-          shiftRepo.getShiftReports().catch(() => []),
-          consoleRepo.getAll().catch(() => []),
+          authRepo.getAccounts(),
+          auditRepo.getLogs(),
+          shiftRepo.getShiftReports(),
+          consoleRepo.getAll(),
         ])
 
         setAccounts(accs || [])
@@ -65,7 +65,7 @@ export function useStaffViewModel(currentUser?: Account | null) {
     return consoles.reduce((sum, c) => sum + (c.dailyTotal || 0), 0)
   }, [consoles])
 
-  const expectedCash = liveCash > 0 ? liveCash : 892.75
+  const expectedCash = liveCash
 
   const submitShift = async (
     countedCash: number,

@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Bookmark,
   CalendarCheck,
+  Trash2,
 } from "lucide-react"
 import type {
   GameConsole,
@@ -102,6 +103,7 @@ interface ConsoleCardProps {
   onShowTab: () => void
   onEditTime: () => void
   onToggleReserve: () => void
+  onDelete?: () => void
 }
 
 export default function ConsoleCard({
@@ -118,6 +120,7 @@ export default function ConsoleCard({
   onShowTab,
   onEditTime,
   onToggleReserve,
+  onDelete,
 }: ConsoleCardProps) {
   const elapsed = con.session ? getElapsedMs(con.session) : 0
   const cost = con.session ? calcCost(con.session, elapsed) : 0
@@ -182,9 +185,24 @@ export default function ConsoleCard({
           </div>
         </div>
 
-        <Badge variant={con.status as any} pulse={con.status === "paused"}>
-          {statusLabel}
-        </Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!con.session && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              title={isRTL ? "حذف الجهاز" : "Delete console"}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <Badge variant={con.status as any} pulse={con.status === "paused"}>
+            {statusLabel}
+          </Badge>
+        </div>
       </div>
 
       {/* Middle content: Active session metrics OR Idle state */}

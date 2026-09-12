@@ -18,6 +18,7 @@ import type {
 } from "@/domain"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
+import Modal from "@/presentation/components/ui/Modal"
 import ConsoleCard, {
   getElapsedMs,
   calcCost,
@@ -75,6 +76,7 @@ export default function ConsoleDashboard({
     editSessionTime,
     toggleReserve,
     createConsole,
+    deleteConsole,
   } = useDashboardViewModel()
 
   const [, setTick] = useState(0)
@@ -96,6 +98,7 @@ export default function ConsoleDashboard({
     mode: "edit" | "add"
   } | null>(null)
   const [isAddConsoleOpen, setIsAddConsoleOpen] = useState(false)
+  const [deleteConsoleTarget, setDeleteConsoleTarget] = useState<GameConsole | null>(null)
   const [expiredAlertCon, setExpiredAlertCon] = useState<GameConsole | null>(
     null,
   )
@@ -368,6 +371,25 @@ export default function ConsoleDashboard({
     }
   }
 
+  const handleDeleteConsole = async (con: GameConsole) => {
+    try {
+      await deleteConsole(con.id, currentUser?.username || "Admin")
+      toast(
+        isRTL
+          ? `تم حذف الجهاز (${con.name}) بنجاح ✓`
+          : `Console (${con.name}) deleted ✓`,
+      )
+      setDeleteConsoleTarget(null)
+    } catch (err: any) {
+      console.error("Failed to delete console:", err)
+      toast(
+        isRTL
+          ? `فشل حذف الجهاز: ${err.message || err}`
+          : `Failed to delete console: ${err.message || err}`,
+      )
+    }
+  }
+
   // Summary Metrics
   const activeCount = consoles.filter((c) => c.status === "occupied").length
   const availableCount = consoles.filter((c) => c.status === "available").length
@@ -592,6 +614,7 @@ export default function ConsoleDashboard({
                 onShowTab={() => setViewTabCon(con)}
                 onEditTime={() => setTimeModalState({ con, mode: "edit" })}
                 onToggleReserve={() => handleToggleReserve(con.id)}
+                onDelete={() => setDeleteConsoleTarget(con)}
               />
             )
           })}
@@ -660,6 +683,46 @@ export default function ConsoleDashboard({
         onClose={() => setIsAddConsoleOpen(false)}
         onAdd={handleAddConsole}
       />
+
+      {/* Delete Console Confirmation Modal */}
+      {deleteConsoleTarget && (
+        <Modal
+          isOpen={!!deleteConsoleTarget}
+          onClose={() => setDeleteConsoleTarget(null)}
+          isRTL={isRTL}
+          title={isRTL ? "تأكيد حذف الجهاز" : "Confirm Delete Console"}
+          subtitle={
+            isRTL
+              ? `هل أنت متأكد من حذف ${deleteConsoleTarget.name} نهائياً؟`
+              : `Are you sure you want to delete ${deleteConsoleTarget.name}?`
+          }
+          maxWidth="sm"
+        >
+          <div className="space-y-4 pt-2">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              {isRTL
+                ? "سيتم حذف هذا الجهاز نهائياً من الصالة وقاعدة البيانات. لا يمكن التراجع عن هذا الإجراء."
+                : "This console will be permanently removed from the lounge and database. This action cannot be undone."}
+            </p>
+            <div className="flex items-center gap-2 justify-end pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteConsoleTarget(null)}
+              >
+                {isRTL ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => handleDeleteConsole(deleteConsoleTarget)}
+              >
+                {isRTL ? "تأكيد الحذف" : "Delete Console"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <ExpiredAlertModal
         con={expiredAlertCon}

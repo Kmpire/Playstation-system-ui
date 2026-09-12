@@ -87,4 +87,36 @@ export class ControllerService {
     await this.controllerRepo.save(newCtrl)
     return newCtrl
   }
+
+  async deleteController(
+    controllerId: string,
+    staffName: string = "Admin",
+  ): Promise<void> {
+    const list = await this.controllerRepo.getAll()
+    const ctrl = list.find((c) => c.id === controllerId)
+    await this.controllerRepo.delete(controllerId)
+
+    await this.auditRepo?.addLog({
+      id: "a_" + Date.now(),
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+      staff: staffName,
+      actionType: "Controller Deleted",
+      details: `Deleted controller #${ctrl?.number || controllerId}`,
+    })
+  }
+
+  async deleteMaintenanceRecord(
+    recordId: string,
+    staffName: string = "Admin",
+  ): Promise<void> {
+    await this.controllerRepo.deleteMaintenanceRecord?.(recordId)
+
+    await this.auditRepo?.addLog({
+      id: "a_" + Date.now(),
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+      staff: staffName,
+      actionType: "Maintenance Deleted",
+      details: `Deleted maintenance record #${recordId}`,
+    })
+  }
 }

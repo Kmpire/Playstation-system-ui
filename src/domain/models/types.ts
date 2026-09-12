@@ -116,10 +116,12 @@ export interface AuditEntry {
 }
 
 export interface UserAccount {
+  id?: number
   role: UserRole
   username: string
   name: string
-  password: string
+  password?: string
+  createdAt?: string | Date
 }
 
 export interface CompanyInfo {
