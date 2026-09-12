@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
-import type { ShiftReport, GameConsole, MenuItem } from "@/domain"
+import type {
+  ShiftReport,
+  GameConsole,
+  MenuItem,
+  SessionOrderRecord,
+  AuditEntry,
+} from "@/domain"
 import type { ViewStatus } from "../types/uiState"
 import { useServices } from "../context/ServicesContext"
 
@@ -28,6 +34,8 @@ export function useReportsViewModel() {
   const [shiftReports, setShiftReports] = useState<ShiftReport[]>([])
   const [consoles, setConsoles] = useState<GameConsole[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [tabOrders, setTabOrders] = useState<SessionOrderRecord[]>([])
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([])
   const [maintenanceCost, setMaintenanceCost] = useState(0)
 
   const [status, setStatus] = useState<ViewStatus>("loading")
@@ -44,16 +52,23 @@ export function useReportsViewModel() {
       setError(null)
 
       try {
-        const [shifts, consolesData, items, maintRecords] = await Promise.all([
-          shiftRepo.getShiftReports(),
-          consoleRepo.getAll(),
-          menuRepo.getItems(),
-          controllerRepo.getMaintenanceRecords().catch(() => []),
-        ])
+        const [shifts, consolesData, items, maintRecords, tabs, logs] =
+          await Promise.all([
+            shiftRepo.getShiftReports(),
+            consoleRepo.getAll(),
+            menuRepo.getItems(),
+            controllerRepo.getMaintenanceRecords().catch(() => []),
+            consoleRepo.getAllTabOrders
+              ? consoleRepo.getAllTabOrders()
+              : Promise.resolve([]),
+            auditRepo.getAll().catch(() => []),
+          ])
 
         setShiftReports(shifts || [])
         setConsoles(consolesData || [])
         setMenuItems(items || [])
+        setTabOrders(tabs || [])
+        setAuditLogs(logs || [])
 
         const totalMaintCost = (maintRecords || []).reduce(
           (sum, r) => sum + (r.cost || 0),
@@ -70,7 +85,7 @@ export function useReportsViewModel() {
         setIsRefreshing(false)
       }
     },
-    [shiftRepo, consoleRepo, menuRepo, controllerRepo],
+    [shiftRepo, consoleRepo, menuRepo, controllerRepo, auditRepo],
   )
 
   useEffect(() => {
@@ -115,7 +130,16 @@ export function useReportsViewModel() {
 
     // Daily stats (live day)
     const dailyRev = liveConsoleRevenue
-    const dailyExpenses = maintenanceCost + sumShortage(shiftReports.filter((s) => isWithin(s.date, new Date(now.getFullYear(), now.getMonth(), now.getDate()))))
+    const dailyExpenses =
+      maintenanceCost +
+      sumShortage(
+        shiftReports.filter((s) =>
+          isWithin(
+            s.date,
+            new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+          ),
+        ),
+      )
     const dailyProfit = Math.max(0, dailyRev - dailyExpenses)
     const dailySessions = liveActiveSessions
     const dailyHours = +liveActiveHours.toFixed(1)
@@ -159,30 +183,108 @@ export function useReportsViewModel() {
     }
   }, [consoles, shiftReports, maintenanceCost])
 
-  // Aggregate top sold items strictly from real active tabs and menu
+  // Aggregate top sold items strictly from real database records (completed tabs + active sessions + POS sales)
   const topItems = useMemo<TopSellingItem[]>(() => {
+    const now = Date.now()
+    const startOfToday = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      new Date().getDate(),
+    ).getTime()
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
+
+    const isWithin = (dateStr?: string) => {
+      if (!dateStr) return true
+      const t = new Date(dateStr).getTime()
+      if (isNaN(t)) return true
+      if (period === "daily") {
+        return t >= startOfToday || now - t <= 24 * 3600 * 1000
+      }
+      if (period === "weekly") {
+        return t >= sevenDaysAgo
+      }
+      if (period === "monthly") {
+        return t >= thirtyDaysAgo
+      }
+      return true
+    }
+
     const itemMap = new Map<string, TopSellingItem>()
 
+    const addItem = (
+      name: string,
+      nameAr: string | undefined,
+      qty: number,
+      price: number,
+      itemId?: string,
+    ) => {
+      const match = menuItems.find(
+        (m) =>
+          m.name.toLowerCase() === name.toLowerCase() ||
+          (itemId && m.id === itemId),
+      )
+      const standardName = match?.name || name
+      const standardNameAr = match?.nameAr || nameAr || standardName
+      const standardPrice = price || match?.price || 0
+
+      const existing = itemMap.get(standardName) || {
+        name: standardName,
+        nameAr: standardNameAr,
+        sold: 0,
+        revenue: 0,
+      }
+      existing.sold += qty
+      existing.revenue = +(existing.revenue + standardPrice * qty).toFixed(2)
+      itemMap.set(standardName, existing)
+    }
+
+    // 1. All historical session tab orders from PostgreSQL database
+    for (const t of tabOrders) {
+      if (isWithin(t.createdAt)) {
+        addItem(t.name, t.nameAr, t.qty, t.price, t.itemId)
+      }
+    }
+
+    // 2. Currently active session tabs (real-time live tabs on open consoles)
     for (const c of consoles) {
       if (c.session?.tab && Array.isArray(c.session.tab)) {
         for (const t of c.session.tab) {
-          const menuItem = menuItems.find((m) => m.name === t.name || m.id === t.id)
-          const nameAr = t.nameAr || menuItem?.nameAr || t.name
-          const existing = itemMap.get(t.name) || {
-            name: t.name,
-            nameAr,
-            sold: 0,
-            revenue: 0,
-          }
-          existing.sold += t.qty
-          existing.revenue = +(existing.revenue + t.price * t.qty).toFixed(2)
-          itemMap.set(t.name, existing)
+          addItem(t.name, t.nameAr, t.qty, t.price, t.id)
         }
       }
     }
 
-    return Array.from(itemMap.values()).sort((a, b) => b.revenue - a.revenue)
-  }, [consoles, menuItems])
+    // 3. Walk-in sales from Audit Trail (POS Sales)
+    for (const log of auditLogs) {
+      if (log.actionType === "Sale Completed" && log.details) {
+        if (!isWithin(log.timestamp)) continue
+        const match = log.details.match(/Walk-in sale:\s*(.*?)\s*—/)
+        if (match && match[1]) {
+          const parts = match[1].split(",")
+          for (const part of parts) {
+            const itemMatch = part.trim().match(/^(.*?)\s*×(\d+)$/)
+            if (itemMatch) {
+              const rawName = itemMatch[1].trim()
+              const qty = parseInt(itemMatch[2], 10) || 1
+              addItem(rawName, undefined, qty, 0)
+            }
+          }
+        }
+      }
+    }
+
+    // 4. If period filter yielded no rows but database has historical orders, include all tab orders so data is never hidden
+    if (itemMap.size === 0 && tabOrders.length > 0) {
+      for (const t of tabOrders) {
+        addItem(t.name, t.nameAr, t.qty, t.price, t.itemId)
+      }
+    }
+
+    return Array.from(itemMap.values()).sort(
+      (a, b) => b.sold - a.sold || b.revenue - a.revenue,
+    )
+  }, [tabOrders, consoles, auditLogs, menuItems, period])
 
   const currentStats = periodStats[period]
 

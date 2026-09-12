@@ -26,6 +26,17 @@ export interface TabItem {
   qty: number
 }
 
+export interface SessionOrderRecord {
+  id: number
+  sessionId: number
+  itemId: string
+  name: string
+  nameAr?: string
+  price: number
+  qty: number
+  createdAt?: string
+}
+
 export interface Session {
   mode: SessionMode
   playerType: PlayerType
