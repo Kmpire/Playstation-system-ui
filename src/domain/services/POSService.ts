@@ -74,7 +74,7 @@ export class POSService {
     const allItems = await this.menuRepo.getItems()
     const updatedItems = allItems.map((item) => {
       const sold = cart.find((c) => c.item.id === item.id)
-      if (sold) {
+      if (sold && item.trackStock !== false) {
         return {
           ...item,
           stock: Math.max(0, item.stock - sold.qty),

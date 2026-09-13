@@ -1,5 +1,5 @@
 import React from "react"
-import { ArrowRightLeft, Tv, Gamepad2, Crown, Check } from "lucide-react"
+import { ArrowRightLeft, Tv, Gamepad2, Crown, Check, Coffee } from "lucide-react"
 import type { GameConsole, ConsoleType } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
@@ -17,6 +17,7 @@ const TYPE_ICONS: Record<ConsoleType, React.ReactNode> = {
   PS5: <Tv className="w-4 h-4 text-[#0070d1]" />,
   Xbox: <Gamepad2 className="w-4 h-4 text-emerald-400" />,
   VIP: <Crown className="w-4 h-4 text-amber-400" />,
+  Break: <Coffee className="w-4 h-4 text-emerald-500" />,
 }
 
 export default function TransferModal({

@@ -54,7 +54,10 @@ export function useInventoryViewModel() {
   }, [fetchInventory])
 
   const lowStockItems = useMemo(
-    () => menuItems.filter((i) => i.stock <= i.lowStockThreshold),
+    () =>
+      menuItems.filter(
+        (i) => i.trackStock !== false && i.stock <= i.lowStockThreshold,
+      ),
     [menuItems],
   )
 

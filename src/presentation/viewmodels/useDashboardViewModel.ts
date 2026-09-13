@@ -73,6 +73,7 @@ export function useDashboardViewModel() {
     durationMin: number,
     playerType: PlayerType,
     staffName?: string,
+    customStartTime?: number,
   ) => {
     const updated = await consoleService.startSession(
       consoleId,
@@ -80,6 +81,7 @@ export function useDashboardViewModel() {
       durationMin,
       playerType,
       staffName,
+      customStartTime,
     )
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
@@ -122,6 +124,16 @@ export function useDashboardViewModel() {
 
   const addTabItem = async (consoleId: number, item: MenuItem, qty: number) => {
     const updated = await consoleService.addTabItem(consoleId, item, qty)
+    setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
+    return updated
+  }
+
+  const changeTabItemQty = async (
+    consoleId: number,
+    itemId: string,
+    delta: number,
+  ) => {
+    const updated = await consoleService.changeTabItemQty(consoleId, itemId, delta)
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
   }
@@ -172,8 +184,37 @@ export function useDashboardViewModel() {
     return created
   }
 
-  const deleteConsole = async (consoleId: number, staffName?: string) => {
-    await consoleService.deleteConsole(consoleId, staffName)
+  const updateConsoleInfo = async (
+    consoleId: number,
+    name: string,
+    type: ConsoleType,
+    staffName?: string,
+  ) => {
+    const updated = await consoleService.updateConsoleInfo(
+      consoleId,
+      name,
+      type,
+      staffName,
+    )
+    setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
+    return updated
+  }
+
+  const reorderConsoles = async (reordered: GameConsole[]) => {
+    setConsoles(reordered)
+    try {
+      await consoleService.reorderConsoles(reordered)
+    } catch (err) {
+      console.error("Failed to persist console order:", err)
+    }
+  }
+
+  const deleteConsole = async (
+    consoleId: number,
+    staffName?: string,
+    userRole?: string,
+  ) => {
+    await consoleService.deleteConsole(consoleId, staffName, userRole)
     setConsoles((prev) => prev.filter((c) => c.id !== consoleId))
   }
 
@@ -194,11 +235,14 @@ export function useDashboardViewModel() {
     endSession,
     togglePlayerType,
     addTabItem,
+    changeTabItemQty,
     removeTabItem,
     transferSession,
     editSessionTime,
     toggleReserve,
     createConsole,
+    updateConsoleInfo,
+    reorderConsoles,
     deleteConsole,
   }
 }

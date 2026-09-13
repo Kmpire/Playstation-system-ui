@@ -146,9 +146,14 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
     clearCart,
   } = usePOSViewModel()
 
-  const [selCat, setSelCat] = useState<string>("")
   const [showReceipt, setShowReceipt] = useState(false)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
+  const [lastReceipt, setLastReceipt] = useState<{
+    entries: CartEntry[]
+    total: number
+    discount: number
+    promoLabel: string
+  } | null>(null)
 
   const filtered = selCat
     ? menuItems.filter((i) => i.category === selCat)
@@ -157,7 +162,14 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
   async function handleCheckout() {
     if (cart.length === 0) return
     try {
-      await checkout(currentUser?.name || "Cashier")
+      const summary = await checkout(currentUser?.name || "Cashier")
+      setLastReceipt({
+        entries: [...cart],
+        total: totals.total,
+        discount: totals.discount,
+        promoLabel: promoCode.toUpperCase() || "PROMO",
+      })
+      clearCart()
       setShowReceipt(true)
     } catch (err: any) {
       console.error("Error processing sale:", err)
@@ -170,18 +182,18 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
   }
 
   function handleDone() {
-    clearCart()
+    setLastReceipt(null)
     setShowReceipt(false)
     setMobileCartOpen(false)
   }
 
-  if (showReceipt) {
+  if (showReceipt && lastReceipt) {
     return (
       <ReceiptView
-        entries={cart}
-        total={totals.total}
-        discount={totals.discount}
-        promoLabel={promoCode.toUpperCase() || "PROMO"}
+        entries={lastReceipt.entries}
+        total={lastReceipt.total}
+        discount={lastReceipt.discount}
+        promoLabel={lastReceipt.promoLabel}
         isRTL={isRTL}
         onDone={handleDone}
       />
@@ -276,16 +288,18 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filtered.map((item) => {
                 const inCart = cart.find((e) => e.item.id === item.id)
-                const lowStock = item.stock <= item.lowStockThreshold
+                const isTracked = item.trackStock !== false
+                const outOfStock = isTracked && item.stock <= 0
+                const lowStock = isTracked && item.stock <= item.lowStockThreshold
 
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => addItem(item)}
-                    disabled={item.stock <= 0}
+                    disabled={outOfStock}
                     className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border text-start transition-all duration-200 flex flex-col justify-between active:scale-[0.98] cursor-pointer ${
-                      item.stock <= 0
+                      outOfStock
                         ? "opacity-40 pointer-events-none border-slate-200 dark:border-slate-800"
                         : inCart
                           ? "border-[#0070d1] ring-2 ring-[#0070d1]/20 shadow-md"
@@ -310,7 +324,7 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
                       <div className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400 mt-1">
                         {money(item.price, isRTL)}
                       </div>
-                      {lowStock && (
+                      {lowStock ? (
                         <div className="text-amber-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
                           <span>
@@ -319,7 +333,11 @@ export default function POSSales({ currentUser, isRTL, toast }: Props) {
                               : `Stock: ${item.stock}`}
                           </span>
                         </div>
-                      )}
+                      ) : !isTracked ? (
+                        <div className="text-slate-400 text-[10px] font-semibold mt-1 flex items-center gap-1">
+                          <span>{isRTL ? "غير محدود" : "Unlimited"}</span>
+                        </div>
+                      ) : null}
                     </div>
                   </button>
                 )

@@ -1,7 +1,7 @@
 // ─── Pure Domain Models & Types ─────────────────────────────────────────────
 // These models have zero React or UI dependencies, matching KMP shared data classes.
 
-export type ConsoleType = "PS4" | "PS5" | "Xbox" | "VIP"
+export type ConsoleType = "PS4" | "PS5" | "Xbox" | "VIP" | "Break"
 export type ConsoleStatus = "available" | "occupied" | "paused" | "maintenance" | "reserved"
 export type SessionMode = "prepaid" | "postpaid"
 export type PlayerType = "single" | "multi"
@@ -70,6 +70,7 @@ export interface GameConsole {
   session?: Session
   /** Cumulative money earned by this console today (sessions + tabs). */
   dailyTotal: number
+  displayOrder?: number
 }
 
 export interface MenuItem {
@@ -81,6 +82,7 @@ export interface MenuItem {
   costPrice: number
   stock: number
   lowStockThreshold: number
+  trackStock?: boolean
 }
 
 export interface Category {

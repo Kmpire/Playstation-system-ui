@@ -47,6 +47,12 @@ const TYPE_META: Record<ConsoleType, {
     color: "text-amber-600 dark:text-amber-400",
     border: "border-amber-200 dark:border-amber-800/50",
   },
+  Break: {
+    label: "Break Lounge (استراحة)",
+    icon: "☕",
+    color: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-200 dark:border-emerald-800/50",
+  },
 }
 
 const ORDER: ConsoleType[] = ["PS4", "PS5", "Xbox", "VIP"]

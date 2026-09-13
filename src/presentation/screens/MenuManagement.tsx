@@ -25,6 +25,7 @@ const EMPTY_ITEM: Omit<MenuItem, "id"> = {
   costPrice: 0,
   stock: 0,
   lowStockThreshold: 5,
+  trackStock: true,
 }
 
 export default function MenuManagement({ isRTL, toast }: Props) {
@@ -55,7 +56,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
 
   function openAdd() {
     setEditItem(null)
-    setFormData({ ...EMPTY_ITEM, category: categories[0]?.id ?? "" })
+    setFormData({ ...EMPTY_ITEM, category: categories[0]?.id ?? "", trackStock: true })
     setShowForm(true)
   }
 
@@ -69,6 +70,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
       costPrice: item.costPrice,
       stock: item.stock,
       lowStockThreshold: item.lowStockThreshold,
+      trackStock: item.trackStock !== false,
     })
     setShowForm(true)
   }
@@ -340,7 +342,8 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
                   {filtered.map((item) => {
-                    const lowStock = item.stock <= item.lowStockThreshold
+                    const isTracked = item.trackStock !== false
+                    const lowStock = isTracked && item.stock <= item.lowStockThreshold
                     return (
                       <tr
                         key={item.id}
@@ -364,18 +367,24 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                           {money(item.costPrice, isRTL)}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              lowStock
-                                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                            }`}
-                          >
-                            {item.stock}
-                          </span>
+                          {isTracked ? (
+                            <span
+                              className={`font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                lowStock
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                              }`}
+                            >
+                              {item.stock}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              {isRTL ? "بدون مخزون" : "Unlimited"}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                          {item.lowStockThreshold}
+                          {isTracked ? item.lowStockThreshold : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -408,7 +417,8 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-3">
               {filtered.map((item) => {
-                const lowStock = item.stock <= item.lowStockThreshold
+                const isTracked = item.trackStock !== false
+                const lowStock = isTracked && item.stock <= item.lowStockThreshold
                 return (
                   <div
                     key={item.id}
@@ -430,16 +440,22 @@ export default function MenuManagement({ isRTL, toast }: Props) {
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/40 text-xs">
                       <div className="flex items-center gap-3">
-                        <span
-                          className={`font-mono px-2 py-0.5 rounded-full font-medium ${
-                            lowStock
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                          }`}
-                        >
-                          {isRTL ? "المخزون: " : "Stock: "}
-                          {item.stock}
-                        </span>
+                        {isTracked ? (
+                          <span
+                            className={`font-mono px-2 py-0.5 rounded-full font-medium ${
+                              lowStock
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            }`}
+                          >
+                            {isRTL ? "المخزون: " : "Stock: "}
+                            {item.stock}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            {isRTL ? "بدون مخزون" : "Unlimited"}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3">
@@ -580,42 +596,72 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Track Stock Toggle */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "الكمية بالمخزون" : "Stock Quantity"}
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {isRTL ? "تتبع المخزون" : "Track Stock"}
                   </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.stock}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        stock: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
-                  />
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {isRTL
+                      ? "قم بإلغاء التفعيل للأصناف غير المحدودة (مثل الشاي والقهوة)"
+                      : "Disable for unlimited items like tea and coffee"}
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "حد التنبيه" : "Low Stock Alert"}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.lowStockThreshold}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        lowStockThreshold: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
-                  />
-                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.trackStock !== false}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, trackStock: e.target.checked }))
+                  }
+                  className="w-4 h-4 text-[#0070d1] rounded focus:ring-0 cursor-pointer"
+                />
               </div>
+
+              {formData.trackStock !== false ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                      {isRTL ? "الكمية بالمخزون" : "Stock Quantity"}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.stock}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          stock: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                      {isRTL ? "حد التنبيه" : "Low Stock Alert"}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.lowStockThreshold}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          lowStockThreshold: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm font-mono dark:bg-[#1a1d26] dark:text-slate-100"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-semibold text-center">
+                  {isRTL
+                    ? "✓ صنف بدون مخزون - متاح للطلب دائماً وبدون تنبيهات نفاد"
+                    : "✓ Untracked Stock - Always available with no low stock warnings"}
+                </div>
+              )}
             </div>
 
             <div className="px-6 pb-6 flex gap-3">

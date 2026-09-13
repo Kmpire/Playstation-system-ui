@@ -74,6 +74,7 @@ export class ConsoleService {
    * Gets default or configured hourly rate for a console type and player mode.
    */
   async getRate(type: ConsoleType, playerType: PlayerType): Promise<number> {
+    if (type === "Break") return 0
     const configs = await this.pricingRepo.getAll()
     const cfg = configs.find((p) => p.type === type)
     if (!cfg) {
@@ -95,22 +96,26 @@ export class ConsoleService {
     durationMin: number,
     playerType: PlayerType,
     staffName: string = "Staff",
+    customStartTime?: number,
   ): Promise<GameConsole> {
     const console = await this.consoleRepo.getById(consoleId)
     if (!console) throw new Error(`Console #${consoleId} not found`)
 
-    const rate = await this.getRate(console.type, playerType)
+    const isBreak = console.type === "Break"
+    const rate = isBreak ? 0 : await this.getRate(console.type, playerType)
     const initialSegment: PriceSegment = {
       startElapsedMs: 0,
       ratePerHour: rate,
-      playerType,
+      playerType: isBreak ? "single" : playerType,
     }
 
+    const startTimestamp = customStartTime || Date.now()
+
     const newSession: Session = {
-      startTime: Date.now(),
-      mode,
-      targetDurationMin: mode === "prepaid" ? durationMin : undefined,
-      playerType,
+      startTime: startTimestamp,
+      mode: isBreak ? "postpaid" : mode,
+      targetDurationMin: !isBreak && mode === "prepaid" ? durationMin : undefined,
+      playerType: isBreak ? "single" : playerType,
       pausedAt: null,
       totalPausedMs: 0,
       priceSegments: [initialSegment],
@@ -130,7 +135,9 @@ export class ConsoleService {
       timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
       staff: staffName,
       actionType: "Session Started",
-      details: `${console.name} started (${mode}, ${playerType} player)`,
+      details: isBreak
+        ? `${console.name} break lounge session started`
+        : `${console.name} started (${mode}, ${playerType} player)`,
     })
 
     return updated
@@ -292,6 +299,31 @@ export class ConsoleService {
     return updated
   }
 
+  async changeTabItemQty(
+    consoleId: number,
+    itemId: string,
+    delta: number,
+  ): Promise<GameConsole> {
+    const console = await this.consoleRepo.getById(consoleId)
+    if (!console || !console.session)
+      throw new Error(`No active session on console #${consoleId}`)
+
+    const currentTab = console.session.tab
+      .map((t) => (t.id === itemId ? { ...t, qty: t.qty + delta } : t))
+      .filter((t) => t.qty > 0)
+
+    const updated: GameConsole = {
+      ...console,
+      session: {
+        ...console.session,
+        tab: currentTab,
+      },
+    }
+
+    await this.consoleRepo.save(updated)
+    return updated
+  }
+
   async transferSession(fromId: number, toId: number): Promise<{
     from: GameConsole
     to: GameConsole
@@ -402,7 +434,52 @@ export class ConsoleService {
     return newConsole
   }
 
-  async deleteConsole(consoleId: number, staffName: string = "Admin"): Promise<void> {
+  async updateConsoleInfo(
+    consoleId: number,
+    name: string,
+    type: ConsoleType,
+    staffName: string = "Admin",
+  ): Promise<GameConsole> {
+    const console = await this.consoleRepo.getById(consoleId)
+    if (!console) throw new Error(`Console #${consoleId} not found`)
+
+    const updated: GameConsole = {
+      ...console,
+      name,
+      type,
+    }
+
+    await this.consoleRepo.save(updated)
+
+    await this.auditRepo?.addLog({
+      id: "a_" + Date.now(),
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+      staff: staffName,
+      actionType: "Console Updated",
+      details: `Updated console #${consoleId}: ${name} (${type})`,
+    })
+
+    return updated
+  }
+
+  async reorderConsoles(reorderedConsoles: GameConsole[]): Promise<GameConsole[]> {
+    const withOrder = reorderedConsoles.map((c, idx) => ({
+      ...c,
+      displayOrder: idx,
+    }))
+    await this.consoleRepo.saveAll(withOrder)
+    return withOrder
+  }
+
+  async deleteConsole(
+    consoleId: number,
+    staffName: string = "Admin",
+    userRole: string = "admin",
+  ): Promise<void> {
+    if (userRole === "cashier") {
+      throw new Error("Cashier does not have permission to delete consoles")
+    }
+
     const consoleToDelete = await this.consoleRepo.getById(consoleId)
     await this.consoleRepo.delete(consoleId)
 

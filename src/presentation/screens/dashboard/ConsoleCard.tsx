@@ -1,22 +1,26 @@
 import React from "react"
 import {
-  Play,
-  Pause,
-  Square,
-  Plus,
-  ArrowRightLeft,
-  Clock,
-  Users,
-  User,
-  Coffee,
-  Wrench,
   Gamepad2,
   Tv,
   Crown,
-  AlertTriangle,
+  Coffee,
+  Play,
+  Pause,
+  Square,
+  ArrowRightLeft,
+  Plus,
+  Clock,
+  User,
+  Users,
+  Wrench,
   Bookmark,
   CalendarCheck,
+  AlertTriangle,
   Trash2,
+  Edit3,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import type {
   GameConsole,
@@ -86,13 +90,14 @@ const TYPE_ICONS: Record<ConsoleType, React.ReactNode> = {
   PS5: <Tv className="w-4 h-4 text-[#0070d1]" />,
   Xbox: <Gamepad2 className="w-4 h-4 text-emerald-400" />,
   VIP: <Crown className="w-4 h-4 text-amber-400" />,
+  Break: <Coffee className="w-4 h-4 text-emerald-500" />,
 }
 
 interface ConsoleCardProps {
   con: GameConsole
   isRTL: boolean
   isExpired: boolean
-  theme: Theme
+  theme?: Theme
   onSelect: () => void
   onPause: () => void
   onResume: () => void
@@ -104,6 +109,19 @@ interface ConsoleCardProps {
   onEditTime: () => void
   onToggleReserve: () => void
   onDelete?: () => void
+  onEdit?: () => void
+  // Drag & drop / Reorder
+  canReorder?: boolean
+  draggable?: boolean
+  isDragging?: boolean
+  isDragOver?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDragLeave?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  onDragEnd?: (e: React.DragEvent) => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
 export default function ConsoleCard({
@@ -121,20 +139,41 @@ export default function ConsoleCard({
   onEditTime,
   onToggleReserve,
   onDelete,
+  onEdit,
+  canReorder,
+  draggable,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+  onMoveUp,
+  onMoveDown,
 }: ConsoleCardProps) {
+  const isBreak = con.type === "Break"
   const elapsed = con.session ? getElapsedMs(con.session) : 0
-  const cost = con.session ? calcCost(con.session, elapsed) : 0
+  const cost = con.session && !isBreak ? calcCost(con.session, elapsed) : 0
   const tabTotal = con.session ? tabSum(con.session) : 0
   const liveTotal = cost + tabTotal
 
   const remaining =
-    con.session?.mode === "prepaid" && con.session.targetDurationMin != null
+    !isBreak &&
+    con.session?.mode === "prepaid" &&
+    con.session.targetDurationMin != null
       ? Math.max(0, con.session.targetDurationMin * 60_000 - elapsed)
       : null
 
   const statusLabel = {
     available: isRTL ? "متاح" : "Available",
-    occupied: isRTL ? "مشغول" : "In Session",
+    occupied: isBreak
+      ? isRTL
+        ? "استراحة نشطة"
+        : "Active Lounge"
+      : isRTL
+        ? "مشغول"
+        : "In Session",
     paused: isRTL ? "موقوف مؤقتاً" : "Paused",
     maintenance: isRTL ? "صيانة" : "Maintenance",
     reserved: isRTL ? "محجوز" : "Reserved",
@@ -144,8 +183,9 @@ export default function ConsoleCard({
   const cardBorderConfig: Record<ConsoleStatus, string> = {
     available:
       "border-emerald-500/30 hover:border-emerald-500/60 dark:bg-[#0c121b]",
-    occupied:
-      "border-[#0070d1]/40 hover:border-[#0070d1]/80 shadow-[0_0_15px_rgba(0,112,209,0.15)] dark:bg-[#0f1422]",
+    occupied: isBreak
+      ? "border-emerald-500/40 hover:border-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.15)] dark:bg-[#0d161a]"
+      : "border-[#0070d1]/40 hover:border-[#0070d1]/80 shadow-[0_0_15px_rgba(0,112,209,0.15)] dark:bg-[#0f1422]",
     paused:
       "border-amber-500/40 hover:border-amber-500/70 shadow-[0_0_15px_rgba(245,158,11,0.12)] dark:bg-[#15131b]",
     maintenance:
@@ -156,18 +196,42 @@ export default function ConsoleCard({
 
   return (
     <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={`relative rounded-2xl bg-white border p-4 sm:p-5 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md ${
         cardBorderConfig[con.status]
       } ${con.type === "VIP" ? "ring-1 ring-amber-500/30" : ""} ${
-        isExpired ? "session-expired ring-2 ring-rose-500" : ""
-      }`}
+        isBreak ? "ring-1 ring-emerald-500/25" : ""
+      } ${isExpired ? "session-expired ring-2 ring-rose-500" : ""} ${
+        isDragging ? "opacity-30 scale-95 border-dashed border-[#0070d1]" : ""
+      } ${isDragOver ? "ring-4 ring-[#0070d1] border-[#0070d1] scale-[1.02]" : ""}`}
     >
       {/* Top row: Console Name, Type & Status Badge */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+          {canReorder && (
+            <div
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0"
+              title={isRTL ? "سحب لإعادة الترتيب" : "Drag to reorder"}
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
+          )}
+
+          <div
+            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              isBreak
+                ? "bg-emerald-500/15 text-emerald-500"
+                : "bg-slate-100 dark:bg-slate-800"
+            }`}
+          >
             {TYPE_ICONS[con.type]}
           </div>
+
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h4 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate leading-tight">
@@ -178,14 +242,67 @@ export default function ConsoleCard({
                   VIP
                 </span>
               )}
+              {isBreak && (
+                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30 shrink-0">
+                  {isRTL ? "استراحة" : "LOUNGE"}
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-slate-400 uppercase font-semibold">
-              {con.type}
+              {isBreak ? (isRTL ? "طلبات وسناكس" : "Orders & Lounge") : con.type}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Reorder Touch Buttons (Up/Down) when in reorder mode */}
+          {canReorder && (
+            <div className="flex items-center gap-0.5 me-1">
+              {onMoveUp && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onMoveUp()
+                  }}
+                  className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#0070d1] hover:text-white transition-colors"
+                  title={isRTL ? "تحريك لأعلى" : "Move up"}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onMoveDown && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onMoveDown()
+                  }}
+                  className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#0070d1] hover:text-white transition-colors"
+                  title={isRTL ? "تحريك لأسفل" : "Move down"}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Edit Console Info Button (Admin only) */}
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+              title={isRTL ? "تعديل الجهاز" : "Edit station"}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-[#0070d1] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Delete Console Button (Admin only) */}
           {!con.session && onDelete && (
             <button
               type="button"
@@ -199,6 +316,7 @@ export default function ConsoleCard({
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
+
           <Badge variant={con.status as any} pulse={con.status === "paused"}>
             {statusLabel}
           </Badge>
@@ -209,79 +327,112 @@ export default function ConsoleCard({
       <div className="my-2 flex-1">
         {con.session ? (
           <div className="bg-slate-50 dark:bg-[#090c13]/70 rounded-xl p-3 border border-slate-200/60 dark:border-slate-800/80 space-y-2">
-            {/* Timer & Cost */}
-            <div className="flex items-baseline justify-between">
-              <div>
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {con.session.mode === "prepaid"
-                    ? isRTL
-                      ? "الوقت المتبقي"
-                      : "Remaining"
-                    : isRTL
-                      ? "الوقت المستغرق"
-                      : "Elapsed"}
+            {/* If Break: No time counter, show orders overview */}
+            {isBreak ? (
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-emerald-500 flex items-center gap-1">
+                    <Coffee className="w-3 h-3" />
+                    <span>{isRTL ? "طلبات الاستراحة" : "Lounge Orders"}</span>
+                  </div>
+                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 mt-1">
+                    {isRTL
+                      ? `${con.session.tab.length} أصناف مضافة`
+                      : `${con.session.tab.length} items ordered`}
+                  </div>
                 </div>
-                <div
-                  className={`text-xl sm:text-2xl font-mono font-bold tracking-tight ${
-                    isExpired
-                      ? "text-rose-500 animate-pulse"
-                      : remaining != null && remaining <= 300_000
-                        ? "text-amber-500"
-                        : "text-slate-900 dark:text-white"
-                  }`}
-                >
-                  {remaining != null
-                    ? formatTime(remaining)
-                    : formatTime(elapsed)}
-                </div>
-              </div>
 
-              <div className="text-end">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                  {isRTL ? "الحساب الحالي" : "Live Total"}
-                </div>
-                <div className="text-xl sm:text-2xl font-mono font-bold text-[#0070d1] dark:text-sky-400">
-                  {money(liveTotal, isRTL)}
+                <div className="text-end">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                    {isRTL ? "مجموع الطلبات" : "Orders Total"}
+                  </div>
+                  <div className="text-xl sm:text-2xl font-mono font-bold text-emerald-500">
+                    {money(tabTotal, isRTL)}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Timed Consoles (PS4, PS5, Xbox, VIP) */
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {con.session.mode === "prepaid"
+                      ? isRTL
+                        ? "الوقت المتبقي"
+                        : "Remaining"
+                      : isRTL
+                        ? "الوقت المستغرق"
+                        : "Elapsed"}
+                  </div>
+                  <div
+                    className={`text-xl sm:text-2xl font-mono font-bold tracking-tight ${
+                      isExpired
+                        ? "text-rose-500 animate-pulse"
+                        : remaining != null && remaining <= 300_000
+                          ? "text-amber-500"
+                          : "text-slate-900 dark:text-white"
+                    }`}
+                  >
+                    {remaining != null
+                      ? formatTime(remaining)
+                      : formatTime(elapsed)}
+                  </div>
+                </div>
+
+                <div className="text-end">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                    {isRTL ? "الحساب الحالي" : "Live Total"}
+                  </div>
+                  <div className="text-xl sm:text-2xl font-mono font-bold text-[#0070d1] dark:text-sky-400">
+                    {money(liveTotal, isRTL)}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sub-bar: Player mode toggle & Tab order count */}
             <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() =>
-                    onTogglePlayer(
-                      con.session!.playerType === "single" ? "multi" : "single",
-                    )
-                  }
-                  className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors"
-                >
-                  {con.session.playerType === "single" ? (
-                    <>
-                      <User className="w-3 h-3 text-[#0070d1]" />
-                      <span>{isRTL ? "فردي" : "Single"}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Users className="w-3 h-3 text-purple-400" />
-                      <span>{isRTL ? "زوجي" : "Multi"}</span>
-                    </>
-                  )}
-                </button>
-
-                {con.session.mode === "prepaid" && (
+              {isBreak ? (
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{isRTL ? "بدون حساب وقت" : "No hourly charge"}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={onEditTime}
+                    onClick={() =>
+                      onTogglePlayer(
+                        con.session!.playerType === "single" ? "multi" : "single",
+                      )
+                    }
                     className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors"
-                    title={isRTL ? "تعديل أو زيادة الوقت" : "Add/Edit Time"}
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>{isRTL ? "وقت" : "Time"}</span>
+                    {con.session.playerType === "single" ? (
+                      <>
+                        <User className="w-3 h-3 text-[#0070d1]" />
+                        <span>{isRTL ? "فردي" : "Single"}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Users className="w-3 h-3 text-purple-400" />
+                        <span>{isRTL ? "زوجي" : "Multi"}</span>
+                      </>
+                    )}
                   </button>
-                )}
-              </div>
+
+                  {con.session.mode === "prepaid" && (
+                    <button
+                      onClick={onEditTime}
+                      className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors"
+                      title={isRTL ? "تعديل أو زيادة الوقت" : "Add/Edit Time"}
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{isRTL ? "وقت" : "Time"}</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Tab button */}
               <button
@@ -315,6 +466,15 @@ export default function ConsoleCard({
                   {isRTL ? "محجوز بانتظار العميل" : "Reserved for Customer"}
                 </span>
               </div>
+            ) : isBreak ? (
+              <div className="flex flex-col items-center gap-1 text-emerald-500">
+                <Coffee className="w-6 h-6 opacity-80" />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  {isRTL
+                    ? "استراحة جاهزة لبدء الطلبات"
+                    : "Lounge ready for orders"}
+                </span>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-1 text-slate-400">
                 {con.type === "VIP" ? (
@@ -342,23 +502,31 @@ export default function ConsoleCard({
         {con.status === "available" && (
           <div className="flex items-center gap-1.5 w-full">
             <Button
-              variant="primary"
+              variant={isBreak ? "success" : "primary"}
               size="sm"
               className="flex-1"
-              icon={<Play className="w-3.5 h-3.5" />}
+              icon={isBreak ? <Coffee className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
               onClick={onSelect}
             >
-              {isRTL ? "بدء جلسة" : "Start Session"}
+              {isBreak
+                ? isRTL
+                  ? "بدء استراحة"
+                  : "Start Break"
+                : isRTL
+                  ? "بدء جلسة"
+                  : "Start Session"}
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Bookmark className="w-3.5 h-3.5 text-purple-500" />}
-              onClick={onToggleReserve}
-              title={isRTL ? "حجز الجهاز" : "Mark as Reserved"}
-            >
-              {isRTL ? "حجز" : "Reserve"}
-            </Button>
+            {!isBreak && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Bookmark className="w-3.5 h-3.5 text-purple-500" />}
+                onClick={onToggleReserve}
+                title={isRTL ? "حجز الجهاز" : "Mark as Reserved"}
+              >
+                {isRTL ? "حجز" : "Reserve"}
+              </Button>
+            )}
           </div>
         )}
 
@@ -386,27 +554,33 @@ export default function ConsoleCard({
 
         {con.status === "occupied" && (
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Pause className="w-3.5 h-3.5" />}
-              onClick={onPause}
-              title={isRTL ? "إيقاف مؤقت" : "Pause"}
-            />
+            {!isBreak && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Pause className="w-3.5 h-3.5" />}
+                onClick={onPause}
+                title={isRTL ? "إيقاف مؤقت" : "Pause"}
+              />
+            )}
             <Button
               variant="secondary"
               size="sm"
               icon={<Plus className="w-3.5 h-3.5" />}
               onClick={onAddToTab}
               title={isRTL ? "إضافة طلب" : "Add Order"}
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<ArrowRightLeft className="w-3.5 h-3.5" />}
-              onClick={onTransfer}
-              title={isRTL ? "نقل لجهاز آخر" : "Transfer"}
-            />
+            >
+              {isBreak ? (isRTL ? "طلب ＋" : "+ Order") : undefined}
+            </Button>
+            {!isBreak && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ArrowRightLeft className="w-3.5 h-3.5" />}
+                onClick={onTransfer}
+                title={isRTL ? "نقل لجهاز آخر" : "Transfer"}
+              />
+            )}
             <Button
               variant="danger"
               size="sm"

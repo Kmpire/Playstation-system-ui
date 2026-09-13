@@ -1,21 +1,25 @@
-import React, { useState } from "react"
-import { Plus, Tv, Gamepad2, Crown, Coffee } from "lucide-react"
-import type { ConsoleType } from "@/domain"
+import React, { useState, useEffect } from "react"
+import { Edit3, Tv, Gamepad2, Crown, Coffee } from "lucide-react"
+import type { GameConsole, ConsoleType } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
 
-interface AddConsoleModalProps {
+interface EditConsoleModalProps {
+  con: GameConsole | null
   isOpen: boolean
   isRTL: boolean
   onClose: () => void
-  onAdd: (name: string, type: ConsoleType) => void
+  onSave: (conId: number, name: string, type: ConsoleType) => void
 }
 
-const TYPE_CONFIG: Record<ConsoleType, {
-  label: string
-  labelAr: string
-  icon: React.ReactNode
-}> = {
+const TYPE_CONFIG: Record<
+  ConsoleType,
+  {
+    label: string
+    labelAr: string
+    icon: React.ReactNode
+  }
+> = {
   PS4: {
     label: "PlayStation 4",
     labelAr: "بلايستيشن 4",
@@ -43,20 +47,29 @@ const TYPE_CONFIG: Record<ConsoleType, {
   },
 }
 
-export default function AddConsoleModal({
+export default function EditConsoleModal({
+  con,
   isOpen,
   isRTL,
   onClose,
-  onAdd,
-}: AddConsoleModalProps) {
+  onSave,
+}: EditConsoleModalProps) {
   const [name, setName] = useState("")
   const [type, setType] = useState<ConsoleType>("PS5")
+
+  useEffect(() => {
+    if (con) {
+      setName(con.name)
+      setType(con.type)
+    }
+  }, [con])
+
+  if (!con) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    onAdd(name.trim(), type)
-    setName("")
+    onSave(con.id, name.trim(), type)
     onClose()
   }
 
@@ -65,13 +78,13 @@ export default function AddConsoleModal({
       isOpen={isOpen}
       onClose={onClose}
       isRTL={isRTL}
-      title={isRTL ? "إضافة جهاز أو غرفة جديدة" : "Add New Console / Room"}
+      title={isRTL ? `تعديل الجهاز: ${con.name}` : `Edit Station: ${con.name}`}
       subtitle={
         isRTL
-          ? "حدد اسم ونوع الجهاز لتسجيله في الصالة"
-          : "Enter name and model of the console"
+          ? "تعديل اسم أو نوع الجهاز/الاستراحة"
+          : "Update name and station model"
       }
-      icon={<Plus className="w-5 h-5 text-[#0070d1]" />}
+      icon={<Edit3 className="w-5 h-5 text-[#0070d1]" />}
       maxWidth="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,7 +142,7 @@ export default function AddConsoleModal({
             disabled={!name.trim()}
             className="flex-1"
           >
-            {isRTL ? "حفظ وإضافة" : "Add Console"}
+            {isRTL ? "حفظ التعديلات" : "Save Changes"}
           </Button>
         </div>
       </form>

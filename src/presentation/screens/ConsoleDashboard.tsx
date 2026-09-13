@@ -6,6 +6,7 @@ import {
   CheckCircle,
   Wrench,
   DollarSign,
+  ArrowUpDown,
 } from "lucide-react"
 import type {
   GameConsole,
@@ -31,6 +32,7 @@ import ViewTabModal from "./dashboard/modals/ViewTabModal"
 import TransferModal from "./dashboard/modals/TransferModal"
 import EditTimeModal from "./dashboard/modals/EditTimeModal"
 import AddConsoleModal from "./dashboard/modals/AddConsoleModal"
+import EditConsoleModal from "./dashboard/modals/EditConsoleModal"
 import ExpiredAlertModal from "./dashboard/modals/ExpiredAlertModal"
 import { useDashboardViewModel } from "../viewmodels/useDashboardViewModel"
 import {
@@ -77,6 +79,9 @@ export default function ConsoleDashboard({
     toggleReserve,
     createConsole,
     deleteConsole,
+    updateConsoleInfo,
+    changeTabItemQty,
+    reorderConsoles,
   } = useDashboardViewModel()
 
   const [, setTick] = useState(0)
@@ -98,10 +103,15 @@ export default function ConsoleDashboard({
     mode: "edit" | "add"
   } | null>(null)
   const [isAddConsoleOpen, setIsAddConsoleOpen] = useState(false)
+  const [editConsoleTarget, setEditConsoleTarget] = useState<GameConsole | null>(null)
   const [deleteConsoleTarget, setDeleteConsoleTarget] = useState<GameConsole | null>(null)
+  const [isReordering, setIsReordering] = useState(false)
+  const [draggedConsoleId, setDraggedConsoleId] = useState<number | null>(null)
   const [expiredAlertCon, setExpiredAlertCon] = useState<GameConsole | null>(
     null,
   )
+
+  const isAdmin = currentUser?.role === "admin"
 
   const alertedSessions = useRef<Set<number>>(new Set())
 
@@ -194,6 +204,7 @@ export default function ConsoleDashboard({
     mode: SessionMode,
     durationMin: number,
     playerType: PlayerType,
+    customStartTime?: number,
   ) => {
     try {
       const updatedCon = await startSession(
@@ -202,6 +213,7 @@ export default function ConsoleDashboard({
         durationMin,
         playerType,
         (currentUser as any)?.name || "Staff",
+        customStartTime,
       )
       toast(
         isRTL
@@ -371,7 +383,37 @@ export default function ConsoleDashboard({
     }
   }
 
+  const handleUpdateConsole = async (
+    id: number,
+    name: string,
+    type: ConsoleType,
+  ) => {
+    try {
+      await updateConsoleInfo(id, name, type)
+      setEditConsoleTarget(null)
+      toast(
+        isRTL
+          ? "تم تعديل بيانات الجهاز بنجاح ✓"
+          : "Console updated successfully ✓",
+      )
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل تعديل الجهاز: ${err.message || err}`
+          : `Failed to update console: ${err.message || err}`,
+      )
+    }
+  }
+
   const handleDeleteConsole = async (con: GameConsole) => {
+    if (!isAdmin) {
+      toast(
+        isRTL
+          ? "غير مصرح لك بحذف الأجهزة، هذه الصلاحية للمدير فقط!"
+          : "Only administrators are authorized to delete consoles!",
+      )
+      return
+    }
     try {
       await deleteConsole(con.id, currentUser?.username || "Admin")
       toast(
@@ -386,6 +428,90 @@ export default function ConsoleDashboard({
         isRTL
           ? `فشل حذف الجهاز: ${err.message || err}`
           : `Failed to delete console: ${err.message || err}`,
+      )
+    }
+  }
+
+  const handleChangeTabQty = async (conId: number, itemId: string, delta: number) => {
+    try {
+      await changeTabItemQty(conId, itemId, delta)
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل تعديل كمية الطلب: ${err.message || err}`
+          : `Failed to update item quantity: ${err.message || err}`,
+      )
+    }
+  }
+
+  const handleRemoveTabItem = async (conId: number, itemId: string) => {
+    try {
+      await removeTabItem(conId, itemId)
+      toast(isRTL ? "تم حذف الطلب من الحساب" : "Removed item from tab")
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل حذف الطلب: ${err.message || err}`
+          : `Failed to remove item: ${err.message || err}`,
+      )
+    }
+  }
+
+  const handleDragStart = (id: number) => {
+    setDraggedConsoleId(id)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = async (targetId: number) => {
+    if (draggedConsoleId === null || draggedConsoleId === targetId) {
+      setDraggedConsoleId(null)
+      return
+    }
+    const fromIndex = consoles.findIndex((c) => c.id === draggedConsoleId)
+    const toIndex = consoles.findIndex((c) => c.id === targetId)
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedConsoleId(null)
+      return
+    }
+
+    const newConsoles = [...consoles]
+    const [moved] = newConsoles.splice(fromIndex, 1)
+    newConsoles.splice(toIndex, 0, moved)
+
+    setDraggedConsoleId(null)
+    try {
+      await reorderConsoles(newConsoles)
+      toast(isRTL ? "تم حفظ ترتيب الأجهزة بنجاح ✓" : "Console order updated ✓")
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل حفظ ترتيب الأجهزة: ${err.message || err}`
+          : `Failed to save console order: ${err.message || err}`,
+      )
+    }
+  }
+
+  const handleMoveConsole = async (id: number, direction: "up" | "down") => {
+    const index = consoles.findIndex((c) => c.id === id)
+    if (index === -1) return
+    const targetIndex = direction === "up" ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= consoles.length) return
+
+    const newConsoles = [...consoles]
+    const [moved] = newConsoles.splice(index, 1)
+    newConsoles.splice(targetIndex, 0, moved)
+
+    try {
+      await reorderConsoles(newConsoles)
+      toast(isRTL ? "تم تحديث ترتيب الأجهزة" : "Console order updated")
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل حفظ الترتيب: ${err.message || err}`
+          : `Failed to save order: ${err.message || err}`,
       )
     }
   }
@@ -441,6 +567,20 @@ export default function ConsoleDashboard({
               isRTL={isRTL}
               showLabel
             />
+
+            <Button
+              variant={isReordering ? "primary" : "secondary"}
+              icon={<ArrowUpDown className="w-4 h-4" />}
+              onClick={() => setIsReordering(!isReordering)}
+            >
+              {isRTL
+                ? isReordering
+                  ? "إنهاء الترتيب"
+                  : "ترتيب الأجهزة"
+                : isReordering
+                  ? "Done Reordering"
+                  : "Reorder"}
+            </Button>
 
             <Button
               variant="primary"
@@ -536,8 +676,8 @@ export default function ConsoleDashboard({
             ))}
           </div>
 
-          <div className="flex items-center gap-1">
-            {(["all", "PS5", "PS4", "Xbox", "VIP"] as const).map((t) => (
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+            {(["all", "PS5", "PS4", "Xbox", "VIP", "Break"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -548,7 +688,15 @@ export default function ConsoleDashboard({
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {t === "all" ? (isRTL ? "الكل" : "All") : t}
+                {t === "all"
+                  ? isRTL
+                    ? "الكل"
+                    : "All"
+                  : t === "Break"
+                    ? isRTL
+                      ? "استراحة"
+                      : "Break"
+                    : t}
               </button>
             ))}
           </div>
@@ -614,7 +762,14 @@ export default function ConsoleDashboard({
                 onShowTab={() => setViewTabCon(con)}
                 onEditTime={() => setTimeModalState({ con, mode: "edit" })}
                 onToggleReserve={() => handleToggleReserve(con.id)}
-                onDelete={() => setDeleteConsoleTarget(con)}
+                onEdit={() => setEditConsoleTarget(con)}
+                onDelete={isAdmin ? () => setDeleteConsoleTarget(con) : undefined}
+                isDraggable={isReordering}
+                onDragStart={() => handleDragStart(con.id)}
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop(con.id)}
+                onMoveUp={() => handleMoveConsole(con.id, "up")}
+                onMoveDown={() => handleMoveConsole(con.id, "down")}
               />
             )
           })}
@@ -641,19 +796,28 @@ export default function ConsoleDashboard({
       />
 
       <AddToTabModal
-        con={addToTabCon}
+        con={addToTabCon ? consoles.find((c) => c.id === addToTabCon.id) || addToTabCon : null}
         menuItems={menuItems}
         categories={categories}
         isRTL={isRTL}
         onClose={() => setAddToTabCon(null)}
         onAdd={(item) => addToTabCon && handleAddToTab(addToTabCon.id, item)}
+        onChangeQty={(itemId, delta) => addToTabCon && handleChangeTabQty(addToTabCon.id, itemId, delta)}
+        onRemove={(itemId) => addToTabCon && handleRemoveTabItem(addToTabCon.id, itemId)}
       />
 
       <ViewTabModal
-        con={viewTabCon}
+        con={viewTabCon ? consoles.find((c) => c.id === viewTabCon.id) || viewTabCon : null}
         isRTL={isRTL}
         menuItems={menuItems}
         onClose={() => setViewTabCon(null)}
+        onChangeQty={(itemId, delta) => viewTabCon && handleChangeTabQty(viewTabCon.id, itemId, delta)}
+        onRemove={(itemId) => viewTabCon && handleRemoveTabItem(viewTabCon.id, itemId)}
+        onOpenAdd={() => {
+          if (viewTabCon) {
+            setAddToTabCon(viewTabCon)
+          }
+        }}
       />
 
       <TransferModal
@@ -682,6 +846,13 @@ export default function ConsoleDashboard({
         isRTL={isRTL}
         onClose={() => setIsAddConsoleOpen(false)}
         onAdd={handleAddConsole}
+      />
+
+      <EditConsoleModal
+        con={editConsoleTarget}
+        isRTL={isRTL}
+        onClose={() => setEditConsoleTarget(null)}
+        onUpdate={handleUpdateConsole}
       />
 
       {/* Delete Console Confirmation Modal */}

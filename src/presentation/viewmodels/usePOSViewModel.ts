@@ -62,7 +62,7 @@ export function usePOSViewModel() {
   }, [cart])
 
   const addItem = useCallback((item: MenuItem) => {
-    if (item.stock <= 0) return
+    if (item.trackStock !== false && item.stock <= 0) return
     setCart((prev) => {
       const idx = prev.findIndex((e) => e.item.id === item.id)
       if (idx >= 0) {
@@ -100,16 +100,15 @@ export function usePOSViewModel() {
         promoApplied ? promoCode : "",
         staffName,
       )
-      // Deduct sold quantities locally or re-fetch
+      // Deduct sold quantities locally if tracked
       setMenuItems((prev) =>
         prev.map((item) => {
           const sold = cart.find((c) => c.item.id === item.id)
-          return sold
+          return sold && item.trackStock !== false
             ? { ...item, stock: Math.max(0, item.stock - sold.qty) }
             : item
         }),
       )
-      clearCart()
       return summary
     },
     [cart, posService, promoApplied, promoCode],

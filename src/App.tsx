@@ -96,7 +96,10 @@ function MainApp() {
   }, [refreshMenuItems, screen])
 
   const lowStockItems = useMemo(
-    () => menuItems.filter((i) => i.stock <= i.lowStockThreshold),
+    () =>
+      menuItems.filter(
+        (i) => i.trackStock !== false && i.stock <= i.lowStockThreshold,
+      ),
     [menuItems],
   )
 
@@ -187,6 +190,8 @@ function MainApp() {
           isRTL={isRTL}
           lang={lang}
           setLang={setLang}
+          theme={theme}
+          setTheme={setTheme}
           trialDaysLeft={trialState?.daysLeft ?? 7}
           activated={trialState?.activated ?? false}
           onLogin={async (u, p) => {
