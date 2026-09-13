@@ -75,9 +75,25 @@ function MainApp() {
 
   useEffect(() => {
     refreshMenuItems()
-    const timer = setInterval(refreshMenuItems, 30_000)
-    return () => clearInterval(timer)
-  }, [refreshMenuItems])
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshMenuItems()
+      }
+    }
+
+    const onFocus = () => {
+      refreshMenuItems()
+    }
+
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onVisibilityChange)
+
+    return () => {
+      window.removeEventListener("focus", onFocus)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [refreshMenuItems, screen])
 
   const lowStockItems = useMemo(
     () => menuItems.filter((i) => i.stock <= i.lowStockThreshold),
