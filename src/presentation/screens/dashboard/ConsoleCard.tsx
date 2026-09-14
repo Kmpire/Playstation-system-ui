@@ -249,7 +249,7 @@ export default function ConsoleCard({
 
       {/* Top row: Console Name, Type & Status Badge */}
       <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           {canReorder && draggable && (
             <div
               className="p-1 rounded-lg text-[#0070d1] bg-[#0070d1]/10 dark:text-sky-400 dark:bg-[#0070d1]/20 cursor-grab active:cursor-grabbing shrink-0 transition-transform active:scale-95 hidden sm:block"
@@ -269,9 +269,12 @@ export default function ConsoleCard({
             {TYPE_ICONS[con.type]}
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h4 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate leading-tight">
+              <h4
+                className="font-bold text-base sm:text-lg text-slate-900 dark:text-white truncate leading-tight"
+                title={con.name}
+              >
                 {con.name}
               </h4>
               {con.type === "VIP" && (
@@ -423,14 +426,14 @@ export default function ConsoleCard({
             )}
 
             {/* Sub-bar: Player mode toggle & Tab order count */}
-            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-1.5 text-xs min-w-0">
               {isBreak ? (
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span>{t("noHourlyCharge")}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 min-w-0 flex-1">
                   {(() => {
                     const currentPt = con.session!.playerType
                     const activeTiers =
@@ -448,26 +451,26 @@ export default function ConsoleCard({
                       }
 
                     return (
-                      <div className="relative" ref={tierDropdownRef}>
+                      <div className="relative min-w-0" ref={tierDropdownRef}>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             setIsTierDropdownOpen((prev) => !prev)
                           }}
-                          className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                          title={t("changePlayRate")}
+                          className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors cursor-pointer min-w-0 max-w-[130px] sm:max-w-[155px]"
+                          title={`${t("rateLabel")} ${localize(currentTier, lang)}`}
                         >
                           {currentIdx % 2 === 0 ? (
-                            <User className="w-3 h-3 text-[#0070d1]" />
+                            <User className="w-3 h-3 text-[#0070d1] shrink-0" />
                           ) : (
-                            <Users className="w-3 h-3 text-purple-400" />
+                            <Users className="w-3 h-3 text-purple-400 shrink-0" />
                           )}
-                          <span>
-                            {`${t("rateLabel")} ${localize(currentTier, lang)}`}
+                          <span className="truncate whitespace-nowrap">
+                            {localize(currentTier, lang)}
                           </span>
                           <ChevronDown
-                            className={`w-3 h-3 text-slate-400 transition-transform ${
+                            className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${
                               isTierDropdownOpen ? "rotate-180" : ""
                             }`}
                           />
@@ -524,10 +527,10 @@ export default function ConsoleCard({
                   {con.session.mode === "prepaid" && (
                     <button
                       onClick={onEditTime}
-                      className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors"
+                      className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors shrink-0 whitespace-nowrap"
                       title={t("addEditTime")}
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3 h-3 shrink-0" />
                       <span>{t("time")}</span>
                     </button>
                   )}
@@ -537,10 +540,10 @@ export default function ConsoleCard({
               {/* Tab button */}
               <button
                 onClick={onShowTab}
-                className="px-2 py-1 rounded-lg bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400 font-medium flex items-center gap-1 hover:bg-[#0070d1]/20 transition-colors"
+                className="px-2 py-1 rounded-lg bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400 font-medium flex items-center gap-1 hover:bg-[#0070d1]/20 transition-colors shrink-0 whitespace-nowrap"
               >
-                <Coffee className="w-3 h-3" />
-                <span>
+                <Coffee className="w-3 h-3 shrink-0" />
+                <span className="whitespace-nowrap">
                   {con.session.tab.length > 0
                     ? `${money(tabTotal, isRTL)} (${con.session.tab.length})`
                     : t("tabItems")}
@@ -641,11 +644,12 @@ export default function ConsoleCard({
         )}
 
         {con.status === "occupied" && (
-          <>
+          <div className="flex items-center gap-1.5 w-full">
             {!isBreak && (
               <Button
                 variant="secondary"
                 size="sm"
+                className="shrink-0 px-2.5"
                 icon={<Pause className="w-3.5 h-3.5" />}
                 onClick={onPause}
                 title={t("pauseSession")}
@@ -654,6 +658,7 @@ export default function ConsoleCard({
             <Button
               variant="secondary"
               size="sm"
+              className="shrink-0 px-2.5"
               icon={<Plus className="w-3.5 h-3.5" />}
               onClick={onAddToTab}
               title={t("addOrder")}
@@ -664,6 +669,7 @@ export default function ConsoleCard({
               <Button
                 variant="secondary"
                 size="sm"
+                className="shrink-0 px-2.5"
                 icon={<ArrowRightLeft className="w-3.5 h-3.5" />}
                 onClick={onTransfer}
                 title={t("transfer")}
@@ -672,35 +678,36 @@ export default function ConsoleCard({
             <Button
               variant="danger"
               size="sm"
-              className="flex-1"
-              icon={<Square className="w-3.5 h-3.5" />}
+              className="flex-1 whitespace-nowrap min-w-0 font-medium"
+              icon={<Square className="w-3.5 h-3.5 shrink-0" />}
               onClick={onEnd}
             >
-              {t("checkout")}
+              <span className="truncate">{t("checkout")}</span>
             </Button>
-          </>
+          </div>
         )}
 
         {con.status === "paused" && (
-          <>
+          <div className="flex items-center gap-1.5 w-full">
             <Button
               variant="success"
               size="sm"
-              className="flex-1"
-              icon={<Play className="w-3.5 h-3.5" />}
+              className="flex-1 min-w-0"
+              icon={<Play className="w-3.5 h-3.5 shrink-0" />}
               onClick={onResume}
             >
-              {t("resumeSession")}
+              <span className="truncate">{t("resumeSession")}</span>
             </Button>
             <Button
               variant="danger"
               size="sm"
-              icon={<Square className="w-3.5 h-3.5" />}
+              className="shrink-0 whitespace-nowrap"
+              icon={<Square className="w-3.5 h-3.5 shrink-0" />}
               onClick={onEnd}
             >
-              {t("endSession")}
+              <span>{t("endSession")}</span>
             </Button>
-          </>
+          </div>
         )}
 
         {con.status === "maintenance" && (

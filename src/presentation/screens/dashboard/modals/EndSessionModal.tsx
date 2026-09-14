@@ -30,12 +30,28 @@ interface EndSessionModalProps {
 
 export default function EndSessionModal({
   con,
+  tiers = [],
   isRTL,
   lang = isRTL ? "ar" : "en",
   onClose,
   onConfirm,
 }: EndSessionModalProps) {
   const t = createTranslator(lang)
+
+  const getSegmentName = (seg: PriceSegment) => {
+    const segAny = seg as any
+    if (segAny?.name || segAny?.nameAr) {
+      return isRTL ? segAny.nameAr || segAny.name : segAny.name || segAny.nameAr
+    }
+
+    const tier = tiers.find((ti) => ti.id === seg.playerType)
+    if (tier) {
+      return isRTL ? tier.nameAr || tier.name : tier.name || tier.nameAr
+    }
+
+    return isRTL ? `[خطأ: باقة غير معرفة (${seg.playerType})]` : `[Error: Unknown tier (${seg.playerType})]`
+  }
+
   const { paymentMethods } = usePaymentMethods()
   const [selectedMethodId, setSelectedMethodId] = useState<string>("pm_cash")
   const [isSplit, setIsSplit] = useState<boolean>(false)
@@ -232,7 +248,7 @@ export default function EndSessionModal({
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#0070d1]" />
                       <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {seg.playerType === "single" ? t("single") : t("multi")}
+                        {getSegmentName(seg)}
                       </span>
                       <span className="text-slate-400 text-xs">
                         ({formatTime(dur)})

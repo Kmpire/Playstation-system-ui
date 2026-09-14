@@ -874,7 +874,7 @@ export default function ConsoleDashboard({
           ref={gridRef}
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-24 lg:pb-8"
+          className="grid grid-cols-[repeat(auto-fill,minmax(285px,1fr))] gap-4 pb-24 lg:pb-8"
         >
           {filteredConsoles.map((con) => {
             const expired =

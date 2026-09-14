@@ -244,24 +244,33 @@ export class ConsoleService {
     if (!console || !console.session)
       throw new Error(`No active session on console #${consoleId}`)
 
+    if (console.session.playerType === newPlayerType) {
+      return console
+    }
+
     const elapsed = ConsoleService.getElapsedMs(console.session)
     const newRate = await this.getRate(console.type, newPlayerType)
 
-    const updatedSegments: PriceSegment[] = [
-      ...console.session.priceSegments,
-      {
+    const segs = [...(console.session.priceSegments || [])]
+    const lastSeg = segs[segs.length - 1]
+
+    if (lastSeg && Math.max(0, elapsed - lastSeg.startElapsedMs) < 1000) {
+      lastSeg.playerType = newPlayerType
+      lastSeg.ratePerHour = newRate
+    } else {
+      segs.push({
         startElapsedMs: elapsed,
         ratePerHour: newRate,
         playerType: newPlayerType,
-      },
-    ]
+      })
+    }
 
     const updated: GameConsole = {
       ...console,
       session: {
         ...console.session,
         playerType: newPlayerType,
-        priceSegments: updatedSegments,
+        priceSegments: segs,
       },
     }
 
