@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { AlertCircle } from "lucide-react"
 import type { MenuItem } from "@/domain"
 import { money } from "@/domain"
+import { createTranslator, localize } from "@/i18n"
 import { useMenuViewModel } from "../viewmodels/useMenuViewModel"
 import {
   TableSkeleton,
@@ -12,8 +13,9 @@ import {
 import { PullToRefresh } from "../components/common/PullToRefresh"
 
 interface Props {
-  t: (k: string) => string
-  isRTL: boolean
+  t?: (k: string) => string
+  lang?: string
+  isRTL?: boolean
   toast?: (msg: string) => void
   [key: string]: unknown
 }
@@ -40,7 +42,12 @@ const EMPTY_FORM: MenuItemFormState = {
   trackStock: true,
 }
 
-export default function MenuManagement({ isRTL, toast }: Props) {
+export default function MenuManagement(props: Props) {
+  const isRTL = props.isRTL ?? true
+  const currentLang = props.lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
+  const { toast } = props
+
   const {
     menuItems,
     categories,
@@ -102,27 +109,19 @@ export default function MenuManagement({ isRTL, toast }: Props) {
     const cleanName = formData.name?.trim() || cleanNameAr
 
     if (!cleanNameAr) {
-      errors.nameAr = isRTL
-        ? "يرجى إدخال اسم الصنف باللغة العربية *"
-        : "Please enter the item name in Arabic *"
+      errors.nameAr = t("enterItemNameArError")
     }
     if (!formData.category) {
-      errors.category = isRTL
-        ? "يرجى اختيار فئة الصنف *"
-        : "Please select a category *"
+      errors.category = t("selectCategoryError")
     }
 
     const priceStr = String(formData.price ?? "").trim()
     if (priceStr === "") {
-      errors.price = isRTL
-        ? "يرجى إدخال سعر البيع *"
-        : "Selling price is required *"
+      errors.price = t("sellingPriceRequiredError")
     } else {
       const parsedPrice = parseFloat(priceStr)
       if (isNaN(parsedPrice) || parsedPrice <= 0) {
-        errors.price = isRTL
-          ? "يرجى إدخال سعر بيع صحيح أكبر من 0"
-          : "Please enter a valid selling price (> 0)"
+        errors.price = t("sellingPricePositiveError")
       }
     }
 
@@ -130,22 +129,16 @@ export default function MenuManagement({ isRTL, toast }: Props) {
     if (costPriceStr !== "") {
       const parsedCost = parseFloat(costPriceStr)
       if (isNaN(parsedCost) || parsedCost < 0) {
-        errors.costPrice = isRTL
-          ? "يرجى إدخال سعر تكلفة صحيح"
-          : "Please enter a valid cost price"
+        errors.costPrice = t("costPriceValidError")
       }
     }
 
     if (formData.trackStock) {
       const stockStr = String(formData.stock ?? "").trim()
       if (stockStr === "") {
-        errors.stock = isRTL
-          ? "يرجى إدخال الكمية بالمخزون"
-          : "Stock quantity is required"
+        errors.stock = t("stockRequiredError")
       } else if (isNaN(parseInt(stockStr)) || parseInt(stockStr) < 0) {
-        errors.stock = isRTL
-          ? "يرجى إدخال كمية صحيحة"
-          : "Please enter a valid stock quantity"
+        errors.stock = t("stockValidError")
       }
     }
 
@@ -172,21 +165,15 @@ export default function MenuManagement({ isRTL, toast }: Props) {
       if (editItem) {
         const item: MenuItem = { ...editItem, ...payload }
         await updateMenuItem(item)
-        toast?.(
-          isRTL ? "تم تحديث الصنف بنجاح ✓" : "Item updated successfully ✓",
-        )
+        toast?.(t("itemUpdatedToast"))
       } else {
         await addMenuItem(payload)
-        toast?.(isRTL ? "تم إضافة الصنف بنجاح ✓" : "Item added successfully ✓")
+        toast?.(t("itemAddedToast"))
       }
       setShowForm(false)
     } catch (err: any) {
       console.error("Error saving menu item:", err)
-      toast?.(
-        isRTL
-          ? `فشل حفظ الصنف: ${err.message || err}`
-          : `Failed to save item: ${err.message || err}`,
-      )
+      toast?.(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
@@ -194,14 +181,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
     try {
       await deleteMenuItem(id)
       setDeleteConfirm(null)
-      toast?.(isRTL ? "تم حذف الصنف" : "Item deleted")
+      toast?.(t("itemDeletedToast"))
     } catch (err: any) {
       console.error("Error deleting menu item:", err)
-      toast?.(
-        isRTL
-          ? `فشل حذف الصنف: ${err.message || err}`
-          : `Failed to delete item: ${err.message || err}`,
-      )
+      toast?.(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
@@ -209,7 +192,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
     const finalAr = catInputAr.trim() || catInput.trim()
     const finalEn = catInput.trim() || finalAr
     if (!finalAr) {
-      toast?.(isRTL ? "يرجى إدخال اسم الفئة *" : "Please enter category name *")
+      toast?.(t("enterCategoryNameToast"))
       return
     }
     try {
@@ -220,30 +203,20 @@ export default function MenuManagement({ isRTL, toast }: Props) {
       setCatInput("")
       setCatInputAr("")
       setShowCatForm(false)
-      toast?.(
-        isRTL ? "تمت إضافة التصنيف بنجاح ✓" : "Category added successfully ✓",
-      )
+      toast?.(t("categoryAddedToast"))
     } catch (err: any) {
       console.error("Error adding category:", err)
-      toast?.(
-        isRTL
-          ? `فشل إضافة التصنيف: ${err.message || err}`
-          : `Failed to add category: ${err.message || err}`,
-      )
+      toast?.(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
   async function handleDeleteCategory(id: string) {
     try {
       await deleteCategory(id)
-      toast?.(isRTL ? "تم حذف التصنيف" : "Category deleted")
+      toast?.(t("categoryDeletedToast"))
     } catch (err: any) {
       console.error("Error deleting category:", err)
-      toast?.(
-        isRTL
-          ? `فشل حذف التصنيف: ${err.message || err}`
-          : `Failed to delete category: ${err.message || err}`,
-      )
+      toast?.(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
@@ -258,7 +231,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
 
   const catName = (id: string) => {
     const c = categories.find((cat) => cat.id === id)
-    return c ? (isRTL ? c.nameAr : c.name) : "—"
+    return c ? localize(c, currentLang) : "—"
   }
 
   return (
@@ -271,10 +244,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
       <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#1a1d26]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {isRTL ? "إدارة القائمة" : "Menu Management"}
+            {t("menuManagementTitle")}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-            {menuItems.length} {isRTL ? "عنصر مسجل" : "items registered"}
+            {menuItems.length} {t("itemsRegisteredCount")}
           </p>
         </div>
 
@@ -283,6 +256,8 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             onRefresh={refresh}
             isRefreshing={isRefreshing}
             isRTL={isRTL}
+            lang={currentLang}
+            t={t}
             showLabel
           />
 
@@ -291,7 +266,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             onClick={() => setShowCatForm((v) => !v)}
             className="px-3 py-2 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
           >
-            ＋ {isRTL ? "فئة" : "Category"}
+            {t("addCategoryBtn")}
           </button>
 
           <button
@@ -299,7 +274,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             onClick={openAdd}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs sm:text-sm transition-colors cursor-pointer shadow-sm"
           >
-            ＋ {isRTL ? "إضافة عنصر" : "Add Item"}
+            {t("addItemBtn")}
           </button>
         </div>
       </div>
@@ -314,7 +289,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                   key={c.id}
                   className="inline-flex items-center gap-1.5 bg-white dark:bg-[#252a36] border border-slate-200 dark:border-slate-700/50 rounded-full px-3 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs"
                 >
-                  {isRTL ? c.nameAr : c.name}
+                  {localize(c, currentLang)}
                   <button
                     type="button"
                     onClick={() => handleDeleteCategory(c.id)}
@@ -328,14 +303,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             <div className="flex gap-2 ms-auto">
               <input
                 type="text"
-                placeholder={isRTL ? "الاسم بالعربي *" : "Name (AR) *"}
+                placeholder={t("categoryNameArPlaceholder")}
                 value={catInputAr}
                 onChange={(e) => setCatInputAr(e.target.value)}
                 className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
               />
               <input
                 type="text"
-                placeholder={isRTL ? "بالإنجليزي (اختياري)" : "Name (EN) (opt)"}
+                placeholder={t("categoryNameEnPlaceholder")}
                 value={catInput}
                 onChange={(e) => setCatInput(e.target.value)}
                 className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] dark:text-slate-100 w-32"
@@ -345,7 +320,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 onClick={handleAddCategory}
                 className="px-3.5 py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors cursor-pointer"
               >
-                {isRTL ? "إضافة" : "Add"}
+                {t("add")}
               </button>
             </div>
           </div>
@@ -356,7 +331,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
       <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-100 dark:border-slate-700/30 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
         <input
           type="search"
-          placeholder={isRTL ? "بحث في القائمة…" : "Search menu…"}
+          placeholder={t("searchMenuPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-300 flex-1 sm:flex-none sm:w-56 bg-white dark:bg-[#1a1d26] dark:text-slate-100"
@@ -366,15 +341,15 @@ export default function MenuManagement({ isRTL, toast }: Props) {
           onChange={(e) => setFilterCat(e.target.value)}
           className="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-300 bg-white dark:bg-[#1a1d26] text-slate-700 dark:text-slate-300"
         >
-          <option value="">{isRTL ? "جميع الفئات" : "All categories"}</option>
+          <option value="">{t("allCategoriesOption")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {isRTL ? c.nameAr : c.name}
+              {localize(c, currentLang)}
             </option>
           ))}
         </select>
         <div className="w-full sm:w-auto sm:ms-auto text-slate-400 dark:text-slate-500 text-xs text-end">
-          {filtered.length} {isRTL ? "نتيجة" : "results"}
+          {filtered.length} {t("resultsCount")}
         </div>
       </div>
 
@@ -392,21 +367,21 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             message={error || undefined}
             onRetry={retry}
             isRTL={isRTL}
+            lang={currentLang}
+            t={t}
           />
         )}
 
         {/* Empty State */}
         {status === "empty" && (
           <EmptyStateCard
-            title={isRTL ? "قائمة الأصناف فارغة" : "Menu is empty"}
-            description={
-              isRTL
-                ? "لم تتم إضافة أي أصناف إلى القائمة بعد. يمكنك البدء بإضافة صنف جديد."
-                : "No menu items have been added yet. Click Add Item to start."
-            }
-            actionLabel={isRTL ? "＋ إضافة عنصر" : "＋ Add Item"}
+            title={t("menuEmptyTitle")}
+            description={t("menuEmptyDesc")}
+            actionLabel={t("addItemBtn")}
             onAction={openAdd}
             isRTL={isRTL}
+            lang={currentLang}
+            t={t}
           />
         )}
 
@@ -419,13 +394,13 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
                   <tr>
                     {[
-                      isRTL ? "الاسم" : "Name",
-                      isRTL ? "الفئة" : "Category",
-                      isRTL ? "السعر" : "Price",
-                      isRTL ? "التكلفة" : "Cost",
-                      isRTL ? "المخزون" : "Stock",
-                      isRTL ? "الحد الأدنى" : "Min. Stock",
-                      isRTL ? "الإجراءات" : "Actions",
+                      t("name"),
+                      t("category"),
+                      t("price"),
+                      t("cost"),
+                      t("stock"),
+                      t("minStock"),
+                      t("actions"),
                     ].map((h, i) => (
                       <th
                         key={i}
@@ -447,11 +422,11 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                       >
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                            {isRTL ? item.nameAr || item.name : item.name || item.nameAr}
+                            {localize(item, currentLang)}
                           </div>
                           {item.name && item.nameAr && item.name !== item.nameAr && (
                             <div className="text-xs text-slate-400">
-                              {isRTL ? item.name : item.nameAr}
+                              {currentLang === "ar" ? item.name : item.nameAr}
                             </div>
                           )}
                         </td>
@@ -459,10 +434,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                           {catName(item.category)}
                         </td>
                         <td className="px-4 py-3 font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
-                          {money(item.price, isRTL)}
+                          {money(item.price, currentLang)}
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                          {money(item.costPrice, isRTL)}
+                          {money(item.costPrice, currentLang)}
                         </td>
                         <td className="px-4 py-3">
                           {isTracked ? (
@@ -477,7 +452,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                             </span>
                           ) : (
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                              {isRTL ? "بدون مخزون" : "Unlimited"}
+                              {t("unlimitedStockBadge")}
                             </span>
                           )}
                         </td>
@@ -491,7 +466,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                               onClick={() => openEdit(item)}
                               className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
                             >
-                              {isRTL ? "تعديل" : "Edit"}
+                              {t("edit")}
                             </button>
                             <span className="text-slate-300 dark:text-slate-700">
                               |
@@ -501,7 +476,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                               onClick={() => setDeleteConfirm(item.id)}
                               className="text-xs text-red-500 hover:underline font-medium cursor-pointer"
                             >
-                              {isRTL ? "حذف" : "Delete"}
+                              {t("delete")}
                             </button>
                           </div>
                         </td>
@@ -525,14 +500,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                          {isRTL ? item.nameAr : item.name}
+                          {localize(item, currentLang)}
                         </div>
                         <div className="text-xs text-slate-400">
                           {catName(item.category)}
                         </div>
                       </div>
                       <div className="font-mono font-bold text-sm text-blue-600 dark:text-blue-400">
-                        {money(item.price, isRTL)}
+                        {money(item.price, currentLang)}
                       </div>
                     </div>
 
@@ -546,12 +521,11 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                                 : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                             }`}
                           >
-                            {isRTL ? "المخزون: " : "Stock: "}
-                            {item.stock}
+                            {t("stock")}: {item.stock}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                            {isRTL ? "بدون مخزون" : "Unlimited"}
+                            {t("unlimitedStockBadge")}
                           </span>
                         )}
                       </div>
@@ -562,14 +536,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                           onClick={() => openEdit(item)}
                           className="text-blue-600 dark:text-blue-400 font-medium cursor-pointer"
                         >
-                          {isRTL ? "تعديل" : "Edit"}
+                          {t("edit")}
                         </button>
                         <button
                           type="button"
                           onClick={() => setDeleteConfirm(item.id)}
                           className="text-red-500 font-medium cursor-pointer"
                         >
-                          {isRTL ? "حذف" : "Delete"}
+                          {t("delete")}
                         </button>
                       </div>
                     </div>
@@ -587,13 +561,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
           <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between">
               <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                {editItem
-                  ? isRTL
-                    ? "تعديل الصنف"
-                    : "Edit Item"
-                  : isRTL
-                    ? "إضافة صنف جديد"
-                    : "Add New Item"}
+                {editItem ? t("editItemTitle") : t("addItemTitle")}
               </h3>
               <button
                 type="button"
@@ -607,9 +575,9 @@ export default function MenuManagement({ isRTL, toast }: Props) {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>{isRTL ? "اسم الصنف بالعربي *" : "Item Name (Arabic) *"}</span>
+                  <span>{t("itemNameArLabel")}</span>
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-                    {isRTL ? "إجباري" : "Required"}
+                    {t("requiredBadge")}
                   </span>
                 </label>
                 <input
@@ -626,7 +594,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                       })
                     }
                   }}
-                  placeholder={isRTL ? "مثال: بيبسي كانز" : "e.g. بيبسي كانز"}
+                  placeholder={t("itemNameArPlaceholder")}
                   className={`w-full border ${
                     formErrors.nameAr
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
@@ -643,9 +611,9 @@ export default function MenuManagement({ isRTL, toast }: Props) {
 
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 flex items-center justify-between">
-                  <span>{isRTL ? "اسم الصنف بالإنجليزي" : "Item Name (English)"}</span>
+                  <span>{t("itemNameEnLabel")}</span>
                   <span className="text-[10px] text-slate-400">
-                    {isRTL ? "اختياري" : "Optional"}
+                    {t("optionalBadge")}
                   </span>
                 </label>
                 <input
@@ -654,14 +622,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder={isRTL ? "مثال: Pepsi Can (اختياري)" : "e.g. Pepsi Can (optional)"}
+                  placeholder={t("itemNameEnPlaceholder")}
                   className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 dark:bg-[#1a1d26] dark:text-slate-100"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  {isRTL ? "الفئة *" : "Category *"}
+                  {t("categoryRequiredLabel")}
                 </label>
                 <select
                   value={formData.category}
@@ -681,12 +649,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                       : "border-slate-200 dark:border-slate-600 focus:border-blue-400 focus:ring-blue-100 dark:focus:ring-blue-900/30"
                   } rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 dark:bg-[#1a1d26] dark:text-slate-100`}
                 >
-                  <option value="">
-                    {isRTL ? "اختر فئة" : "Select category"}
-                  </option>
+                  <option value="">{t("selectCategoryOption")}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {isRTL ? c.nameAr : c.name}
+                      {localize(c, currentLang)}
                     </option>
                   ))}
                 </select>
@@ -701,7 +667,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "سعر البيع *" : "Selling Price *"}
+                    {t("sellingPrice")} *
                   </label>
                   <input
                     type="number"
@@ -736,7 +702,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    {isRTL ? "سعر التكلفة" : "Cost Price"}
+                    {t("costPrice")}
                   </label>
                   <input
                     type="number"
@@ -775,12 +741,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
                 <div>
                   <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {isRTL ? "تتبع المخزون" : "Track Stock"}
+                    {t("trackStock")}
                   </label>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    {isRTL
-                      ? "قم بإلغاء التفعيل للأصناف غير المحدودة (مثل الشاي والقهوة)"
-                      : "Disable for unlimited items like tea and coffee"}
+                    {t("trackStockDesc")}
                   </p>
                 </div>
                 <input
@@ -797,7 +761,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      {isRTL ? "الكمية بالمخزون" : "Stock Quantity"}
+                      {t("stockQuantityLabel")}
                     </label>
                     <input
                       type="number"
@@ -831,7 +795,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      {isRTL ? "حد التنبيه" : "Low Stock Alert"}
+                      {t("lowStockAlertLabel")}
                     </label>
                     <input
                       type="number"
@@ -849,9 +813,7 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-semibold text-center">
-                  {isRTL
-                    ? "✓ صنف بدون مخزون - متاح للطلب دائماً وبدون تنبيهات نفاد"
-                    : "✓ Untracked Stock - Always available with no low stock warnings"}
+                  {t("untrackedStockNotice")}
                 </div>
               )}
             </div>
@@ -862,14 +824,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 onClick={() => setShowForm(false)}
                 className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-sm transition-colors cursor-pointer"
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </button>
               <button
                 type="button"
                 onClick={saveItem}
                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer"
               >
-                {isRTL ? "حفظ" : "Save"}
+                {t("save")}
               </button>
             </div>
           </div>
@@ -882,12 +844,10 @@ export default function MenuManagement({ isRTL, toast }: Props) {
           <div className="bg-white dark:bg-[#1a1d26] rounded-2xl shadow-xl p-6 w-80 text-center animate-in fade-in zoom-in-95 duration-150">
             <div className="text-3xl mb-2">🗑️</div>
             <div className="text-slate-900 dark:text-slate-100 font-semibold mb-1">
-              {isRTL ? "تأكيد الحذف" : "Delete Item?"}
+              {t("confirmDeleteItem")}
             </div>
             <div className="text-slate-500 dark:text-slate-400 text-xs mb-5">
-              {isRTL
-                ? "لا يمكن التراجع عن هذا الإجراء."
-                : "This action cannot be undone."}
+              {t("confirmDeleteItemPrompt")}
             </div>
             <div className="flex gap-3">
               <button
@@ -895,14 +855,14 @@ export default function MenuManagement({ isRTL, toast }: Props) {
                 onClick={() => setDeleteConfirm(null)}
                 className="flex-1 py-2 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 rounded-xl text-xs sm:text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </button>
               <button
                 type="button"
                 onClick={() => handleDelete(deleteConfirm)}
                 className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
               >
-                {isRTL ? "حذف" : "Delete"}
+                {t("delete")}
               </button>
             </div>
           </div>

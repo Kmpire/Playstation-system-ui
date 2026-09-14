@@ -23,6 +23,7 @@ import type {
 } from "../../domain"
 import Modal from "./ui/Modal"
 import Button from "./ui/Button"
+import { localize } from "@/i18n"
 
 interface NavbarProps {
   screen: Screen
@@ -76,13 +77,10 @@ export default function Navbar({
     account: { en: "Account Settings", ar: "إعدادات الحساب" },
   }
 
-  const currentTitle = isRTL
-    ? screen === "staff" && role === "cashier"
-      ? "تسليم الوردية"
-      : SCREEN_NAMES[screen]?.ar || screen
-    : screen === "staff" && role === "cashier"
-      ? "Shift Handover"
-      : SCREEN_NAMES[screen]?.en || screen
+  const currentTitle =
+    screen === "staff" && role === "cashier"
+      ? t("shiftHandover")
+      : t(screen) || screen
 
   return (
     <>
@@ -120,20 +118,16 @@ export default function Navbar({
 
         {/* Right side: Actions & Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Low stock alert badge - Clear, explicit, and interactive on mobile & desktop */}
+          {/* Low stock alert badge */}
           {lowStockCount > 0 && (
             <button
               onClick={() => setShowLowStockModal(true)}
-              title={
-                isRTL
-                  ? "عرض قائمة النواقص في المخزون"
-                  : "View low stock alert list"
-              }
+              title={t("lowStockWarning")}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 text-xs font-bold transition-all animate-in fade-in"
             >
               <Bell className="w-3.5 h-3.5 animate-bounce shrink-0" />
               <span>
-                {isRTL ? `${lowStockCount} نواقص` : `${lowStockCount} Low`}
+                {lowStockCount} {t("lowStock")}
               </span>
             </button>
           )}
@@ -141,9 +135,6 @@ export default function Navbar({
           {/* Theme Toggle Button */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={
-              theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
-            }
             className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-medium"
           >
             {theme === "dark" ? (
@@ -156,7 +147,6 @@ export default function Navbar({
           {/* Language Toggle Button */}
           <button
             onClick={() => setLang(lang === "en" ? "ar" : "en")}
-            title={lang === "en" ? "التحويل للعربية" : "Switch to English"}
             className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1 text-xs font-medium"
           >
             <Globe className="w-4 h-4 text-[#0070d1]" />
@@ -187,7 +177,7 @@ export default function Navbar({
           {/* Logout */}
           <button
             onClick={onLogout}
-            title={isRTL ? "تسجيل الخروج" : "Logout"}
+            title={t("logout")}
             className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors"
           >
             <LogOut className="w-4 h-4" />
@@ -200,12 +190,8 @@ export default function Navbar({
         isOpen={showLowStockModal}
         onClose={() => setShowLowStockModal(false)}
         isRTL={isRTL}
-        title={isRTL ? "تنبيه: نواقص المخزون" : "Low Stock Warning"}
-        subtitle={
-          isRTL
-            ? "الأصناف التي وصلت أو قاربت على النفاد"
-            : "Items that reached reorder threshold"
-        }
+        title={t("lowStockWarning")}
+        subtitle={t("lowStockSubtitle")}
         icon={<AlertTriangle className="w-5 h-5 text-amber-500" />}
         maxWidth="sm"
       >
@@ -218,21 +204,19 @@ export default function Navbar({
               >
                 <div>
                   <div className="font-bold text-sm text-slate-900 dark:text-white">
-                    {isRTL && item.nameAr ? item.nameAr : item.name}
+                    {localize(item, lang)}
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {isRTL
-                      ? `حد إعادة الطلب: ${item.lowStockThreshold}`
-                      : `Threshold: ${item.lowStockThreshold}`}
+                    {`${t("reorderThreshold")}: ${item.lowStockThreshold}`}
                   </div>
                 </div>
 
                 <div className="text-end">
                   <div className="text-xs text-slate-400">
-                    {isRTL ? "المتبقي" : "In Stock"}
+                    {t("inStock")}
                   </div>
                   <div className="font-mono font-bold text-base text-rose-500">
-                    {item.stock} {isRTL ? "قطعة" : "units"}
+                    {item.stock} {t("units")}
                   </div>
                 </div>
               </div>
@@ -245,7 +229,7 @@ export default function Navbar({
               onClick={() => setShowLowStockModal(false)}
               className="flex-1"
             >
-              {isRTL ? "إغلاق" : "Close"}
+              {t("close")}
             </Button>
             <Button
               variant="primary"
@@ -256,7 +240,7 @@ export default function Navbar({
               icon={<Boxes className="w-4 h-4" />}
               className="flex-1"
             >
-              {isRTL ? "إدارة المخزون" : "Go to Inventory"}
+              {t("goToInventory")}
             </Button>
           </div>
         </div>

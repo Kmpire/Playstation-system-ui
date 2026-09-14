@@ -7,17 +7,22 @@ import {
   RefreshButton,
 } from "../components/states"
 import { PullToRefresh } from "../components/common/PullToRefresh"
+import { createTranslator, localize } from "../../i18n"
 
 interface Props {
-  t: (k: string) => string
-  isRTL: boolean
+  t?: (k: string, fb?: string) => string
+  isRTL?: boolean
+  lang?: "en" | "ar"
   toast?: (msg: string) => void
   [key: string]: unknown
 }
 
 type CategoryTab = "consumables" | "consoles" | "controllers"
 
-export default function Inventory({ isRTL, toast }: Props) {
+export default function Inventory({ isRTL = true, lang, t: propT, toast }: Props) {
+  const currentLang = lang || (isRTL ? "ar" : "en")
+  const t = propT || createTranslator(currentLang)
+
   const {
     menuItems,
     consoles,
@@ -45,18 +50,18 @@ export default function Inventory({ isRTL, toast }: Props) {
 
     try {
       await updateStockAndThreshold(id, stock, threshold)
-      toast?.(
-        isRTL ? "تم تحديث المخزون بنجاح ✓" : "Inventory updated successfully ✓",
-      )
+      toast?.(t("inventoryUpdatedSuccess"))
     } catch (err: any) {
       console.error("Error saving inventory item:", err)
-      toast?.(
-        isRTL
-          ? `فشل تحديث المخزون: ${err.message || err}`
-          : `Failed to save inventory: ${err.message || err}`,
-      )
+      toast?.(`${t("inventoryUpdateFailed")}: ${err.message || err}`)
     }
   }
+
+  const categoryTabs: { id: CategoryTab; labelKey: string }[] = [
+    { id: "consumables", labelKey: "consumablesTab" },
+    { id: "consoles", labelKey: "consolesTab" },
+    { id: "controllers", labelKey: "controllersTab" },
+  ]
 
   return (
     <PullToRefresh
@@ -68,12 +73,10 @@ export default function Inventory({ isRTL, toast }: Props) {
       <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#1a1d26]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {isRTL ? "إدارة المخزون والأصول" : "Inventory & Assets"}
+            {t("inventoryAndAssets")}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-            {isRTL
-              ? "المستهلكات والأجهزة والملحقات"
-              : "Consumables & physical assets"}
+            {t("consumablesAndAssetsSub")}
           </p>
         </div>
 
@@ -89,8 +92,7 @@ export default function Inventory({ isRTL, toast }: Props) {
             <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs px-3 py-1.5 rounded-xl font-medium">
               <span>⚠️</span>
               <span>
-                {lowStockItems.length}{" "}
-                {isRTL ? "نواقص بالمخزون" : "low stock items"}
+                {lowStockItems.length} {t("lowStockItemsCount")}
               </span>
             </div>
           )}
@@ -99,11 +101,7 @@ export default function Inventory({ isRTL, toast }: Props) {
 
       {/* Category tabs */}
       <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 flex gap-0 overflow-x-auto">
-        {([
-          { id: "consumables", label: "Consumables", labelAr: "مستهلكات" },
-          { id: "consoles", label: "Consoles", labelAr: "أجهزة الألعاب" },
-          { id: "controllers", label: "Controllers", labelAr: "وحدات التحكم" },
-        ] as { id: CategoryTab; label: string; labelAr: string }[]).map((tab) => (
+        {categoryTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -114,7 +112,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                 : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
             }`}
           >
-            {isRTL ? tab.labelAr : tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -139,13 +137,9 @@ export default function Inventory({ isRTL, toast }: Props) {
         {/* Empty State */}
         {status === "empty" && (
           <EmptyStateCard
-            title={isRTL ? "المخزون فارغ" : "Inventory is empty"}
-            description={
-              isRTL
-                ? "لا توجد عناصر مسجلة في المخزون حالياً."
-                : "No inventory items recorded yet."
-            }
-            actionLabel={isRTL ? "تحديث" : "Refresh"}
+            title={t("inventoryEmpty")}
+            description={t("inventoryEmptyDesc")}
+            actionLabel={t("refresh")}
             onAction={refresh}
             isRTL={isRTL}
           />
@@ -163,11 +157,11 @@ export default function Inventory({ isRTL, toast }: Props) {
                     <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         {[
-                          isRTL ? "العنصر" : "Item",
-                          isRTL ? "الكمية" : "Stock",
-                          isRTL ? "حد التنبيه" : "Min. Threshold",
-                          isRTL ? "الحالة" : "Status",
-                          isRTL ? "الإجراءات" : "Actions",
+                          t("item"),
+                          t("stock"),
+                          t("minThreshold"),
+                          t("status"),
+                          t("actions"),
                         ].map((h, i) => (
                           <th
                             key={i}
@@ -194,7 +188,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                           >
                             <td className="px-4 py-3">
                               <div className="text-slate-900 dark:text-slate-100 font-medium text-sm">
-                                {isRTL ? item.nameAr || item.name : item.name}
+                                {localize(item, currentLang)}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -208,7 +202,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                                 />
                               ) : isUntracked ? (
                                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                  {isRTL ? "غير محدود" : "Unlimited"}
+                                  {t("untracked")}
                                 </span>
                               ) : (
                                 <span
@@ -244,15 +238,15 @@ export default function Inventory({ isRTL, toast }: Props) {
                             <td className="px-4 py-3">
                               {isUntracked ? (
                                 <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-medium">
-                                  {isRTL ? "بدون مخزون" : "Untracked"}
+                                  {t("untracked")}
                                 </span>
                               ) : low ? (
                                 <span className="text-xs bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full font-medium">
-                                  {isRTL ? "منخفض" : "Low Stock"}
+                                  {t("lowStock")}
                                 </span>
                               ) : (
                                 <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/40 px-2 py-0.5 rounded-full font-medium">
-                                  {isRTL ? "كافٍ" : "OK"}
+                                  {t("okStatus")}
                                 </span>
                               )}
                             </td>
@@ -264,14 +258,14 @@ export default function Inventory({ isRTL, toast }: Props) {
                                     onClick={() => saveEdit(item.id)}
                                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-500 transition-colors font-medium cursor-pointer"
                                   >
-                                    {isRTL ? "حفظ" : "Save"}
+                                    {t("save")}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setEditing(null)}
                                     className="px-3 py-1 border border-slate-200 dark:border-slate-700/50 text-slate-500 text-xs rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                                   >
-                                    {isRTL ? "إلغاء" : "Cancel"}
+                                    {t("cancel")}
                                   </button>
                                 </div>
                               ) : (
@@ -286,7 +280,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                                   }}
                                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
                                 >
-                                  {isRTL ? "تعديل" : "Edit"}
+                                  {t("edit")}
                                 </button>
                               )}
                             </td>
@@ -314,19 +308,19 @@ export default function Inventory({ isRTL, toast }: Props) {
                       >
                         <div className="flex items-center justify-between mb-3">
                           <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                            {isRTL ? item.nameAr || item.name : item.name}
+                            {localize(item, currentLang)}
                           </span>
                           {isUntracked ? (
                             <span className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-medium">
-                              {isRTL ? "بدون مخزون" : "Untracked"}
+                              {t("untracked")}
                             </span>
                           ) : low ? (
                             <span className="text-[11px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full font-medium">
-                              {isRTL ? "منخفض" : "Low Stock"}
+                              {t("lowStock")}
                             </span>
                           ) : (
                             <span className="text-[11px] bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/40 px-2 py-0.5 rounded-full font-medium">
-                              {isRTL ? "كافٍ" : "OK"}
+                              {t("okStatus")}
                             </span>
                           )}
                         </div>
@@ -336,7 +330,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <label className="text-xs text-slate-500 block mb-1">
-                                  {isRTL ? "الكمية:" : "Stock:"}
+                                  {t("stockLabel")}
                                 </label>
                                 <input
                                   type="number"
@@ -348,7 +342,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               </div>
                               <div>
                                 <label className="text-xs text-slate-500 block mb-1">
-                                  {isRTL ? "حد التنبيه:" : "Min. Threshold:"}
+                                  {t("minThresholdLabel")}
                                 </label>
                                 <input
                                   type="number"
@@ -367,14 +361,14 @@ export default function Inventory({ isRTL, toast }: Props) {
                                 onClick={() => setEditing(null)}
                                 className="px-3 py-1.5 text-xs text-slate-500 border border-slate-200 dark:border-slate-700 rounded-xl"
                               >
-                                {isRTL ? "إلغاء" : "Cancel"}
+                                {t("cancel")}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => saveEdit(item.id)}
                                 className="px-4 py-1.5 text-xs bg-blue-600 text-white rounded-xl font-medium"
                               >
-                                {isRTL ? "حفظ" : "Save"}
+                                {t("save")}
                               </button>
                             </div>
                           </div>
@@ -383,7 +377,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                             <div className="flex items-center gap-4 text-xs">
                               <div>
                                 <span className="text-slate-400">
-                                  {isRTL ? "الكمية: " : "Stock: "}
+                                  {t("stockLabel")}{" "}
                                 </span>
                                 <span
                                   className={`font-mono font-bold ${
@@ -397,7 +391,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               </div>
                               <div>
                                 <span className="text-slate-400">
-                                  {isRTL ? "الحد: " : "Min: "}
+                                  {t("minLabel")}{" "}
                                 </span>
                                 <span className="font-mono text-slate-500 dark:text-slate-400">
                                   {item.lowStockThreshold}
@@ -414,7 +408,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               }}
                               className="px-3.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl transition-colors cursor-pointer"
                             >
-                              {isRTL ? "تعديل" : "Edit"}
+                              {t("edit")}
                             </button>
                           </div>
                         )}
@@ -433,10 +427,10 @@ export default function Inventory({ isRTL, toast }: Props) {
                     <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         {[
-                          isRTL ? "الجهاز" : "Console",
-                          isRTL ? "النوع" : "Type",
-                          isRTL ? "الحالة" : "Status",
-                          isRTL ? "الجلسة" : "Session",
+                          t("consoleCol"),
+                          t("typeCol"),
+                          t("statusCol"),
+                          t("sessionCol"),
                         ].map((h, i) => (
                           <th
                             key={i}
@@ -471,23 +465,11 @@ export default function Inventory({ isRTL, toast }: Props) {
                                       : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                               }`}
                             >
-                              {isRTL
-                                ? {
-                                    available: "متاح",
-                                    occupied: "مشغول",
-                                    paused: "موقوف",
-                                    maintenance: "صيانة",
-                                    reserved: "محجوز",
-                                  }[con.status]
-                                : con.status}
+                              {t(con.status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-400">
-                            {con.session
-                              ? isRTL
-                                ? "جلسة نشطة"
-                                : "Active session"
-                              : "—"}
+                            {con.session ? t("activeSession") : "—"}
                           </td>
                         </tr>
                       ))}
@@ -507,14 +489,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                           {con.name}
                         </div>
                         <div className="text-xs text-slate-400 mt-0.5">
-                          {con.type} •{" "}
-                          {con.session
-                            ? isRTL
-                              ? "جلسة نشطة"
-                              : "Active session"
-                            : isRTL
-                              ? "لا توجد جلسة"
-                              : "No session"}
+                          {con.type} • {con.session ? t("activeSession") : t("noSession")}
                         </div>
                       </div>
 
@@ -527,15 +502,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               : "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
                         }`}
                       >
-                        {isRTL
-                          ? {
-                              available: "متاح",
-                              occupied: "مشغول",
-                              paused: "موقوف",
-                              maintenance: "صيانة",
-                              reserved: "محجوز",
-                            }[con.status]
-                          : con.status}
+                        {t(con.status)}
                       </span>
                     </div>
                   ))}
@@ -551,9 +518,9 @@ export default function Inventory({ isRTL, toast }: Props) {
                     <thead className="bg-slate-50 dark:bg-[#0f111a] border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         {[
-                          isRTL ? "الرقم" : "Number",
-                          isRTL ? "مخصص لـ" : "Assigned To",
-                          isRTL ? "الحالة" : "Condition",
+                          t("numberCol"),
+                          t("assignedToCol"),
+                          t("conditionCol"),
                         ].map((h, i) => (
                           <th
                             key={i}
@@ -578,11 +545,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               {ctrl.number}
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                              {assignedCon
-                                ? assignedCon.name
-                                : isRTL
-                                  ? "غير مخصص"
-                                  : "Unassigned"}
+                              {assignedCon ? assignedCon.name : t("unassigned")}
                             </td>
                             <td className="px-4 py-3">
                               <span
@@ -594,14 +557,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                                       : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                                 }`}
                               >
-                                {isRTL
-                                  ? {
-                                      working: "يعمل",
-                                      damaged: "تالف",
-                                      repair: "قيد الإصلاح",
-                                      retired: "متقاعد",
-                                    }[ctrl.status]
-                                  : ctrl.status}
+                                {t(ctrl.status)}
                               </span>
                             </td>
                           </tr>
@@ -627,11 +583,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                             {ctrl.number}
                           </div>
                           <div className="text-xs text-slate-400 mt-0.5">
-                            {assignedCon
-                              ? assignedCon.name
-                              : isRTL
-                                ? "غير مخصص"
-                                : "Unassigned"}
+                            {assignedCon ? assignedCon.name : t("unassigned")}
                           </div>
                         </div>
 
@@ -642,14 +594,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                               : "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
                           }`}
                         >
-                          {isRTL
-                            ? {
-                                working: "يعمل",
-                                damaged: "تالف",
-                                repair: "قيد الإصلاح",
-                                retired: "متقاعد",
-                              }[ctrl.status]
-                            : ctrl.status}
+                          {t(ctrl.status)}
                         </span>
                       </div>
                     )
@@ -663,3 +608,4 @@ export default function Inventory({ isRTL, toast }: Props) {
     </PullToRefresh>
   )
 }
+

@@ -53,8 +53,10 @@ function MainApp() {
     currentUser,
     setCurrentUser,
     trialState,
+    loading: authLoading,
     refresh: refreshAuth,
     login,
+    logout,
     changePassword,
     activateLicense,
   } = useAuth()
@@ -151,16 +153,32 @@ function MainApp() {
         onActivate={async (code: string) => {
           const success = await activateLicense(code)
           if (success) {
-            toast(
-              isRTL
-                ? "تم تفعيل النسخة بنجاح ✓"
-                : "License activated successfully ✓",
-            )
+            toast(t("licenseActivatedSuccess"))
             await refreshAuth()
           }
           return success
         }}
       />
+    )
+  }
+
+  if (authLoading && !currentUser) {
+    return (
+      <div
+        className={`min-h-screen w-full flex items-center justify-center ${
+          theme === "dark"
+            ? "bg-[#07090e] text-white"
+            : "bg-slate-100 text-slate-900"
+        }`}
+        dir={isRTL ? "rtl" : "ltr"}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-[#0070d1] border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold text-slate-400 animate-pulse">
+            {t("checkingSession")}
+          </span>
+        </div>
+      </div>
     )
   }
 
@@ -230,8 +248,8 @@ function MainApp() {
             isRTL={isRTL}
             currentUser={currentUser}
             role={role}
-            onLogout={() => {
-              setCurrentUser(null)
+            onLogout={async () => {
+              await logout()
               setScreen("dashboard")
             }}
             onOpenMobileMenu={() => setMobileMenuOpen(true)}

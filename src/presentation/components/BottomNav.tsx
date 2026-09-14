@@ -2,7 +2,7 @@ import React from "react"
 import { Gamepad2, ShoppingCart, Coffee, Clock } from "lucide-react"
 import type { Screen, UserRole } from "@/domain"
 
-import { translations, type TranslationKey } from "@/i18n"
+import { createTranslator } from "@/i18n"
 
 interface BottomNavProps {
   screen: Screen
@@ -20,10 +20,7 @@ export default function BottomNav({
   isRTL,
   t: customT,
 }: BottomNavProps) {
-  const t =
-    customT ||
-    ((key: string) =>
-      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
+  const t = customT || createTranslator(isRTL ? "ar" : "en")
 
   const items = [
     {

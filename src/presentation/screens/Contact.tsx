@@ -5,14 +5,20 @@ import EmptyStateCard from "@/presentation/components/states/EmptyStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
 import { Phone, Mail, MapPin, Headphones } from "lucide-react"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
   isRTL?: boolean
+  lang?: "en" | "ar"
+  t?: (k: string, fb?: string) => string
   [key: string]: unknown
 }
 
 export default function Contact(props: Props) {
   const isRTL = props.isRTL ?? true
+  const currentLang = props.lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
+
   const vm = useContactViewModel()
   const info = vm.companyInfo
 
@@ -20,18 +26,21 @@ export default function Contact(props: Props) {
     ? [
         {
           icon: <Phone className="w-5 h-5 text-blue-500" />,
-          label: isRTL ? "الهاتف" : "Phone",
+          label: t("phoneLabel"),
           value: info.phone || "—",
         },
         {
           icon: <Mail className="w-5 h-5 text-indigo-500" />,
-          label: isRTL ? "البريد الإلكتروني" : "Email",
+          label: t("emailLabel"),
           value: info.email || "—",
         },
         {
           icon: <MapPin className="w-5 h-5 text-rose-500" />,
-          label: isRTL ? "العنوان" : "Address",
-          value: (isRTL ? info.addressAr : info.address) || "—",
+          label: t("addressLabel"),
+          value:
+            (currentLang === "ar"
+              ? info.addressAr || info.address
+              : info.address || info.addressAr) || "—",
         },
       ]
     : []
@@ -43,12 +52,10 @@ export default function Contact(props: Props) {
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Headphones className="w-5 h-5 text-blue-500" />
-            <span>{isRTL ? "الدعم الفني والمساعدة" : "Contact & Support"}</span>
+            <span>{t("contactUsTitle")}</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-500 text-sm">
-            {isRTL
-              ? "معلومات الشركة وطرق التواصل الفني والمبيعات"
-              : "Company information & technical support channels"}
+            {t("companyInfoSupportSubtitle")}
           </p>
         </div>
 
@@ -76,12 +83,8 @@ export default function Contact(props: Props) {
         ) : !info || vm.status === "empty" ? (
           <div className="p-4 sm:p-6">
             <EmptyStateCard
-              title={isRTL ? "لا توجد بيانات تواصل" : "No Contact Details"}
-              description={
-                isRTL
-                  ? "لم يتم تسجيل بيانات الشركة أو قنوات الدعم الفني في قاعدة البيانات حتى الآن."
-                  : "No company or technical support contact information found in the database."
-              }
+              title={t("noContactDetailsTitle")}
+              description={t("noContactDetailsDesc")}
               isRTL={isRTL}
             />
           </div>
@@ -97,10 +100,10 @@ export default function Contact(props: Props) {
                     </div>
                     <div>
                       <div className="text-xl font-bold">
-                        {isRTL ? info.nameAr || info.name : info.name || info.nameAr}
+                        {localize(info, currentLang)}
                       </div>
                       <div className="text-white/70 text-sm">
-                        {isRTL ? "صالة ألعاب ومقهى" : "Gaming Lounge & Café"}
+                        {t("gamingLoungeAndCafe")}
                       </div>
                     </div>
                   </div>
@@ -130,7 +133,7 @@ export default function Contact(props: Props) {
                 {info.socials && info.socials.length > 0 ? (
                   <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5">
                     <div className="text-xs text-slate-400 uppercase tracking-wider mb-3">
-                      {isRTL ? "وسائل التواصل الاجتماعي" : "Social Media"}
+                      {t("socialMedia")}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {info.socials.map((s) => (
@@ -153,9 +156,7 @@ export default function Contact(props: Props) {
                   </div>
                 ) : (
                   <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 text-center text-slate-400 text-xs sm:text-sm">
-                    {isRTL
-                      ? "لا توجد وسائل تواصل اجتماعي مسجلة"
-                      : "No social media channels registered"}
+                    {t("noSocialMediaRegistered")}
                   </div>
                 )}
               </div>
@@ -166,3 +167,4 @@ export default function Contact(props: Props) {
     </div>
   )
 }
+

@@ -3,10 +3,12 @@ import { Bell, AlertTriangle, Plus, Square } from "lucide-react"
 import type { GameConsole } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator } from "@/i18n"
 
 interface ExpiredAlertModalProps {
   con: GameConsole | null
   isRTL: boolean
+  lang?: "en" | "ar"
   onExtend: () => void
   onEnd: () => void
 }
@@ -14,9 +16,11 @@ interface ExpiredAlertModalProps {
 export default function ExpiredAlertModal({
   con,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onExtend,
   onEnd,
 }: ExpiredAlertModalProps) {
+  const t = createTranslator(lang)
   if (!con) return null
 
   return (
@@ -24,7 +28,7 @@ export default function ExpiredAlertModal({
       isOpen={!!con}
       onClose={() => {}}
       isRTL={isRTL}
-      title={isRTL ? "انتهى وقت الجلسة!" : "Session Time Expired!"}
+      title={t("sessionTimeExpiredTitle")}
       subtitle={con.name}
       icon={<AlertTriangle className="w-5 h-5 text-rose-500 animate-pulse" />}
       maxWidth="sm"
@@ -39,9 +43,7 @@ export default function ExpiredAlertModal({
             {con.name}
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {isRTL
-              ? "انتهت مدة اللعب المحددة مسبقاً لهذا الجهاز."
-              : "The prepaid session time has elapsed."}
+            {t("sessionExpiredMsg")}
           </p>
         </div>
 
@@ -52,7 +54,7 @@ export default function ExpiredAlertModal({
             icon={<Plus className="w-4 h-4" />}
             className="flex-1"
           >
-            {isRTL ? "تمديد الوقت" : "Add Time"}
+            {t("addEditTime")}
           </Button>
           <Button
             variant="danger"
@@ -60,7 +62,7 @@ export default function ExpiredAlertModal({
             icon={<Square className="w-4 h-4" />}
             className="flex-1"
           >
-            {isRTL ? "إنهاء ومحاسبة" : "Checkout"}
+            {t("checkout")}
           </Button>
         </div>
       </div>

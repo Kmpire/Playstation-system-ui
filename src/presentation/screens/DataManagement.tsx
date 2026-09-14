@@ -5,8 +5,11 @@ import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
 import { Download, Upload, Database, RotateCw } from "lucide-react"
+import { createTranslator } from "@/i18n"
 
 interface Props {
+  t?: (k: string) => string
+  lang?: string
   isRTL?: boolean
   toast?: (msg: string) => void
   [key: string]: unknown
@@ -14,7 +17,10 @@ interface Props {
 
 export default function DataManagement(props: Props) {
   const isRTL = props.isRTL ?? true
+  const currentLang = props.lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
   const toast = props.toast ?? ((_m: string) => {})
+
   const fileRef = useRef<HTMLInputElement>(null)
   const vm = useDataManagementViewModel()
   const [lastAction, setLastAction] = useState<string | null>(null)
@@ -22,16 +28,10 @@ export default function DataManagement(props: Props) {
   async function handleExport() {
     try {
       await vm.exportFullBackup()
-      setLastAction(isRTL ? "تم تصدير النسخة الاحتياطية" : "Backup exported")
-      toast(
-        isRTL ? "تم تصدير البيانات بنجاح ✓" : "Data exported successfully ✓",
-      )
+      setLastAction(t("backupExported"))
+      toast(t("dataExportedSuccess"))
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل تصدير البيانات: ${err?.message || err}`
-          : `Failed to export data: ${err?.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err?.message || err}`)
     }
   }
 
@@ -40,16 +40,10 @@ export default function DataManagement(props: Props) {
     if (!file) return
     try {
       await vm.restoreBackup(file)
-      setLastAction(
-        isRTL ? "تم استيراد البيانات بنجاح" : "Data restored successfully",
-      )
-      toast(isRTL ? "تم استيراد البيانات بنجاح ✓" : "Data imported ✓")
+      setLastAction(t("dataRestoredSuccess"))
+      toast(t("dataImportedSuccess"))
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل استيراد الملف: ${err?.message || "ملف غير صالح"}`
-          : `Failed to import: ${err?.message || "Invalid backup file"}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err?.message || err}`)
     } finally {
       e.target.value = ""
     }
@@ -67,12 +61,10 @@ export default function DataManagement(props: Props) {
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Database className="w-5 h-5 text-blue-500" />
-            <span>{isRTL ? "إدارة البيانات" : "Data Management"}</span>
+            <span>{t("dataManagementTitle")}</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">
-            {isRTL
-              ? "تصدير واستيراد نسخة كاملة من قاعدة البيانات عبر الـ Backend"
-              : "Export and import a full snapshot of the database via backend API"}
+            {t("dataManagementSubtitle")}
           </p>
         </div>
 
@@ -80,6 +72,8 @@ export default function DataManagement(props: Props) {
           onRefresh={vm.refresh}
           isRefreshing={vm.isRefreshing}
           isRTL={isRTL}
+          lang={currentLang}
+          t={t}
         />
       </div>
 
@@ -95,6 +89,8 @@ export default function DataManagement(props: Props) {
               message={vm.error || undefined}
               onRetry={vm.refresh}
               isRTL={isRTL}
+              lang={currentLang}
+              t={t}
             />
           </div>
         ) : (
@@ -110,9 +106,7 @@ export default function DataManagement(props: Props) {
                 {/* System Database Statistics Summary Card */}
                 <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 sm:p-5">
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    {isRTL
-                      ? "حالة قاعدة البيانات الحالية"
-                      : "Current Database Status"}
+                    {t("currentDatabaseStatus")}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                     <div className="p-3 bg-slate-50 dark:bg-[#222734] rounded-xl">
@@ -120,7 +114,7 @@ export default function DataManagement(props: Props) {
                         {vm.summary.consolesCount}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {isRTL ? "أجهزة" : "Consoles"}
+                        {t("consolesCount")}
                       </div>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-[#222734] rounded-xl">
@@ -128,7 +122,7 @@ export default function DataManagement(props: Props) {
                         {vm.summary.menuItemsCount}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {isRTL ? "أصناف المنيو" : "Menu Items"}
+                        {t("menuItemsCount")}
                       </div>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-[#222734] rounded-xl">
@@ -136,7 +130,7 @@ export default function DataManagement(props: Props) {
                         {vm.summary.controllersCount}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {isRTL ? "أذرع تحكم" : "Controllers"}
+                        {t("controllersCount")}
                       </div>
                     </div>
                     <div className="p-3 bg-slate-50 dark:bg-[#222734] rounded-xl">
@@ -144,7 +138,7 @@ export default function DataManagement(props: Props) {
                         {vm.summary.shiftReportsCount}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        {isRTL ? "تقارير ورديات" : "Shift Reports"}
+                        {t("shiftReportsCount")}
                       </div>
                     </div>
                   </div>
@@ -158,12 +152,10 @@ export default function DataManagement(props: Props) {
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                        {isRTL ? "تصدير نسخة احتياطية" : "Export Backup"}
+                        {t("exportBackup")}
                       </div>
                       <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm mt-1 mb-3 sm:mb-4 leading-relaxed">
-                        {isRTL
-                          ? "يقوم بعمل طلب لجميع جداول قاعدة البيانات (الأجهزة، المنيو، الأسعار، الصيانة، الورديات) وحفظها كملف JSON."
-                          : "Fetches a full fresh snapshot of all entities from the server API and exports a JSON file."}
+                        {t("exportBackupDesc")}
                       </p>
                       <button
                         onClick={handleExport}
@@ -173,18 +165,10 @@ export default function DataManagement(props: Props) {
                         {vm.isExporting ? (
                           <>
                             <RotateCw className="w-4 h-4 animate-spin" />
-                            <span>
-                              {isRTL
-                                ? "جارٍ جلب البيانات والتصدير..."
-                                : "Fetching & exporting..."}
-                            </span>
+                            <span>{t("fetchingAndExporting")}</span>
                           </>
                         ) : (
-                          <span>
-                            {isRTL
-                              ? "⬇ تصدير نسخة احتياطية"
-                              : "⬇ Export Backup"}
-                          </span>
+                          <span>{t("exportBackup")}</span>
                         )}
                       </button>
                     </div>
@@ -199,12 +183,10 @@ export default function DataManagement(props: Props) {
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                        {isRTL ? "استيراد نسخة احتياطية" : "Import Backup"}
+                        {t("importBackup")}
                       </div>
                       <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm mt-1 mb-3 sm:mb-4 leading-relaxed">
-                        {isRTL
-                          ? "استعادة قاعدة البيانات عبر رفع ملف النسخة الاحتياطية وإرسالها للباك إند."
-                          : "Restore database by uploading a backup file and applying batch saves to the server."}
+                        {t("importBackupDesc")}
                       </p>
                       <input
                         ref={fileRef}
@@ -221,14 +203,10 @@ export default function DataManagement(props: Props) {
                         {vm.isImporting ? (
                           <>
                             <RotateCw className="w-4 h-4 animate-spin" />
-                            <span>
-                              {isRTL ? "جارٍ الاستيراد..." : "Importing..."}
-                            </span>
+                            <span>{t("importingData")}</span>
                           </>
                         ) : (
-                          <span>
-                            {isRTL ? "⬆ استيراد من ملف" : "⬆ Import from file"}
-                          </span>
+                          <span>{t("importFromFile")}</span>
                         )}
                       </button>
                     </div>
@@ -237,12 +215,8 @@ export default function DataManagement(props: Props) {
 
                 <div className="text-xs text-slate-400 text-center font-mono">
                   {lastBackup
-                    ? isRTL
-                      ? `آخر عملية تصدير: ${new Date(lastBackup).toLocaleString()}`
-                      : `Last export: ${new Date(lastBackup).toLocaleString()}`
-                    : isRTL
-                      ? "لم يتم إنشاء نسخة احتياطية مؤخراً"
-                      : "No backup created yet"}
+                    ? `${t("lastExportLabel")} ${new Date(lastBackup).toLocaleString(currentLang === "ar" ? "ar-EG" : "en-US")}`
+                    : t("noBackupCreated")}
                 </div>
               </div>
             </div>

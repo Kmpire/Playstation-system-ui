@@ -12,18 +12,26 @@ import {
 import type { CompanyInfo } from "@/domain"
 import { useServices } from "../context/ServicesContext"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
-  isRTL: boolean
+  isRTL?: boolean
+  lang?: "en" | "ar"
+  t?: (k: string, fb?: string) => string
   onCheckStatus?: () => Promise<boolean | void> | void
   onActivate?: (code: string) => Promise<boolean> | boolean
 }
 
 export default function TrialExpired({
-  isRTL,
+  isRTL = true,
+  lang,
+  t: propT,
   onCheckStatus,
   onActivate,
 }: Props) {
+  const currentLang = lang || (isRTL ? "ar" : "en")
+  const t = propT || createTranslator(currentLang)
+
   const { companyRepo, authService } = useServices()
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
   const [checking, setChecking] = useState(false)
@@ -111,17 +119,13 @@ export default function TrialExpired({
 
           <div>
             <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 mb-2">
-              {isRTL ? "النظام مغلق مؤقتاً" : "System Locked"}
+              {t("systemLockedTitle")}
             </span>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-              {isRTL
-                ? "انتهت مدة النسخة التجريبية"
-                : "Trial Period Has Expired"}
+              {t("trialPeriodExpired")}
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
-              {isRTL
-                ? "انتهت فترة التجربة المحددة للنظام. لمواصلة استخدام البرنامج وتحويل حسابك إلى مشترك دائم، يرجى التواصل مع فريق الدعم والمبيعات."
-                : "Your trial period has expired. To continue using the software and upgrade to a full subscription, please contact support."}
+              {t("trialPeriodExpiredDesc")}
             </p>
           </div>
 
@@ -129,12 +133,10 @@ export default function TrialExpired({
           <div className="bg-[#141926] border border-slate-800/80 rounded-2xl p-4 sm:p-5 text-start space-y-3">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 pb-2 border-b border-slate-800">
               <Headphones className="w-4 h-4 text-[#0070d1]" />
-              <span>
-                {isRTL ? "بيانات الدعم والمساعدة" : "Contact & Support"}
-              </span>
+              <span>{t("contactSupportTitle")}</span>
               {companyInfo?.name && (
                 <span className="ms-auto text-[11px] text-slate-500 font-normal">
-                  {isRTL ? companyInfo.nameAr : companyInfo.name}
+                  {localize(companyInfo, currentLang)}
                 </span>
               )}
             </div>
@@ -148,7 +150,7 @@ export default function TrialExpired({
                   <Phone className="w-4 h-4 text-blue-400 shrink-0 group-hover:scale-110 transition-transform" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[10px] text-slate-500">
-                      {isRTL ? "الهاتف / الواتساب" : "Phone / WhatsApp"}
+                      {t("phoneWhatsappLabel")}
                     </div>
                     <div className="font-mono font-bold text-white truncate">
                       {companyInfo.phone}
@@ -166,7 +168,7 @@ export default function TrialExpired({
                   <Mail className="w-4 h-4 text-indigo-400 shrink-0 group-hover:scale-110 transition-transform" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[10px] text-slate-500">
-                      {isRTL ? "البريد الإلكتروني" : "Email Address"}
+                      {t("emailAddressLabel")}
                     </div>
                     <div className="font-mono font-bold text-white truncate">
                       {companyInfo.email}
@@ -181,10 +183,12 @@ export default function TrialExpired({
                   <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[10px] text-slate-500">
-                      {isRTL ? "العنوان" : "Address"}
+                      {t("addressLabel")}
                     </div>
                     <div className="font-medium text-slate-200 text-xs">
-                      {isRTL ? companyInfo.addressAr : companyInfo.address}
+                      {currentLang === "ar"
+                        ? companyInfo.addressAr || companyInfo.address
+                        : companyInfo.address || companyInfo.addressAr}
                     </div>
                   </div>
                 </div>
@@ -195,7 +199,7 @@ export default function TrialExpired({
             {companyInfo?.socials && companyInfo.socials.length > 0 && (
               <div className="pt-2 border-t border-slate-800">
                 <div className="text-[11px] text-slate-500 mb-2">
-                  {isRTL ? "قنوات التواصل المباشر:" : "Direct Channels:"}
+                  {t("directChannelsLabel")}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {companyInfo.socials.map((soc, idx) => (
@@ -236,18 +240,12 @@ export default function TrialExpired({
               }
             >
               {checking
-                ? isRTL
-                  ? "جارٍ التحقق من قاعدة البيانات..."
-                  : "Checking database status..."
-                : isRTL
-                  ? "التحقق من حالة الاشتراك الآن"
-                  : "Check Subscription Status"}
+                ? t("checkingDbStatus")
+                : t("checkSubscriptionStatusNow")}
             </Button>
 
             <p className="text-[11px] text-slate-500">
-              {isRTL
-                ? "💡 بعد قيام المسؤول بتفعيل الاشتراك من قاعدة البيانات، اضغط زر التحقق أعلاه للمتابعة فوراً (يتم الفحص تلقائياً كل 10 ثوانٍ)."
-                : "💡 Once the administrator enables your subscription in the database, tap check above or wait for auto-detection."}
+              {t("trialAutoCheckTip")}
             </p>
           </div>
 
@@ -259,13 +257,9 @@ export default function TrialExpired({
                 onClick={() => setShowCodeInput(!showCodeInput)}
                 className="text-xs text-slate-500 hover:text-slate-400 underline transition-colors"
               >
-                {isRTL
-                  ? showCodeInput
-                    ? "إخفاء إدخال رمز الترخيص"
-                    : "لديك رمز تفعيل ترخيص؟ أدخله هنا"
-                  : showCodeInput
-                    ? "Hide license code input"
-                    : "Have an activation license code?"}
+                {showCodeInput
+                  ? t("hideActivationCodePrompt")
+                  : t("haveActivationCodePrompt")}
               </button>
 
               {showCodeInput && (
@@ -279,12 +273,12 @@ export default function TrialExpired({
                       setCode(e.target.value)
                       setCodeError(false)
                     }}
-                    placeholder={isRTL ? "أدخل رمز التفعيل" : "License code"}
+                    placeholder={t("enterLicenseCodePlaceholder")}
                     className="w-full bg-[#0b0e17] border border-slate-700 rounded-xl px-3 py-2 text-white text-center font-mono text-xs focus:outline-none focus:border-[#0070d1]"
                   />
                   {codeError && (
                     <div className="text-rose-400 text-xs">
-                      {isRTL ? "رمز التفعيل غير صالح" : "Invalid license code"}
+                      {t("invalidLicenseCode")}
                     </div>
                   )}
                   <Button
@@ -294,13 +288,7 @@ export default function TrialExpired({
                     size="sm"
                     disabled={activating || !code.trim()}
                   >
-                    {activating
-                      ? isRTL
-                        ? "جارٍ التفعيل..."
-                        : "Activating..."
-                      : isRTL
-                        ? "تأكيد الرمز"
-                        : "Apply Code"}
+                    {activating ? t("activating") : t("applyCode")}
                   </Button>
                 </form>
               )}
@@ -311,3 +299,4 @@ export default function TrialExpired({
     </div>
   )
 }
+

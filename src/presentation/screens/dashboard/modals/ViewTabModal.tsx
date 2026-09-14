@@ -5,10 +5,12 @@ import { money } from "@/domain"
 import { tabSum } from "../ConsoleCard"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator, localize } from "@/i18n"
 
 interface ViewTabModalProps {
   con: GameConsole | null
   isRTL: boolean
+  lang?: "en" | "ar"
   menuItems?: MenuItem[]
   onClose: () => void
   onChangeQty?: (itemId: string, delta: number) => void
@@ -19,12 +21,14 @@ interface ViewTabModalProps {
 export default function ViewTabModal({
   con,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   menuItems,
   onClose,
   onChangeQty,
   onRemove,
   onOpenAdd,
 }: ViewTabModalProps) {
+  const t = createTranslator(lang)
   if (!con || !con.session) return null
 
   const items = con.session.tab || []
@@ -35,12 +39,8 @@ export default function ViewTabModal({
       isOpen={!!con}
       onClose={onClose}
       isRTL={isRTL}
-      title={`${isRTL ? "طلبات حساب:" : "Tab Orders:"} ${con.name}`}
-      subtitle={
-        isRTL
-          ? "قائمة المأكولات والمشروبات المضافة وإدارتها"
-          : "Manage current snacks and drinks on tab"
-      }
+      title={`${t("tabOrdersTitle")} ${con.name}`}
+      subtitle={t("manageTabSubtitle")}
       icon={<Coffee className="w-5 h-5 text-amber-500" />}
       maxWidth="md"
     >
@@ -48,17 +48,14 @@ export default function ViewTabModal({
         <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
           {items.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-sm">
-              {isRTL
-                ? "لا توجد طلبات مضافة حتى الآن"
-                : "No orders added to this tab yet."}
+              {t("noOrdersAddedYet")}
             </div>
           ) : (
             items.map((it) => {
-              const displayName = isRTL
-                ? it.nameAr ||
-                  menuItems?.find((m) => m.id === it.id)?.nameAr ||
-                  it.name
-                : it.name
+              const matchedMenuItem = menuItems?.find((m) => m.id === it.id)
+              const displayName =
+                localize(it, lang) ||
+                (matchedMenuItem ? localize(matchedMenuItem, lang) : it.name)
 
               return (
                 <div
@@ -90,7 +87,7 @@ export default function ViewTabModal({
                           }
                         }}
                         className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-                        title={isRTL ? "إنقاص" : "Decrease"}
+                        title={t("decrease")}
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
@@ -103,7 +100,7 @@ export default function ViewTabModal({
                         type="button"
                         onClick={() => onChangeQty?.(it.id, 1)}
                         className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#0070d1] hover:text-white text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-                        title={isRTL ? "زيادة" : "Increase"}
+                        title={t("increase")}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -113,7 +110,7 @@ export default function ViewTabModal({
                       type="button"
                       onClick={() => onRemove?.(it.id)}
                       className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                      title={isRTL ? "حذف من الحساب" : "Remove from tab"}
+                      title={t("removeItem")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -127,7 +124,7 @@ export default function ViewTabModal({
         {/* Total */}
         <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-100 dark:bg-[#141926] border border-slate-200 dark:border-slate-800">
           <span className="font-bold text-sm text-slate-700 dark:text-slate-300">
-            {isRTL ? "مجموع الطلبات" : "Total Tab Amount"}
+            {t("tabTotal")}
           </span>
           <span className="font-mono font-bold text-lg text-[#0070d1] dark:text-sky-400">
             {money(total, isRTL)}
@@ -142,11 +139,11 @@ export default function ViewTabModal({
               className="flex-1"
               icon={<Plus className="w-4 h-4" />}
             >
-              {isRTL ? "إضافة أصناف أخرى" : "Add More Items"}
+              {t("addMoreItems")}
             </Button>
           )}
           <Button variant="secondary" onClick={onClose} className="flex-1">
-            {isRTL ? "إغلاق" : "Close"}
+            {t("close")}
           </Button>
         </div>
       </div>

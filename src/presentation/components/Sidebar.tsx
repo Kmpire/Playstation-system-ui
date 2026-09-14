@@ -18,91 +18,27 @@ import {
 } from "lucide-react"
 import type { Screen, Language, UserRole, Account } from "../../domain"
 
+import { createTranslator } from "@/i18n"
+
 interface NavItem {
   id: Screen
-  enLabel: string
-  arLabel: string
   icon: React.ComponentType<{ className?: string }>
   adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
-  {
-    id: "dashboard",
-    icon: LayoutDashboard,
-    enLabel: "Dashboard",
-    arLabel: "لوحة التحكم",
-  },
-  {
-    id: "pos",
-    icon: ShoppingCart,
-    enLabel: "POS / Sales",
-    arLabel: "نقطة البيع السريع",
-  },
-  {
-    id: "menu",
-    icon: UtensilsCrossed,
-    enLabel: "Menu Management",
-    arLabel: "قائمة الطلبات",
-  },
-  {
-    id: "pricing",
-    icon: Tag,
-    enLabel: "Pricing Rates",
-    arLabel: "أسعار الألعاب",
-    adminOnly: true,
-  },
-  {
-    id: "reports",
-    icon: BarChart3,
-    enLabel: "Reports & Analytics",
-    arLabel: "التقارير المالية",
-    adminOnly: true,
-  },
-  {
-    id: "staff",
-    icon: Clock,
-    enLabel: "Staff & Shifts",
-    arLabel: "الموظفون والورديات",
-  },
-  {
-    id: "shiftReports",
-    icon: Clock,
-    enLabel: "Shift Reports",
-    arLabel: "تقارير الورديات",
-    adminOnly: true,
-  },
-  {
-    id: "inventory",
-    icon: Boxes,
-    enLabel: "Inventory & Stock",
-    arLabel: "إدارة المخزون",
-  },
-  {
-    id: "controllers",
-    icon: Gamepad2,
-    enLabel: "Controllers & Maint.",
-    arLabel: "الأذرع والصيانة",
-  },
-  {
-    id: "dataManagement",
-    icon: Database,
-    enLabel: "Data & Backup",
-    arLabel: "إدارة البيانات",
-    adminOnly: true,
-  },
-  {
-    id: "contact",
-    icon: Phone,
-    enLabel: "Contact / Support",
-    arLabel: "الدعم والمساعدة",
-  },
-  {
-    id: "account",
-    icon: UserCheck,
-    enLabel: "My Account",
-    arLabel: "إعدادات الحساب",
-  },
+  { id: "dashboard", icon: LayoutDashboard },
+  { id: "pos", icon: ShoppingCart },
+  { id: "menu", icon: UtensilsCrossed },
+  { id: "pricing", icon: Tag, adminOnly: true },
+  { id: "reports", icon: BarChart3, adminOnly: true },
+  { id: "staff", icon: Clock },
+  { id: "shiftReports", icon: Clock, adminOnly: true },
+  { id: "inventory", icon: Boxes },
+  { id: "controllers", icon: Gamepad2 },
+  { id: "dataManagement", icon: Database, adminOnly: true },
+  { id: "contact", icon: Phone },
+  { id: "account", icon: UserCheck },
 ]
 
 interface SidebarProps {
@@ -115,18 +51,23 @@ interface SidebarProps {
   lowStockCount: number
   mobileOpen?: boolean
   onCloseMobile?: () => void
+  t?: (k: string, fb?: string) => string
 }
 
 export default function Sidebar({
   screen,
   setScreen,
+  lang,
   isRTL,
   role,
   currentUser,
   lowStockCount,
   mobileOpen = false,
   onCloseMobile,
+  t: propT,
 }: SidebarProps) {
+  const t = propT || createTranslator(lang)
+
   const handleNavClick = (id: Screen) => {
     setScreen(id)
     if (onCloseMobile) onCloseMobile()
@@ -192,13 +133,10 @@ export default function Sidebar({
             (item) => {
               const active = screen === item.id
               const Icon = item.icon
-              const label = isRTL
-                ? item.id === "staff" && role === "cashier"
-                  ? "تسليم الوردية"
-                  : item.arLabel
-                : item.id === "staff" && role === "cashier"
-                  ? "Shift Handover"
-                  : item.enLabel
+              const label =
+                item.id === "staff" && role === "cashier"
+                  ? t("shiftHandover")
+                  : t(item.id)
 
               return (
                 <button

@@ -1,5 +1,6 @@
 import React from "react"
 import { PackageOpen } from "lucide-react"
+import { createTranslator } from "@/i18n"
 
 interface EmptyStateCardProps {
   title?: string
@@ -8,6 +9,7 @@ interface EmptyStateCardProps {
   actionLabel?: string
   onAction?: () => void
   isRTL?: boolean
+  lang?: "en" | "ar"
   className?: string
 }
 
@@ -18,8 +20,11 @@ export const EmptyStateCard: React.FC<EmptyStateCardProps> = ({
   actionLabel,
   onAction,
   isRTL = true,
+  lang = isRTL ? "ar" : "en",
   className = "",
 }) => {
+  const t = createTranslator(lang)
+
   return (
     <div
       className={`flex flex-col items-center justify-center p-10 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131824]/40 text-center my-6 max-w-md mx-auto ${className}`}
@@ -30,7 +35,7 @@ export const EmptyStateCard: React.FC<EmptyStateCardProps> = ({
       </div>
 
       <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-1">
-        {title || (isRTL ? "لا توجد بيانات حالياً" : "No data available")}
+        {title || t("noDataAvailable")}
       </h3>
 
       {description && (

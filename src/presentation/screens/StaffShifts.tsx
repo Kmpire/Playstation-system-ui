@@ -10,7 +10,7 @@ import {
 import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
-import { translations } from "@/i18n"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
   auditLog?: AuditEntry[]
@@ -20,6 +20,7 @@ interface Props {
   currentUser?: Account
   toast?: (msg: string) => void
   t?: (k: string) => string
+  lang?: string
   isRTL?: boolean
   [key: string]: unknown
 }
@@ -29,11 +30,9 @@ type SubTab = "staff" | "shift" | "audit"
 export default function StaffShifts(props: Props) {
   const role = props.role ?? props.currentUser?.role ?? "admin"
   const isRTL = props.isRTL ?? true
+  const currentLang = props.lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
   const toast = props.toast ?? ((_m: string) => {})
-  const t =
-    props.t ||
-    ((key: string) =>
-      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
 
   const vm = useStaffViewModel(props.currentUser)
 
@@ -64,7 +63,7 @@ export default function StaffShifts(props: Props) {
       setTimeout(() => setSubmitted(false), 3000)
       setCountedCash("")
       setNotes("")
-      toast(t("shiftReportSuccess"))
+      toast(t("shiftReportSuccessMsg"))
     } catch (err: any) {
       console.error("Error submitting shift report:", err)
       toast(err.message || String(err))
@@ -74,7 +73,7 @@ export default function StaffShifts(props: Props) {
   const staffList = vm.accounts.map((acc) => {
     const formattedSince = acc.createdAt
       ? new Date(acc.createdAt).toLocaleDateString(
-          isRTL ? "ar-EG" : "en-US",
+          currentLang === "ar" ? "ar-EG" : "en-US",
           { year: "numeric", month: "short", day: "numeric" },
         )
       : "—"
@@ -97,14 +96,14 @@ export default function StaffShifts(props: Props) {
 
   const actionTypes = [...new Set(vm.auditLogs.map((e) => e.actionType))]
 
-  const TABS: { id: SubTab; label: string; labelAr: string }[] =
+  const TABS: { id: SubTab; labelKey: string }[] =
     role === "admin"
       ? [
-          { id: "staff", label: "Staff", labelAr: "الموظفون" },
-          { id: "shift", label: "Shift Handover", labelAr: "تسليم الوردية" },
-          { id: "audit", label: "Audit Trail", labelAr: "سجل المراجعة" },
+          { id: "staff", labelKey: "staffTab" },
+          { id: "shift", labelKey: "shiftHandoverTab" },
+          { id: "audit", labelKey: "auditTrailTab" },
         ]
-      : [{ id: "shift", label: "Shift Handover", labelAr: "تسليم الوردية" }]
+      : [{ id: "shift", labelKey: "shiftHandoverTab" }]
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0f111a]">
@@ -112,22 +111,10 @@ export default function StaffShifts(props: Props) {
       <div className="bg-white dark:bg-[#1a1d26] border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {role === "admin"
-              ? isRTL
-                ? "الموظفون والورديات"
-                : "Staff & Shifts"
-              : isRTL
-                ? "تسليم الوردية"
-                : "Shift Handover"}
+            {role === "admin" ? t("staffShiftsTitle") : t("shiftHandoverTitle")}
           </h1>
           <p className="text-slate-500 dark:text-slate-500 text-xs sm:text-sm">
-            {role === "admin"
-              ? isRTL
-                ? "إدارة الموظفين والورديات وسجل المراجعة"
-                : "Staff management, shift handover, and audit trail"
-              : isRTL
-                ? "تسجيل النقدية الفعلية وإرسال تقرير تقفيل الوردية"
-                : "Count drawer cash and submit end-of-shift report"}
+            {role === "admin" ? t("staffManagementSub") : t("shiftHandoverSub")}
           </p>
         </div>
 
@@ -135,6 +122,8 @@ export default function StaffShifts(props: Props) {
           onRefresh={vm.refresh}
           isRefreshing={vm.isRefreshing}
           isRTL={isRTL}
+          lang={currentLang}
+          t={t}
         />
       </div>
 
@@ -151,7 +140,7 @@ export default function StaffShifts(props: Props) {
                   : "border-transparent text-slate-500 dark:text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
-              {isRTL ? tab.labelAr : tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -173,6 +162,8 @@ export default function StaffShifts(props: Props) {
               message={vm.error || undefined}
               onRetry={vm.refresh}
               isRTL={isRTL}
+              lang={currentLang}
+              t={t}
             />
           </div>
         ) : (
@@ -183,9 +174,7 @@ export default function StaffShifts(props: Props) {
                 <div className="max-w-2xl space-y-3 sm:space-y-4">
                   {staffList.length === 0 ? (
                     <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-8 text-center text-slate-400 text-sm">
-                      {isRTL
-                        ? "لا توجد حسابات موظفين مسجلة في قاعدة البيانات"
-                        : "No staff accounts found in database"}
+                      {t("noStaffAccountsFound")}
                     </div>
                   ) : (
                     staffList.map((s) => (
@@ -198,7 +187,7 @@ export default function StaffShifts(props: Props) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base truncate">
-                            {isRTL ? s.nameAr : s.name}
+                            {localize(s, currentLang)}
                           </div>
                           <div className="text-slate-400 text-xs mt-0.5 font-mono">
                             @{s.username}
@@ -215,17 +204,14 @@ export default function StaffShifts(props: Props) {
                             {s.role}
                           </span>
                           <div className="text-slate-400 text-[10px] sm:text-[11px] mt-1">
-                            {isRTL ? `منذ ${s.since}` : `Since ${s.since}`}
+                            {t("sinceLabel")} {s.since}
                           </div>
                         </div>
                       </div>
                     ))
                   )}
                   <div className="bg-amber-50 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 text-xs sm:text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                    💡{" "}
-                    {isRTL
-                      ? "الحسابات ثابتة ويتم إعدادها من قِبل المطوّر. لا يمكن إضافة حسابات جديدة من هنا."
-                      : "Accounts are fixed and provisioned by the developer. New accounts cannot be created here."}
+                    💡 {t("accountsFixedNote")}
                   </div>
                 </div>
               )}
@@ -235,10 +221,7 @@ export default function StaffShifts(props: Props) {
                 <div className="max-w-lg space-y-4 sm:space-y-5">
                   {submitted && (
                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-2xl p-4 text-green-700 dark:text-green-400 text-xs sm:text-sm flex items-center gap-2">
-                      ✅{" "}
-                      {isRTL
-                        ? "تم إرسال تقرير الوردية بنجاح."
-                        : "Shift report submitted successfully."}
+                      ✅ {t("shiftReportSuccessMsg")}
                     </div>
                   )}
 
@@ -254,7 +237,7 @@ export default function StaffShifts(props: Props) {
                           <Banknote className="w-4 h-4 text-emerald-500" />
                         </div>
                         <div className="text-xl font-bold font-mono text-emerald-800 dark:text-emerald-200 mt-1">
-                          {money(vm.expectedCash, isRTL)}
+                          {money(vm.expectedCash, currentLang)}
                         </div>
                         <div className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
                           {t("drawerBaseline")}
@@ -270,7 +253,7 @@ export default function StaffShifts(props: Props) {
                           <Wallet className="w-4 h-4 text-sky-500" />
                         </div>
                         <div className="text-xl font-bold font-mono text-sky-800 dark:text-sky-200 mt-1">
-                          {money(vm.digitalTotal, isRTL)}
+                          {money(vm.digitalTotal, currentLang)}
                         </div>
                         <div className="text-[11px] text-sky-600/80 dark:text-sky-400/80 mt-0.5">
                           {t("trackedDigitallySub")}
@@ -286,7 +269,7 @@ export default function StaffShifts(props: Props) {
                           <Coins className="w-4 h-4 text-slate-400" />
                         </div>
                         <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">
-                          {money(vm.cashTotal + vm.digitalTotal, isRTL)}
+                          {money(vm.cashTotal + vm.digitalTotal, currentLang)}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
                           {t("cashAndWallets")}
@@ -332,7 +315,7 @@ export default function StaffShifts(props: Props) {
                           {t("drawerVariance")}
                         </div>
                         <div className="text-xl font-bold font-mono mt-1">
-                          {countedCash ? money(variance, isRTL) : "—"}
+                          {countedCash ? money(variance, currentLang) : "—"}
                         </div>
                         <div className="text-[11px] mt-0.5">
                           {countedCash
@@ -474,9 +457,7 @@ export default function StaffShifts(props: Props) {
                               colSpan={4}
                               className="px-4 py-8 text-center text-slate-400 text-xs"
                             >
-                              {isRTL
-                                ? "لا توجد سجلات مطابقة"
-                                : "No matching audit records"}
+                              {t("noMatchingAuditRecords")}
                             </td>
                           </tr>
                         )}
@@ -517,9 +498,7 @@ export default function StaffShifts(props: Props) {
                     ))}
                     {filteredLog.length === 0 && (
                       <div className="text-center py-8 text-slate-400 text-xs">
-                        {isRTL
-                          ? "لا توجد سجلات مطابقة"
-                          : "No matching audit records"}
+                        {t("noMatchingAuditRecords")}
                       </div>
                     )}
                   </div>

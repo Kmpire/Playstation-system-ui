@@ -1,10 +1,12 @@
 import React from "react"
 import { RotateCw } from "lucide-react"
+import { createTranslator } from "@/i18n"
 
 interface RefreshButtonProps {
   onRefresh: () => void
   isRefreshing?: boolean
   isRTL?: boolean
+  lang?: "en" | "ar"
   showLabel?: boolean
   className?: string
   title?: string
@@ -14,11 +16,13 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
   onRefresh,
   isRefreshing = false,
   isRTL = true,
+  lang = isRTL ? "ar" : "en",
   showLabel = false,
   className = "",
   title,
 }) => {
-  const defaultTitle = isRTL ? "تحديث البيانات" : "Refresh data"
+  const t = createTranslator(lang)
+  const defaultTitle = t("refreshData")
 
   return (
     <button
@@ -36,13 +40,7 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
       />
       {showLabel && (
         <span>
-          {isRefreshing
-            ? isRTL
-              ? "جارٍ التحديث..."
-              : "Refreshing..."
-            : isRTL
-              ? "تحديث"
-              : "Refresh"}
+          {isRefreshing ? t("refreshing") : t("refresh")}
         </span>
       )}
     </button>

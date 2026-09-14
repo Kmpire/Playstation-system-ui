@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react"
-import { Play, Clock, User, Users, Coffee, Sparkles } from "lucide-react"
+import { Play, Clock, User, Users, Coffee } from "lucide-react"
 import type { GameConsole, SessionMode, PlayerType, PricingTier } from "@/domain"
 import { money } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator, localize } from "@/i18n"
 
 interface StartSessionModalProps {
   con: GameConsole | null
   tiers?: PricingTier[]
   isRTL: boolean
+  lang?: "en" | "ar"
   onClose: () => void
   onStart: (
     conId: number,
@@ -31,10 +33,12 @@ export default function StartSessionModal({
   con,
   tiers,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onClose,
   onStart,
   getRate,
 }: StartSessionModalProps) {
+  const t = createTranslator(lang)
   const defaultPt = tiers && tiers.length > 0 ? tiers[0].id : "single"
   const [mode, setMode] = useState<SessionMode>("prepaid")
   const [duration, setDuration] = useState<number>(60)
@@ -94,19 +98,13 @@ export default function StartSessionModal({
       isRTL={isRTL}
       title={
         isBreak
-          ? `${isRTL ? "بدء استراحة جديدة:" : "Start Break Lounge:"} ${con.name}`
-          : `${isRTL ? "بدء جلسة جديدة:" : "Start Session:"} ${con.name}`
+          ? `${t("startBreakLoungeTitle")} ${con.name}`
+          : `${t("startSessionModalTitle")} ${con.name}`
       }
       subtitle={
         isBreak
-          ? isRTL
-            ? "استراحة مفتوحة - حساب على الطلبات والمشروبات فقط"
-            : "Lounge tab session - billing for orders only"
-          : `${con.type} · ${
-              isRTL
-                ? "اختر نظام الحساب والمدة ووقت البدء"
-                : "Select billing mode, duration and start time"
-            }`
+          ? t("breakLoungeNotice")
+          : `${con.type} · ${t("selectModeAndRate")}`
       }
       icon={
         isBreak ? (
@@ -127,30 +125,26 @@ export default function StartSessionModal({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isRTL ? "جلسة استراحة وطلبات" : "Lounge & Orders Session"}
+                  {t("loungeOrders")}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {isRTL
-                    ? "لا يتم احتساب وقت أو سعر ساعة لهذه الاستراحة. سيتم حساب المشروبات والطلبات فقط عند الإغلاق."
-                    : "No hourly time or player rates apply. Only drinks and orders will be billed at checkout."}
+                  {t("breakLoungeNotice")}
                 </p>
               </div>
             </div>
           </div>
         ) : (
           <>
-            {/* Start Time Picker (Item 3) */}
+            {/* Start Time Picker */}
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-[#0070d1]" />
-                  <span>{isRTL ? "وقت بدء الجلسة" : "Session Start Time"}</span>
+                  <span>{t("sessionStartTime")}</span>
                 </label>
                 {retroMinutes > 0 && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 animate-in fade-in">
-                    {isRTL
-                      ? `بدأت منذ ${retroMinutes} دقيقة`
-                      : `Started ${retroMinutes}m ago`}
+                    {`-${retroMinutes} ${t("durationMin")}`}
                   </span>
                 )}
               </div>
@@ -173,7 +167,7 @@ export default function StartSessionModal({
                         : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
                     }`}
                   >
-                    {isRTL ? "الآن" : "Now"}
+                    {t("now")}
                   </button>
                   {[5, 10, 15, 30].map((mins) => (
                     <button
@@ -192,7 +186,7 @@ export default function StartSessionModal({
             {/* Mode Selector */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "نظام الجلسة" : "Session Billing Mode"}
+                {t("sessionBillingMode")}
               </label>
               <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-[#141926] border border-slate-200 dark:border-slate-800">
                 <button
@@ -204,7 +198,7 @@ export default function StartSessionModal({
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
-                  {isRTL ? "⏱️ وقت محدد (مسبق)" : "⏱️ Fixed Time (Pre-paid)"}
+                  {t("fixedTimePrepaid")}
                 </button>
                 <button
                   type="button"
@@ -215,7 +209,7 @@ export default function StartSessionModal({
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
-                  {isRTL ? "♾️ وقت مفتوح" : "♾️ Open Time (Post-paid)"}
+                  {t("openTimePostpaid")}
                 </button>
               </div>
             </div>
@@ -224,21 +218,21 @@ export default function StartSessionModal({
             {mode === "prepaid" && (
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  {isRTL ? "مدة اللعب الإجمالية (بالدقائق)" : "Duration (Minutes)"}
+                  {t("durationMinutes")}
                 </label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
-                  {[30, 60, 90, 120].map((m) => (
+                  {[30, 60, 90, 120].map((mins) => (
                     <button
-                      key={m}
+                      key={mins}
                       type="button"
-                      onClick={() => setDuration(m)}
+                      onClick={() => setDuration(mins)}
                       className={`py-2 text-xs font-bold rounded-xl border transition-all ${
-                        duration === m
+                        duration === mins
                           ? "border-[#0070d1] bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400 shadow-sm"
                           : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                       }`}
                     >
-                      {m >= 60 ? `${m / 60}h` : `${m}m`}
+                      {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
                     </button>
                   ))}
                 </div>
@@ -258,7 +252,7 @@ export default function StartSessionModal({
             {/* Player Type Selector */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "نوع سعر اللعب" : "Pricing Type"}
+                {t("pricingType")}
               </label>
               <div
                 className={`grid gap-2 ${
@@ -272,13 +266,13 @@ export default function StartSessionModal({
                 {(tiers && tiers.length > 0
                   ? tiers
                   : [{ id: "single", name: "Single", nameAr: "فردي" }]
-                ).map((t, idx) => {
-                  const isSelected = playerType === t.id
+                ).map((tierItem, idx) => {
+                  const isSelected = playerType === tierItem.id
                   return (
                     <button
-                      key={t.id}
+                      key={tierItem.id}
                       type="button"
-                      onClick={() => setPlayerType(t.id)}
+                      onClick={() => setPlayerType(tierItem.id)}
                       className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
                         isSelected
                           ? "border-[#0070d1] bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400 shadow-xs"
@@ -290,7 +284,7 @@ export default function StartSessionModal({
                       ) : (
                         <Users className="w-4 h-4" />
                       )}
-                      <span>{isRTL ? t.nameAr : t.name}</span>
+                      <span>{localize(tierItem, lang)}</span>
                     </button>
                   )
                 })}
@@ -301,7 +295,7 @@ export default function StartSessionModal({
             <div className="rounded-2xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800/80 p-4 flex items-center justify-between">
               <div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {isRTL ? "سعر الساعة" : "Hourly Rate"}
+                  {t("hourlyRate")}
                 </div>
                 <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
                   {money(hourlyRate, isRTL)}
@@ -311,7 +305,7 @@ export default function StartSessionModal({
               {mode === "prepaid" && (
                 <div className="text-end">
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {isRTL ? "التكلفة المقدرة" : "Estimated Cost"}
+                    {t("estimatedCost")}
                   </div>
                   <div className="text-xl font-bold font-mono text-[#0070d1] dark:text-sky-400">
                     {money(estCost, isRTL)}
@@ -325,7 +319,7 @@ export default function StartSessionModal({
         {/* Actions */}
         <div className="flex gap-2 pt-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">
-            {isRTL ? "إلغاء" : "Cancel"}
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -333,13 +327,7 @@ export default function StartSessionModal({
             className="flex-1"
             icon={isBreak ? <Coffee className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           >
-            {isBreak
-              ? isRTL
-                ? "بدء الاستراحة"
-                : "Start Break"
-              : isRTL
-                ? "بدء اللعب"
-                : "Start Session"}
+            {isBreak ? t("startBreak") : t("startSessionBtn")}
           </Button>
         </div>
       </div>

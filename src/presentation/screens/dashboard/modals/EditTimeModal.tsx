@@ -3,11 +3,13 @@ import { Clock } from "lucide-react"
 import type { GameConsole } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator } from "@/i18n"
 
 interface EditTimeModalProps {
   con: GameConsole | null
   mode: "edit" | "add"
   isRTL: boolean
+  lang?: "en" | "ar"
   onClose: () => void
   onConfirm: (minutes: number) => void
 }
@@ -16,9 +18,11 @@ export default function EditTimeModal({
   con,
   mode,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onClose,
   onConfirm,
 }: EditTimeModalProps) {
+  const t = createTranslator(lang)
   if (!con || !con.session) return null
 
   const current = con.session.targetDurationMin ?? 60
@@ -26,21 +30,13 @@ export default function EditTimeModal({
 
   const title =
     mode === "edit"
-      ? isRTL
-        ? "تعديل وقت الجلسة"
-        : "Edit Session Time"
-      : isRTL
-        ? "إضافة وقت إضافي"
-        : "Extend Session Time"
+      ? t("editSessionTimeTitle")
+      : t("extendSessionTimeTitle")
 
   const subtitle = `${con.name} · ${
     mode === "edit"
-      ? isRTL
-        ? "تعديل إجمالي الدقائق المحجوزة"
-        : "Update total reserved minutes"
-      : isRTL
-        ? "إضافة دقائق جديدة للوقت الحالي"
-        : "Add more minutes to active session"
+      ? t("editSessionTimeSubtitle")
+      : t("extendSessionTimeSubtitle")
   }`
 
   return (
@@ -57,12 +53,8 @@ export default function EditTimeModal({
         <div>
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
             {mode === "edit"
-              ? isRTL
-                ? "إجمالي المدة الجديدة (بالدقائق)"
-                : "New Total Duration (Minutes)"
-              : isRTL
-                ? "عدد الدقائق المراد إضافتها"
-                : "Minutes to Add"}
+              ? t("newTotalDuration")
+              : t("minutesToAdd")}
           </label>
           <input
             type="number"
@@ -83,7 +75,7 @@ export default function EditTimeModal({
               key={d}
               type="button"
               onClick={() => setValue(mode === "edit" ? current + d : d)}
-              className="flex-1 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-[#0070d1] hover:bg-[#0070d1]/10 transition-all"
+              className="flex-1 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-[#0070d1] hover:bg-[#0070d1]/10 transition-all cursor-pointer"
             >
               {mode === "edit" ? `+${d}m` : `${d}m`}
             </button>
@@ -92,7 +84,7 @@ export default function EditTimeModal({
 
         <div className="flex gap-2 pt-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">
-            {isRTL ? "إلغاء" : "Cancel"}
+            {t("cancel")}
           </Button>
           <Button
             variant="primary"
@@ -100,12 +92,8 @@ export default function EditTimeModal({
             className="flex-1"
           >
             {mode === "edit"
-              ? isRTL
-                ? "تحديث الوقت"
-                : "Update"
-              : isRTL
-                ? "إضافة وتمديد"
-                : "Add Time"}
+              ? t("updateTimeBtn")
+              : t("addTimeBtn")}
           </Button>
         </div>
       </div>

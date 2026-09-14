@@ -1,10 +1,12 @@
 import React, { useState, useRef, useCallback } from "react"
 import { ArrowDown, RotateCw } from "lucide-react"
+import { createTranslator } from "@/i18n"
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void
   children: React.ReactNode
   isRTL?: boolean
+  lang?: "en" | "ar"
   className?: string
   pullThreshold?: number
   maxPull?: number
@@ -15,11 +17,13 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   onRefresh,
   children,
   isRTL = true,
+  lang = isRTL ? "ar" : "en",
   className = "",
   pullThreshold = 65,
   maxPull = 110,
   disabled = false,
 }) => {
+  const t = createTranslator(lang)
   const [pullDistance, setPullDistance] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const startY = useRef<number | null>(null)
@@ -105,7 +109,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
           {isRefreshing ? (
             <>
               <RotateCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
-              <span>{isRTL ? "جارٍ التحديث..." : "Refreshing..."}</span>
+              <span>{t("refreshing")}</span>
             </>
           ) : (
             <>
@@ -118,13 +122,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
                 }}
               />
               <span>
-                {isTriggerReady
-                  ? isRTL
-                    ? "أفلت للتحديث"
-                    : "Release to refresh"
-                  : isRTL
-                    ? "اسحب للتحديث"
-                    : "Pull to refresh"}
+                {isTriggerReady ? t("releaseToRefresh") : t("pullToRefresh")}
               </span>
             </>
           )}

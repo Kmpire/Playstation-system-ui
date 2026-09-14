@@ -42,10 +42,12 @@ import {
   RefreshButton,
 } from "../components/states"
 import { PullToRefresh } from "../components/common/PullToRefresh"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
   toast: (msg: string) => void
   isRTL: boolean
+  lang?: "en" | "ar"
   theme?: Theme
   currentUser?: { name?: string; username?: string; role?: string }
   [key: string]: unknown
@@ -54,9 +56,11 @@ interface Props {
 export default function ConsoleDashboard({
   toast,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   theme = "dark",
   currentUser,
 }: Props) {
+  const t = createTranslator(lang)
   const {
     consoles,
     pricing,
@@ -120,6 +124,19 @@ export default function ConsoleDashboard({
   const hasDroppedRef = useRef<boolean>(false)
   const gridRef = useRef<HTMLDivElement>(null)
   const positionsRef = useRef<Map<number, DOMRect>>(new Map())
+
+  // Screen size check to disable drag & drop on mobile
+  const [isMobileScreen, setIsMobileScreen] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 640 : false,
+  )
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 640)
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   // Keep localConsoles in sync with consoles when not actively dragging
   useEffect(() => {
@@ -317,43 +334,27 @@ export default function ConsoleDashboard({
         (currentUser as any)?.name || "Staff",
         customStartTime,
       )
-      toast(
-        isRTL
-          ? `تم بدء تشغيل ${updatedCon.name} بنجاح`
-          : `Session started for ${updatedCon.name}`,
-      )
+      toast(`${t("startSessionTitle")} ${updatedCon.name}`)
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل بدء الجلسة: ${err.message || err}`
-          : `Failed to start session: ${err.message || err}`,
-      )
+      toast(`${t("failedToStartSession")}: ${err.message || err}`)
     }
   }
 
   const handlePause = async (conId: number) => {
     try {
       await pauseSession(conId)
-      toast(isRTL ? "تم إيقاف الوقت مؤقتاً" : "Session paused")
+      toast(t("sessionPausedToast"))
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل إيقاف الجلسة: ${err.message || err}`
-          : `Failed to pause: ${err.message || err}`,
-      )
+      toast(`${t("failedToPauseSession")}: ${err.message || err}`)
     }
   }
 
   const handleResume = async (conId: number) => {
     try {
       await resumeSession(conId)
-      toast(isRTL ? "تم استئناف الوقت" : "Session resumed")
+      toast(t("sessionResumedToast"))
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل استئناف الجلسة: ${err.message || err}`
-          : `Failed to resume: ${err.message || err}`,
-      )
+      toast(`${t("failedToResumeSession")}: ${err.message || err}`)
     }
   }
 
@@ -419,15 +420,11 @@ export default function ConsoleDashboard({
       setEndSessionCon(null)
       setExpiredAlertCon(null)
       toast(
-        isRTL
-          ? `تم إنهاء الجلسة واستلام ${money(finalAmount, isRTL)}`
-          : `Session ended. Collected ${money(finalAmount, isRTL)}`,
+        `${t("sessionEndedCollectedToast")} ${money(finalAmount, isRTL)}`,
       )
     } catch (err: any) {
       toast(
-        isRTL
-          ? `فشل إنهاء الجلسة: ${err.message || err}`
-          : `Failed to end session: ${err.message || err}`,
+        `${t("failedToEndSessionToast")}: ${err.message || err}`,
       )
     }
   }
@@ -439,39 +436,27 @@ export default function ConsoleDashboard({
     try {
       await togglePlayerType(conId, newPlayerType)
       const tier = pricingTiers.find((t) => t.id === newPlayerType)
-      const label = tier ? (isRTL ? tier.nameAr : tier.name) : newPlayerType
-      toast(
-        isRTL
-          ? `تم التغيير إلى لعب ${label}`
-          : `Switched to ${label} player rate`,
-      )
+      const label = tier ? localize(tier, lang) : newPlayerType
+      toast(`${t("switchedToRateToast")} ${label}`)
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل تغيير نوع اللعب: ${err.message || err}`
-          : `Failed to switch player mode: ${err.message || err}`,
-      )
+      toast(`${t("failedToSwitchPlayerMode")}: ${err.message || err}`)
     }
   }
 
   const handleAddToTab = async (conId: number, item: MenuItem) => {
     if (item.stock <= 0) {
-      toast(isRTL ? "الكمية غير كافية في المخزون!" : "Item is out of stock!")
+      toast(t("outOfStockToast"))
       return
     }
 
     try {
       await addTabItem(conId, item, 1)
       toast(
-        isRTL
-          ? `تمت إضافة ${item.nameAr || item.name} إلى الحساب`
-          : `Added ${item.name} to tab`,
+        `${t("addedToTabToast")} (${localize(item, lang)})`,
       )
     } catch (err: any) {
       toast(
-        isRTL
-          ? `فشل إضافة الطلب: ${err.message || err}`
-          : `Failed to add to tab: ${err.message || err}`,
+        `${t("failedToAddToTab")}: ${err.message || err}`,
       )
     }
   }
@@ -480,17 +465,9 @@ export default function ConsoleDashboard({
     try {
       const { to } = await transferSession(fromId, toId)
       setTransferFromCon(null)
-      toast(
-        isRTL
-          ? `تم نقل الجلسة إلى ${to.name}`
-          : `Transferred session to ${to.name}`,
-      )
+      toast(`${t("transferredSessionTo")} ${to.name}`)
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل نقل الجلسة: ${err.message || err}`
-          : `Failed to transfer: ${err.message || err}`,
-      )
+      toast(`${t("failedToTransfer")}: ${err.message || err}`)
     }
   }
 
@@ -504,19 +481,11 @@ export default function ConsoleDashboard({
       setTimeModalState(null)
       toast(
         mode === "add"
-          ? isRTL
-            ? `تم تمديد الوقت ${minutes} دقيقة`
-            : `Added ${minutes}m to session`
-          : isRTL
-            ? `تم تعديل الوقت إلى ${minutes} دقيقة`
-            : `Updated session to ${minutes}m`,
+          ? `${t("addedMinutesToSession")} ${minutes} ${t("durationMin")}`
+          : `${t("updatedSessionMinutes")} ${minutes} ${t("durationMin")}`,
       )
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل تعديل الوقت: ${err.message || err}`
-          : `Failed to edit time: ${err.message || err}`,
-      )
+      toast(`${t("failedToEditTime")}: ${err.message || err}`)
     }
   }
 
@@ -524,17 +493,9 @@ export default function ConsoleDashboard({
     try {
       const created = await createConsole(name, type)
       setIsAddConsoleOpen(false)
-      toast(
-        isRTL
-          ? `تمت إضافة جهاز ${created.name} بنجاح`
-          : `Added console ${created.name}`,
-      )
+      toast(`${t("consoleAddedSuccessfully")} (${created.name})`)
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل إضافة الجهاز: ${err.message || err}`
-          : `Failed to add console: ${err.message || err}`,
-      )
+      toast(`${t("failedToAddConsole")}: ${err.message || err}`)
     }
   }
 
@@ -546,44 +507,24 @@ export default function ConsoleDashboard({
     try {
       await updateConsoleInfo(id, name, type)
       setEditConsoleTarget(null)
-      toast(
-        isRTL
-          ? "تم تعديل بيانات الجهاز بنجاح ✓"
-          : "Console updated successfully ✓",
-      )
+      toast(t("consoleUpdatedSuccessfully"))
     } catch (err: any) {
-      toast(
-        isRTL
-          ? `فشل تعديل الجهاز: ${err.message || err}`
-          : `Failed to update console: ${err.message || err}`,
-      )
+      toast(`${t("failedToUpdateConsole")}: ${err.message || err}`)
     }
   }
 
   const handleDeleteConsole = async (con: GameConsole) => {
     if (!isAdmin) {
-      toast(
-        isRTL
-          ? "غير مصرح لك بحذف الأجهزة، هذه الصلاحية للمدير فقط!"
-          : "Only administrators are authorized to delete consoles!",
-      )
+      toast(t("onlyAdminCanDelete"))
       return
     }
     try {
       await deleteConsole(con.id, currentUser?.username || "Admin")
-      toast(
-        isRTL
-          ? `تم حذف الجهاز (${con.name}) بنجاح ✓`
-          : `Console (${con.name}) deleted ✓`,
-      )
+      toast(`${t("consoleDeletedSuccessfully")} (${con.name})`)
       setDeleteConsoleTarget(null)
     } catch (err: any) {
       console.error("Failed to delete console:", err)
-      toast(
-        isRTL
-          ? `فشل حذف الجهاز: ${err.message || err}`
-          : `Failed to delete console: ${err.message || err}`,
-      )
+      toast(`${t("failedToDeleteConsole")}: ${err.message || err}`)
     }
   }
 
@@ -592,9 +533,7 @@ export default function ConsoleDashboard({
       await changeTabItemQty(conId, itemId, delta)
     } catch (err: any) {
       toast(
-        isRTL
-          ? `فشل تعديل كمية الطلب: ${err.message || err}`
-          : `Failed to update item quantity: ${err.message || err}`,
+        `${t("failedToAddToTab")}: ${err.message || err}`,
       )
     }
   }
@@ -602,12 +541,10 @@ export default function ConsoleDashboard({
   const handleRemoveTabItem = async (conId: number, itemId: string) => {
     try {
       await removeTabItem(conId, itemId)
-      toast(isRTL ? "تم حذف الطلب من الحساب" : "Removed item from tab")
+      toast(t("removedItemFromTabToast"))
     } catch (err: any) {
       toast(
-        isRTL
-          ? `فشل حذف الطلب: ${err.message || err}`
-          : `Failed to remove item: ${err.message || err}`,
+        `${t("failedToAddToTab")}: ${err.message || err}`,
       )
     }
   }
@@ -615,12 +552,10 @@ export default function ConsoleDashboard({
   const handleSaveTab = async (conId: number, newTab: any[]) => {
     try {
       await updateSessionTab(conId, newTab)
-      toast(isRTL ? "تم حفظ طلبات الحساب بنجاح ✓" : "Tab orders saved successfully ✓")
+      toast(t("tabOrdersSavedToast"))
     } catch (err: any) {
       toast(
-        isRTL
-          ? `فشل حفظ الطلبات: ${err.message || err}`
-          : `Failed to save tab orders: ${err.message || err}`,
+        `${t("failedToAddToTab")}: ${err.message || err}`,
       )
     }
   }
@@ -685,15 +620,11 @@ export default function ConsoleDashboard({
 
     try {
       await reorderConsoles(finalOrder)
-      toast(isRTL ? "تم حفظ ترتيب الأجهزة بنجاح ✓" : "Console order updated ✓")
+      toast(t("consoleOrderUpdatedToast"))
     } catch (err: any) {
       capturePositions()
       setLocalConsoles(initialConsolesRef.current)
-      toast(
-        isRTL
-          ? `فشل حفظ ترتيب الأجهزة: ${err.message || err}`
-          : `Failed to save console order: ${err.message || err}`,
-      )
+      toast(`${t("failedToAddToTab")}: ${err.message || err}`)
     }
   }
 
@@ -723,15 +654,11 @@ export default function ConsoleDashboard({
 
     try {
       await reorderConsoles(newConsoles)
-      toast(isRTL ? "تم تحديث ترتيب الأجهزة ✓" : "Console order updated ✓")
+      toast(t("consoleOrderUpdatedToast"))
     } catch (err: any) {
       capturePositions()
       setLocalConsoles(consoles)
-      toast(
-        isRTL
-          ? `فشل حفظ الترتيب: ${err.message || err}`
-          : `Failed to save order: ${err.message || err}`,
-      )
+      toast(`${t("failedToAddToTab")}: ${err.message || err}`)
     }
   }
 
@@ -760,12 +687,10 @@ export default function ConsoleDashboard({
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5">
               <Gamepad2 className="w-6 h-6 text-[#0070d1]" />
-              <span>{isRTL ? "إدارة صالة الألعاب" : "PlayStation Lounge"}</span>
+              <span>{t("playstationLounge")}</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {isRTL
-                ? "متابعة حية للجلسات، الوقت، والحسابات لحظة بلحظة"
-                : "Real-time session monitoring and automated billing"}
+              {t("shiftReportsSubtitle")}
             </p>
           </div>
 
@@ -782,13 +707,7 @@ export default function ConsoleDashboard({
               icon={<ArrowUpDown className="w-4 h-4" />}
               onClick={() => setIsReordering(!isReordering)}
             >
-              {isRTL
-                ? isReordering
-                  ? "إنهاء الترتيب"
-                  : "ترتيب الأجهزة"
-                : isReordering
-                  ? "Done Reordering"
-                  : "Reorder"}
+              {isReordering ? t("done") : t("dragToReorder")}
             </Button>
 
             <Button
@@ -796,7 +715,7 @@ export default function ConsoleDashboard({
               icon={<Plus className="w-4 h-4" />}
               onClick={() => setIsAddConsoleOpen(true)}
             >
-              {isRTL ? "إضافة جهاز" : "Add Console"}
+              {t("addConsole")}
             </Button>
           </div>
         </div>
@@ -809,7 +728,7 @@ export default function ConsoleDashboard({
             </div>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isRTL ? "قيد اللعب" : "In Session"}
+                {t("inPlay")}
               </div>
               <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
                 {activeCount}
@@ -823,7 +742,7 @@ export default function ConsoleDashboard({
             </div>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isRTL ? "أجهزة متاحة" : "Available"}
+                {t("availableConsoles")}
               </div>
               <div className="text-xl font-bold font-mono text-emerald-500">
                 {availableCount}
@@ -837,7 +756,7 @@ export default function ConsoleDashboard({
             </div>
             <div>
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isRTL ? "في الصيانة" : "Maintenance"}
+                {t("inMaintenance")}
               </div>
               <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
                 {maintenanceCount}
@@ -850,11 +769,11 @@ export default function ConsoleDashboard({
         <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {[
-              { id: "all", label: isRTL ? "الكل" : "All" },
-              { id: "available", label: isRTL ? "المتاحة" : "Available" },
-              { id: "occupied", label: isRTL ? "المشغولة" : "In Session" },
-              { id: "paused", label: isRTL ? "الموقوفة" : "Paused" },
-              { id: "maintenance", label: isRTL ? "الصيانة" : "Maintenance" },
+              { id: "all", label: t("filterAll") },
+              { id: "available", label: t("filterAvailable") },
+              { id: "occupied", label: t("filterOccupied") },
+              { id: "paused", label: t("filterPaused") },
+              { id: "maintenance", label: t("filterMaintenance") },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -872,26 +791,18 @@ export default function ConsoleDashboard({
           </div>
 
           <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
-            {(["all", "PS5", "PS4", "Xbox", "VIP", "Break"] as const).map((t) => (
+            {(["all", "PS5", "PS4", "Xbox", "VIP", "Break"] as const).map((typ) => (
               <button
-                key={t}
+                key={typ}
                 type="button"
-                onClick={() => setTypeFilter(t)}
+                onClick={() => setTypeFilter(typ)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  typeFilter === t
+                  typeFilter === typ
                     ? "bg-[#0070d1]/15 text-[#0070d1] border border-[#0070d1]/30"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {t === "all"
-                  ? isRTL
-                    ? "الكل"
-                    : "All"
-                  : t === "Break"
-                    ? isRTL
-                      ? "استراحة"
-                      : "Break"
-                    : t}
+                {typ === "all" ? t("filterAll") : typ === "Break" ? t("typeBreak") : typ}
               </button>
             ))}
           </div>
@@ -913,18 +824,15 @@ export default function ConsoleDashboard({
           message={error || undefined}
           onRetry={retry}
           isRTL={isRTL}
+          lang={lang}
         />
       )}
 
       {status === "empty" && (
         <EmptyStateCard
-          title={isRTL ? "لا توجد أجهزة مضافة" : "No consoles added yet"}
-          description={
-            isRTL
-              ? "لم يتم العثور على أي أجهزة في الصالة. يمكنك إضافة أول جهاز للبدء."
-              : "No consoles found. Click Add Console to set up your first station."
-          }
-          actionLabel={isRTL ? "＋ إضافة جهاز" : "＋ Add Console"}
+          title={t("noConsolesAdded")}
+          description={t("noConsolesDescription")}
+          actionLabel={t("addConsole")}
           onAction={() => setIsAddConsoleOpen(true)}
           isRTL={isRTL}
         />
@@ -935,9 +843,9 @@ export default function ConsoleDashboard({
           <div className="flex items-center gap-2 text-xs font-semibold text-[#0070d1] dark:text-sky-300">
             <ArrowUpDown className="w-4 h-4 shrink-0" />
             <span>
-              {isRTL
-                ? "وضع ترتيب الأجهزة نشط: اسحب أي جهاز لتبديل مكانه، أو استخدم الأسهم (↑ / ↓) للتحريك."
-                : "Reorder mode active: Drag any console to reposition it, or use the arrows (↑ / ↓)."}
+              {isMobileScreen
+                ? t("reorderModeActiveMobile")
+                : t("reorderModeActive")}
             </span>
           </div>
           <Button
@@ -945,7 +853,7 @@ export default function ConsoleDashboard({
             size="sm"
             onClick={() => setIsReordering(false)}
           >
-            {isRTL ? "إنهاء الترتيب" : "Done"}
+            {t("done")}
           </Button>
         </div>
       )}
@@ -975,6 +883,7 @@ export default function ConsoleDashboard({
                   con={con}
                   tiers={pricingTiers}
                   isRTL={isRTL}
+                  lang={lang}
                   isExpired={expired}
                   theme={theme}
                   onSelect={() => handleCardSelect(con)}
@@ -990,7 +899,7 @@ export default function ConsoleDashboard({
                   onEdit={() => setEditConsoleTarget(con)}
                   onDelete={isAdmin ? () => setDeleteConsoleTarget(con) : undefined}
                   canReorder={isReordering}
-                  draggable={isReordering}
+                  draggable={isReordering && !isMobileScreen}
                   isDragging={draggedConsoleId === con.id}
                   onDragStart={(e) => handleDragStart(e, con.id)}
                   onDragOver={(e) => handleDragOver(e, con.id)}
@@ -1010,6 +919,7 @@ export default function ConsoleDashboard({
         con={startSessionCon}
         tiers={pricingTiers}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setStartSessionCon(null)}
         onStart={handleStartSession}
         getRate={getRate}
@@ -1019,6 +929,7 @@ export default function ConsoleDashboard({
         con={activeEndSessionCon}
         tiers={pricingTiers}
         isRTL={isRTL}
+        lang={lang}
         menuItems={menuItems}
         onClose={handleCloseEndSession}
         onConfirm={(amt, payments) =>
@@ -1032,6 +943,7 @@ export default function ConsoleDashboard({
         menuItems={menuItems}
         categories={categories}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setAddToTabCon(null)}
         onSaveTab={(finalTab) => {
           if (activeAddToTabCon) {
@@ -1043,6 +955,7 @@ export default function ConsoleDashboard({
       <ViewTabModal
         con={activeViewTabCon}
         isRTL={isRTL}
+        lang={lang}
         menuItems={menuItems}
         onClose={() => setViewTabCon(null)}
         onChangeQty={(itemId, delta) => activeViewTabCon && handleChangeTabQty(activeViewTabCon.id, itemId, delta)}
@@ -1060,6 +973,7 @@ export default function ConsoleDashboard({
         fromCon={transferFromCon}
         consoles={consoles}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setTransferFromCon(null)}
         onTransfer={(toId) =>
           transferFromCon && handleTransfer(transferFromCon.id, toId)
@@ -1070,6 +984,7 @@ export default function ConsoleDashboard({
         con={timeModalState?.con || null}
         mode={timeModalState?.mode || "edit"}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setTimeModalState(null)}
         onConfirm={(min) =>
           timeModalState &&
@@ -1080,6 +995,7 @@ export default function ConsoleDashboard({
       <AddConsoleModal
         isOpen={isAddConsoleOpen}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setIsAddConsoleOpen(false)}
         onAdd={handleAddConsole}
       />
@@ -1087,6 +1003,7 @@ export default function ConsoleDashboard({
       <EditConsoleModal
         con={editConsoleTarget}
         isRTL={isRTL}
+        lang={lang}
         onClose={() => setEditConsoleTarget(null)}
         onUpdate={handleUpdateConsole}
       />
@@ -1097,19 +1014,13 @@ export default function ConsoleDashboard({
           isOpen={!!deleteConsoleTarget}
           onClose={() => setDeleteConsoleTarget(null)}
           isRTL={isRTL}
-          title={isRTL ? "تأكيد حذف الجهاز" : "Confirm Delete Console"}
-          subtitle={
-            isRTL
-              ? `هل أنت متأكد من حذف ${deleteConsoleTarget.name} نهائياً؟`
-              : `Are you sure you want to delete ${deleteConsoleTarget.name}?`
-          }
+          title={t("confirmDeleteConsole")}
+          subtitle={`${t("deleteConsolePrompt")} (${deleteConsoleTarget.name})`}
           maxWidth="sm"
         >
           <div className="space-y-4 pt-2">
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {isRTL
-                ? "سيتم حذف هذا الجهاز نهائياً من الصالة وقاعدة البيانات. لا يمكن التراجع عن هذا الإجراء."
-                : "This console will be permanently removed from the lounge and database. This action cannot be undone."}
+              {t("deleteConsolePermanentlyPrompt")}
             </p>
             <div className="flex items-center gap-2 justify-end pt-2">
               <Button
@@ -1117,14 +1028,14 @@ export default function ConsoleDashboard({
                 size="sm"
                 onClick={() => setDeleteConsoleTarget(null)}
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </Button>
               <Button
                 variant="danger"
                 size="sm"
                 onClick={() => handleDeleteConsole(deleteConsoleTarget)}
               >
-                {isRTL ? "تأكيد الحذف" : "Delete Console"}
+                {t("confirm")}
               </Button>
             </div>
           </div>
@@ -1134,6 +1045,7 @@ export default function ConsoleDashboard({
       <ExpiredAlertModal
         con={expiredAlertCon}
         isRTL={isRTL}
+        lang={lang}
         onExtend={() => {
           if (expiredAlertCon) {
             setTimeModalState({ con: expiredAlertCon, mode: "add" })

@@ -4,11 +4,7 @@ import {
   Wrench,
   Plus,
   Search,
-  CheckCircle2,
-  AlertTriangle,
   AlertCircle,
-  Clock,
-  Archive,
   Trash2,
 } from "lucide-react"
 import type {
@@ -26,38 +22,33 @@ import {
   TableSkeleton,
 } from "@/presentation/components/states/LoadingSkeleton"
 import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
-import EmptyStateCard from "@/presentation/components/states/EmptyStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
+import { createTranslator } from "@/i18n"
 
-const CTRL_STATUS: {
+const CTRL_STATUS_CONFIG: {
   id: ControllerStatus
-  en: string
-  ar: string
+  labelKey: string
   cls: string
 }[] = [
   {
     id: "working",
-    en: "Working",
-    ar: "يعمل",
+    labelKey: "working",
     cls: "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400",
   },
   {
     id: "damaged",
-    en: "Damaged",
-    ar: "تالف",
+    labelKey: "damaged",
     cls: "bg-rose-500/15 text-rose-500 dark:text-rose-400",
   },
   {
     id: "repair",
-    en: "Under Repair",
-    ar: "قيد الإصلاح",
+    labelKey: "repair",
     cls: "bg-amber-500/15 text-amber-500 dark:text-amber-400",
   },
   {
     id: "retired",
-    en: "Retired",
-    ar: "متقاعد",
+    labelKey: "retired",
     cls: "bg-slate-200 dark:bg-slate-800 text-slate-500",
   },
 ]
@@ -70,6 +61,7 @@ interface Props {
   consoles?: GameConsole[]
   setConsoles?: React.Dispatch<React.SetStateAction<GameConsole[]>>
   t?: (k: string) => string
+  lang?: string
   isRTL?: boolean
   toast?: (m: string) => void
   [key: string]: unknown
@@ -100,6 +92,8 @@ const EMPTY_RECORD: MaintenanceFormState = {
 export default function Controllers(props: Props) {
   const vm = useControllersViewModel()
   const isRTL = props.isRTL ?? true
+  const currentLang = props.lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
   const toast = props.toast ?? ((_m: string) => {})
 
   const controllers = vm.controllers
@@ -119,14 +113,10 @@ export default function Controllers(props: Props) {
   async function setStatus(id: string, status: ControllerStatus) {
     try {
       await vm.updateStatus(id, status)
-      toast(isRTL ? "تم تحديث حالة ذراع التحكم" : "Updated controller status")
+      toast(t("controllerStatusUpdatedToast"))
     } catch (err: any) {
       console.error("Error updating controller status:", err)
-      toast(
-        isRTL
-          ? `فشل تحديث الحالة: ${err.message || err}`
-          : `Failed to update status: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
@@ -136,91 +126,63 @@ export default function Controllers(props: Props) {
       await vm.addController(newCtrlId.trim())
       setNewCtrlId("")
       setShowAddCtrl(false)
-      toast(
-        isRTL ? "تمت إضافة ذراع التحكم بنجاح" : "Controller added successfully",
-      )
+      toast(t("controllerAddedSuccessToast"))
     } catch (err: any) {
       console.error("Error adding controller:", err)
-      toast(
-        isRTL
-          ? `فشل إضافة ذراع التحكم: ${err.message || err}`
-          : `Failed to add controller: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
   async function handleDeleteController(ctrl: Controller) {
     try {
       await vm.deleteController(ctrl.id, (props.currentUser as any)?.username || "Admin")
-      toast(isRTL ? `تم حذف ذراع التحكم (${ctrl.number}) بنجاح ✓` : `Controller (${ctrl.number}) deleted ✓`)
+      toast(`${t("controllerDeletedToast")} (${ctrl.number}) ✓`)
       setDeleteCtrlTarget(null)
     } catch (err: any) {
       console.error("Error deleting controller:", err)
-      toast(
-        isRTL
-          ? `فشل حذف ذراع التحكم: ${err.message || err}`
-          : `Failed to delete controller: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
   async function handleDeleteMaintenance(record: MaintenanceRecord) {
     try {
       await vm.deleteMaintenanceRecord(record.id, (props.currentUser as any)?.username || "Admin")
-      toast(isRTL ? "تم حذف سجل الصيانة بنجاح ✓" : "Maintenance record deleted ✓")
+      toast(t("maintenanceRecordDeletedToast"))
       setDeleteMaintTarget(null)
     } catch (err: any) {
       console.error("Error deleting maintenance record:", err)
-      toast(
-        isRTL
-          ? `فشل حذف سجل الصيانة: ${err.message || err}`
-          : `Failed to delete record: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
   async function toggleMaintenance(consoleId: number) {
     try {
       await vm.toggleConsoleMaintenance(consoleId)
-      toast(
-        isRTL
-          ? "تم تغيير وضع صيانة الجهاز"
-          : "Toggled console maintenance mode",
-      )
+      toast(t("pricingSavedSuccessToast"))
     } catch (err: any) {
       console.error("Error toggling maintenance:", err)
-      toast(
-        isRTL
-          ? `فشل تحديث الصيانة: ${err.message || err}`
-          : `Failed to update maintenance: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
   async function addRecord() {
     const errors: Record<string, string> = {}
     if (!form.date) {
-      errors.date = isRTL ? "يرجى اختيار التاريخ" : "Date is required"
+      errors.date = t("dateRequiredError")
     }
     if (!form.targetLabel.trim()) {
-      errors.targetLabel = isRTL
-        ? "يرجى تحديد الجهاز أو ذراع التحكم *"
-        : "Target device is required *"
+      errors.targetLabel = t("targetNameIdLabel")
     }
     if (!form.issue.trim()) {
-      errors.issue = isRTL
-        ? "يرجى وصف المشكلة والإصلاح *"
-        : "Issue description is required *"
+      errors.issue = t("issueDescriptionLabel")
     }
     const costStr = String(form.cost ?? "").trim()
     if (costStr === "") {
-      errors.cost = isRTL ? "يرجى إدخال التكلفة *" : "Cost is required *"
+      errors.cost = t("costRequiredError")
     } else {
       const parsedCost = parseFloat(costStr)
       if (isNaN(parsedCost) || parsedCost < 0) {
-        errors.cost = isRTL
-          ? "يرجى إدخال تكلفة صحيحة (0 أو أكثر)"
-          : "Please enter a valid cost (>= 0)"
+        errors.cost = t("costPriceValidError")
       }
     }
 
@@ -237,14 +199,10 @@ export default function Controllers(props: Props) {
       setForm(EMPTY_RECORD)
       setMaintErrors({})
       setShowForm(false)
-      toast(isRTL ? "تم تسجيل عملية الصيانة بنجاح ✓" : "Maintenance record saved ✓")
+      toast(t("maintenanceRecordSavedToast"))
     } catch (err: any) {
       console.error("Error adding maintenance record:", err)
-      toast(
-        isRTL
-          ? `فشل حفظ سجل الصيانة: ${err.message || err}`
-          : `Failed to save record: ${err.message || err}`,
-      )
+      toast(`${t("failedToLoadData")}: ${err.message || err}`)
     }
   }
 
@@ -261,14 +219,10 @@ export default function Controllers(props: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Gamepad2 className="w-5 h-5 text-[#0070d1]" />
-            <span>
-              {isRTL ? "وحدات التحكم والصيانة" : "Controllers & Maintenance"}
-            </span>
+            <span>{t("controllersAndMaintenance")}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {isRTL
-              ? "إدارة الأذرع، الصيانة، ووضع أجهزة الصيانة"
-              : "Manage controller pool and hardware maintenance logs"}
+            {t("controllersAndMaintenanceSub")}
           </p>
         </div>
 
@@ -277,6 +231,8 @@ export default function Controllers(props: Props) {
             onRefresh={vm.refresh}
             isRefreshing={vm.isRefreshing}
             isRTL={isRTL}
+            lang={currentLang}
+            t={t}
           />
           {subTab === "maintenance" ? (
             <Button
@@ -289,7 +245,7 @@ export default function Controllers(props: Props) {
               }}
               icon={<Plus className="w-4 h-4" />}
             >
-              {isRTL ? "إضافة سجل صيانة" : "Add Record"}
+              {t("addMaintenanceRecordBtn")}
             </Button>
           ) : (
             <Button
@@ -298,7 +254,7 @@ export default function Controllers(props: Props) {
               onClick={() => setShowAddCtrl(true)}
               icon={<Plus className="w-4 h-4" />}
             >
-              {isRTL ? "إضافة ذراع تحكم" : "Add Controller"}
+              {t("addControllerBtn")}
             </Button>
           )}
         </div>
@@ -309,12 +265,12 @@ export default function Controllers(props: Props) {
         {[
           {
             id: "controllers" as SubTab,
-            label: isRTL ? "أذرع التحكم" : "Controllers Pool",
+            label: t("controllersPoolTab"),
             icon: Gamepad2,
           },
           {
             id: "maintenance" as SubTab,
-            label: isRTL ? "سجلات الصيانة" : "Maintenance Log",
+            label: t("maintenanceLogTab"),
             icon: Wrench,
           },
         ].map((tab) => {
@@ -349,6 +305,8 @@ export default function Controllers(props: Props) {
               message={vm.error || undefined}
               onRetry={vm.refresh}
               isRTL={isRTL}
+              lang={currentLang}
+              t={t}
             />
           </div>
         ) : (
@@ -360,9 +318,7 @@ export default function Controllers(props: Props) {
                   {/* Maintenance Mode Toggles for Consoles */}
                   <div>
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                      {isRTL
-                        ? "وضع الصيانة للأجهزة (تعطيل/تفعيل)"
-                        : "Console Maintenance Mode (Lock/Unlock)"}
+                      {t("consoleMaintenanceModeLabel")}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -396,13 +352,7 @@ export default function Controllers(props: Props) {
                                     isMaint ? "text-rose-500" : "text-slate-400"
                                   }`}
                                 >
-                                  {isMaint
-                                    ? isRTL
-                                      ? "معطل للصيانة"
-                                      : "In Maintenance"
-                                    : isRTL
-                                      ? "يعمل بشكل طبيعي"
-                                      : "Operating Normally"}
+                                  {isMaint ? t("underMaintenance") : t("operatingNormally")}
                                 </div>
                               </div>
                             </div>
@@ -438,9 +388,7 @@ export default function Controllers(props: Props) {
                   {/* Controller Pool Table & Mobile Cards */}
                   <div>
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                      {isRTL
-                        ? "وحدات التحكم في الصالة (Pool)"
-                        : "Controllers Pool"}
+                      {t("controllersPoolTab")}
                     </div>
 
                     {/* Desktop Table View */}
@@ -450,16 +398,16 @@ export default function Controllers(props: Props) {
                           <thead>
                             <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-[#141926]">
                               <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                                {isRTL ? "رقم الذراع" : "Controller #"}
+                                {t("controllerCol")}
                               </th>
                               <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                                {isRTL ? "مخصص للجهاز" : "Assigned To"}
+                                {t("assignedToCol")}
                               </th>
                               <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                                {isRTL ? "الحالة الفنية" : "Condition"}
+                                {t("conditionCol")}
                               </th>
                               <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-end">
-                                {isRTL ? "إجراءات" : "Actions"}
+                                {t("actionsCol")}
                               </th>
                             </tr>
                           </thead>
@@ -470,9 +418,7 @@ export default function Controllers(props: Props) {
                                   colSpan={4}
                                   className="px-4 py-8 text-center text-slate-400 text-xs sm:text-sm"
                                 >
-                                  {isRTL
-                                    ? "لا توجد أذرع تحكم مسجلة في النظام"
-                                    : "No controllers registered in the system"}
+                                  {t("noControllersFound")}
                                 </td>
                               </tr>
                             ) : (
@@ -480,7 +426,7 @@ export default function Controllers(props: Props) {
                                 const assignedCon = ctrl.assignedTo
                                   ? consoles.find((c) => c.id === ctrl.assignedTo)
                                   : null
-                                const statusObj = CTRL_STATUS.find(
+                                const statusObj = CTRL_STATUS_CONFIG.find(
                                   (s) => s.id === ctrl.status,
                                 )
 
@@ -499,9 +445,7 @@ export default function Controllers(props: Props) {
                                         </span>
                                       ) : (
                                         <span className="text-slate-400 font-medium">
-                                          {isRTL
-                                            ? "— متوفر في الصالة"
-                                            : "— Shared Pool"}
+                                          — {t("sharedPool")}
                                         </span>
                                       )}
                                     </td>
@@ -516,13 +460,13 @@ export default function Controllers(props: Props) {
                                         }
                                         className={`text-xs px-3 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
                                       >
-                                        {CTRL_STATUS.map((s) => (
+                                        {CTRL_STATUS_CONFIG.map((s) => (
                                           <option
                                             key={s.id}
                                             value={s.id}
                                             className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                           >
-                                            {isRTL ? s.ar : s.en}
+                                            {t(s.labelKey)}
                                           </option>
                                         ))}
                                       </select>
@@ -531,7 +475,7 @@ export default function Controllers(props: Props) {
                                       <button
                                         type="button"
                                         onClick={() => setDeleteCtrlTarget(ctrl)}
-                                        title={isRTL ? "حذف ذراع التحكم" : "Delete controller"}
+                                        title={t("deleteController")}
                                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -550,16 +494,14 @@ export default function Controllers(props: Props) {
                     <div className="sm:hidden grid grid-cols-1 gap-2.5">
                       {controllers.length === 0 ? (
                         <div className="p-6 text-center text-slate-400 text-xs sm:text-sm bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl">
-                          {isRTL
-                            ? "لا توجد أذرع تحكم مسجلة في النظام"
-                            : "No controllers registered in the system"}
+                          {t("noControllersFound")}
                         </div>
                       ) : (
                         controllers.map((ctrl) => {
                           const assignedCon = ctrl.assignedTo
                             ? consoles.find((c) => c.id === ctrl.assignedTo)
                             : null
-                          const statusObj = CTRL_STATUS.find(
+                          const statusObj = CTRL_STATUS_CONFIG.find(
                             (s) => s.id === ctrl.status,
                           )
 
@@ -579,7 +521,7 @@ export default function Controllers(props: Props) {
                                     </span>
                                   ) : (
                                     <span className="text-slate-400">
-                                      {isRTL ? "متوفر في الصالة" : "Shared Pool"}
+                                      {t("sharedPool")}
                                     </span>
                                   )}
                                 </div>
@@ -596,20 +538,20 @@ export default function Controllers(props: Props) {
                                   }
                                   className={`text-xs px-2.5 py-1.5 rounded-xl font-bold border-0 focus:outline-none cursor-pointer ${statusObj?.cls}`}
                                 >
-                                  {CTRL_STATUS.map((s) => (
+                                  {CTRL_STATUS_CONFIG.map((s) => (
                                     <option
                                       key={s.id}
                                       value={s.id}
                                       className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                     >
-                                      {isRTL ? s.ar : s.en}
+                                      {t(s.labelKey)}
                                     </option>
                                   ))}
                                 </select>
                                 <button
                                   type="button"
                                   onClick={() => setDeleteCtrlTarget(ctrl)}
-                                  title={isRTL ? "حذف ذراع التحكم" : "Delete controller"}
+                                  title={t("deleteController")}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -632,11 +574,7 @@ export default function Controllers(props: Props) {
                       <Search className="w-4 h-4 text-slate-400 absolute start-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="search"
-                        placeholder={
-                          isRTL
-                            ? "بحث برقم الجهاز أو الذراع…"
-                            : "Filter by target…"
-                        }
+                        placeholder={t("filterByTargetPlaceholder")}
                         value={filterTarget}
                         onChange={(e) => setFilterTarget(e.target.value)}
                         className="w-full ps-9 pe-3 py-2 rounded-xl text-xs sm:text-sm bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
@@ -644,8 +582,7 @@ export default function Controllers(props: Props) {
                     </div>
 
                     <div className="text-xs text-slate-400 font-semibold">
-                      {filteredRecords.length}{" "}
-                      {isRTL ? "سجلات صيانة مسجلة" : "records logged"}
+                      {filteredRecords.length} {t("recordsLogged")}
                     </div>
                   </div>
 
@@ -656,22 +593,22 @@ export default function Controllers(props: Props) {
                         <thead>
                           <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50 dark:bg-[#141926]">
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                              {isRTL ? "التاريخ" : "Date"}
+                              {t("date")}
                             </th>
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                              {isRTL ? "الجهاز / الذراع" : "Target"}
+                              {t("assignedToCol")}
                             </th>
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                              {isRTL ? "وصف العطل / الصيانة" : "Issue / Action"}
+                              {t("details")}
                             </th>
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                              {isRTL ? "التكلفة" : "Cost"}
+                              {t("cost")}
                             </th>
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-start">
-                              {isRTL ? "المسؤول" : "Resolved By"}
+                              {t("staff")}
                             </th>
                             <th className="px-4 py-3 font-semibold text-slate-500 uppercase tracking-wider text-end">
-                              {isRTL ? "إجراءات" : "Actions"}
+                              {t("actionsCol")}
                             </th>
                           </tr>
                         </thead>
@@ -682,9 +619,7 @@ export default function Controllers(props: Props) {
                                 colSpan={6}
                                 className="px-4 py-8 text-center text-slate-400 text-xs sm:text-sm"
                               >
-                                {isRTL
-                                  ? "لا توجد سجلات صيانة مسجلة حتى الآن"
-                                  : "No maintenance records found"}
+                                {t("noMaintenanceRecords")}
                               </td>
                             </tr>
                           ) : (
@@ -711,7 +646,7 @@ export default function Controllers(props: Props) {
                                   {record.issue}
                                 </td>
                                 <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
-                                  {money(record.cost, isRTL)}
+                                  {money(record.cost, currentLang)}
                                 </td>
                                 <td className="px-4 py-3 text-slate-500">
                                   {record.resolvedBy}
@@ -720,7 +655,7 @@ export default function Controllers(props: Props) {
                                   <button
                                     type="button"
                                     onClick={() => setDeleteMaintTarget(record)}
-                                    title={isRTL ? "حذف سجل الصيانة" : "Delete record"}
+                                    title={t("deleteController")}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer inline-flex items-center justify-center"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -738,9 +673,7 @@ export default function Controllers(props: Props) {
                   <div className="sm:hidden space-y-3">
                     {filteredRecords.length === 0 ? (
                       <div className="p-6 text-center text-slate-400 text-xs sm:text-sm bg-white dark:bg-[#0f131d] border border-slate-200 dark:border-slate-800 rounded-2xl">
-                        {isRTL
-                          ? "لا توجد سجلات صيانة مسجلة حتى الآن"
-                          : "No maintenance records found"}
+                        {t("noMaintenanceRecords")}
                       </div>
                     ) : (
                       filteredRecords.map((record) => (
@@ -759,7 +692,7 @@ export default function Controllers(props: Props) {
                               {record.targetLabel}
                             </span>
                             <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                              {money(record.cost, isRTL)}
+                              {money(record.cost, currentLang)}
                             </span>
                           </div>
 
@@ -776,7 +709,7 @@ export default function Controllers(props: Props) {
                               <button
                                 type="button"
                                 onClick={() => setDeleteMaintTarget(record)}
-                                title={isRTL ? "حذف سجل الصيانة" : "Delete record"}
+                                title={t("deleteController")}
                                 className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -799,12 +732,8 @@ export default function Controllers(props: Props) {
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         isRTL={isRTL}
-        title={isRTL ? "إضافة سجل صيانة" : "Add Maintenance Record"}
-        subtitle={
-          isRTL
-            ? "توثيق العطل وتكلفة الإصلاح"
-            : "Log repair costs and technician"
-        }
+        title={t("addMaintenanceRecordTitle")}
+        subtitle={t("addMaintenanceSubtitle")}
         icon={<Wrench className="w-5 h-5 text-[#0070d1]" />}
         maxWidth="md"
       >
@@ -812,7 +741,7 @@ export default function Controllers(props: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "التاريخ" : "Date"}
+                {t("date")}
               </label>
               <input
                 type="date"
@@ -825,7 +754,7 @@ export default function Controllers(props: Props) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "النوع" : "Type"}
+                {t("typeLabel")}
               </label>
               <select
                 value={form.targetType}
@@ -837,19 +766,15 @@ export default function Controllers(props: Props) {
                 }
                 className="w-full rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
               >
-                <option value="console">
-                  {isRTL ? "جهاز بلايستيشن" : "Console"}
-                </option>
-                <option value="controller">
-                  {isRTL ? "ذراع تحكم" : "Controller"}
-                </option>
+                <option value="console">{t("consoleTypeOption")}</option>
+                <option value="controller">{t("controllerTypeOption")}</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isRTL ? "اسم أو رقم الهدف *" : "Target Name / ID *"}
+              {t("targetNameIdLabel")}
             </label>
             <input
               type="text"
@@ -868,9 +793,7 @@ export default function Controllers(props: Props) {
                   })
                 }
               }}
-              placeholder={
-                isRTL ? "مثال: PS5 — 02 أو ذراع C-04" : "e.g. PS5 — 02"
-              }
+              placeholder={t("consoleNamePlaceholder")}
               className={`w-full rounded-xl bg-slate-50 dark:bg-[#141926] border ${
                 maintErrors.targetLabel
                   ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
@@ -887,7 +810,7 @@ export default function Controllers(props: Props) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isRTL ? "وصف المشكلة والإصلاح *" : "Issue Description & Repair *"}
+              {t("issueDescriptionLabel")}
             </label>
             <input
               type="text"
@@ -902,11 +825,7 @@ export default function Controllers(props: Props) {
                   })
                 }
               }}
-              placeholder={
-                isRTL
-                  ? "تغيير أنالوج، تنظيف مروحة، تحديث سوفتوير…"
-                  : "Replaced thumbsticks, fan cleaning…"
-              }
+              placeholder={t("issueDescriptionPlaceholder")}
               className={`w-full rounded-xl bg-slate-50 dark:bg-[#141926] border ${
                 maintErrors.issue
                   ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
@@ -924,7 +843,7 @@ export default function Controllers(props: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "التكلفة (ج.م) *" : "Cost (EGP) *"}
+                {t("cost")} *
               </label>
               <input
                 type="number"
@@ -959,7 +878,7 @@ export default function Controllers(props: Props) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "المسؤول / الفني" : "Technician / Staff"}
+                {t("technicianStaffLabel")}
               </label>
               <input
                 type="text"
@@ -967,7 +886,7 @@ export default function Controllers(props: Props) {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, resolvedBy: e.target.value }))
                 }
-                placeholder={isRTL ? "اسم الفني" : "Technician name"}
+                placeholder={t("technicianPlaceholder")}
                 className="w-full rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
               />
             </div>
@@ -979,14 +898,14 @@ export default function Controllers(props: Props) {
               onClick={() => setShowForm(false)}
               className="flex-1"
             >
-              {isRTL ? "إلغاء" : "Cancel"}
+              {t("cancel")}
             </Button>
             <Button
               variant="primary"
               onClick={addRecord}
               className="flex-1"
             >
-              {isRTL ? "حفظ السجل" : "Save Record"}
+              {t("saveRecord")}
             </Button>
           </div>
         </div>
@@ -997,19 +916,15 @@ export default function Controllers(props: Props) {
         isOpen={showAddCtrl}
         onClose={() => setShowAddCtrl(false)}
         isRTL={isRTL}
-        title={isRTL ? "إضافة ذراع تحكم جديدة" : "Add New Controller"}
-        subtitle={
-          isRTL
-            ? "إدخال رقم أو معرّف الذراع الجديد"
-            : "Enter controller badge code or number"
-        }
+        title={t("addNewControllerTitle")}
+        subtitle={t("addNewControllerSubtitle")}
         icon={<Gamepad2 className="w-5 h-5 text-[#0070d1]" />}
         maxWidth="sm"
       >
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isRTL ? "رقم / كود الذراع" : "Controller Number / Tag"}
+              {t("controllerNumberTagLabel")}
             </label>
             <input
               type="text"
@@ -1027,7 +942,7 @@ export default function Controllers(props: Props) {
               onClick={() => setShowAddCtrl(false)}
               className="flex-1"
             >
-              {isRTL ? "إلغاء" : "Cancel"}
+              {t("cancel")}
             </Button>
             <Button
               variant="primary"
@@ -1035,7 +950,7 @@ export default function Controllers(props: Props) {
               disabled={!newCtrlId.trim()}
               className="flex-1"
             >
-              {isRTL ? "إضافة" : "Add"}
+              {t("add")}
             </Button>
           </div>
         </div>
@@ -1047,19 +962,13 @@ export default function Controllers(props: Props) {
           isOpen={!!deleteCtrlTarget}
           onClose={() => setDeleteCtrlTarget(null)}
           isRTL={isRTL}
-          title={isRTL ? "تأكيد حذف ذراع التحكم" : "Confirm Delete Controller"}
-          subtitle={
-            isRTL
-              ? `هل أنت متأكد من حذف ذراع التحكم (${deleteCtrlTarget.number}) نهائياً؟`
-              : `Are you sure you want to delete controller (${deleteCtrlTarget.number})?`
-          }
+          title={t("confirmDeleteControllerTitle")}
+          subtitle={`${t("confirmDeleteControllerTitle")} (${deleteCtrlTarget.number})`}
           maxWidth="sm"
         >
           <div className="space-y-4 pt-2">
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {isRTL
-                ? "سيتم حذف هذا الذراع نهائياً من النظام وقاعدة البيانات. لا يمكن التراجع عن هذا الإجراء."
-                : "This controller will be permanently deleted from the database. This action cannot be undone."}
+              {t("confirmDeleteControllerPrompt")}
             </p>
             <div className="flex items-center gap-2 justify-end pt-2">
               <Button
@@ -1067,14 +976,14 @@ export default function Controllers(props: Props) {
                 size="sm"
                 onClick={() => setDeleteCtrlTarget(null)}
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </Button>
               <Button
                 variant="danger"
                 size="sm"
                 onClick={() => handleDeleteController(deleteCtrlTarget)}
               >
-                {isRTL ? "تأكيد الحذف" : "Delete Controller"}
+                {t("delete")}
               </Button>
             </div>
           </div>
@@ -1087,19 +996,13 @@ export default function Controllers(props: Props) {
           isOpen={!!deleteMaintTarget}
           onClose={() => setDeleteMaintTarget(null)}
           isRTL={isRTL}
-          title={isRTL ? "تأكيد حذف سجل الصيانة" : "Confirm Delete Maintenance Record"}
-          subtitle={
-            isRTL
-              ? `هل أنت متأكد من حذف سجل الصيانة لـ (${deleteMaintTarget.targetLabel})؟`
-              : `Are you sure you want to delete maintenance record for (${deleteMaintTarget.targetLabel})?`
-          }
+          title={t("confirmDeleteMaintenanceTitle")}
+          subtitle={`${t("confirmDeleteMaintenanceTitle")} (${deleteMaintTarget.targetLabel})`}
           maxWidth="sm"
         >
           <div className="space-y-4 pt-2">
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {isRTL
-                ? "سيتم حذف سجل الصيانة هذا والتكلفة المرتبطة به نهائياً من قاعدة البيانات."
-                : "This maintenance record and its associated expense will be permanently deleted."}
+              {t("confirmDeleteMaintenancePrompt")}
             </p>
             <div className="flex items-center gap-2 justify-end pt-2">
               <Button
@@ -1107,14 +1010,14 @@ export default function Controllers(props: Props) {
                 size="sm"
                 onClick={() => setDeleteMaintTarget(null)}
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </Button>
               <Button
                 variant="danger"
                 size="sm"
                 onClick={() => handleDeleteMaintenance(deleteMaintTarget)}
               >
-                {isRTL ? "تأكيد الحذف" : "Delete Record"}
+                {t("deleteMaintenanceRecordBtn")}
               </Button>
             </div>
           </div>

@@ -26,8 +26,7 @@ import {
   RefreshButton,
 } from "../components/states"
 import { PullToRefresh } from "../components/common/PullToRefresh"
-
-import { translations, type TranslationKey } from "@/i18n"
+import { createTranslator, localize } from "@/i18n"
 
 interface CartEntry {
   item: MenuItem
@@ -37,6 +36,7 @@ interface CartEntry {
 interface Props {
   t?: (k: string) => string
   isRTL: boolean
+  lang?: "en" | "ar"
   currentUser?: { name?: string }
   toast?: (msg: string) => void
   [key: string]: unknown
@@ -49,6 +49,7 @@ function ReceiptView({
   promoLabel,
   payments,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onDone,
 }: {
   entries: CartEntry[]
@@ -57,9 +58,10 @@ function ReceiptView({
   promoLabel: string
   payments?: PaymentSplit[]
   isRTL: boolean
+  lang?: "en" | "ar"
   onDone: () => void
 }) {
-  const t = (k: TranslationKey) => translations[isRTL ? "ar" : "en"][k] || k
+  const t = createTranslator(lang)
   const subtotal = entries.reduce((s, e) => s + e.item.price * e.qty, 0)
   const now = new Date()
 
@@ -86,7 +88,7 @@ function ReceiptView({
               className="flex justify-between items-center text-xs sm:text-sm p-2 rounded-xl bg-slate-50 dark:bg-[#141926]"
             >
               <span className="text-slate-700 dark:text-slate-200 font-medium">
-                {isRTL && e.item.nameAr ? e.item.nameAr : e.item.name} × {e.qty}
+                {localize(e.item, lang)} × {e.qty}
               </span>
               <span className="font-mono font-bold text-slate-900 dark:text-white">
                 {money(e.item.price * e.qty, isRTL)}
@@ -152,9 +154,8 @@ function ReceiptView({
   )
 }
 
-export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props) {
-  const t = (k: TranslationKey) =>
-    propT ? (propT(k) as string) : (translations[isRTL ? "ar" : "en"][k] || k)
+export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en", toast, t: propT }: Props) {
+  const t = propT || createTranslator(lang)
   const {
     menuItems,
     categories,
@@ -171,16 +172,16 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
     retry,
     addItem,
     changeQty,
+    clearCart,
     applyPromo,
     checkout,
-    clearCart,
   } = usePOSViewModel()
 
+  const { paymentMethods } = usePaymentMethods()
   const [selCat, setSelCat] = useState<string>("")
-  const [showReceipt, setShowReceipt] = useState(false)
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [lastReceipt, setLastReceipt] = useState<{
+  const [lastSaleReceipt, setLastSaleReceipt] = useState<{
     entries: CartEntry[]
     total: number
     discount: number
@@ -188,11 +189,10 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
     payments?: PaymentSplit[]
   } | null>(null)
 
-  // Payment method selection & split state
-  const { paymentMethods } = usePaymentMethods()
+  // Payment Selection and Split Modal
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
-  const [selectedMethodId, setSelectedMethodId] = useState("pm_cash")
-  const [isSplit, setIsSplit] = useState(false)
+  const [selectedMethodId, setSelectedMethodId] = useState<string>("pm_cash")
+  const [isSplit, setIsSplit] = useState<boolean>(false)
   const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({})
 
   const activePaymentMethods =
@@ -221,15 +221,23 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
           },
         ]
 
-  const buildPosPayments = (): PaymentSplit[] => {
+  const filtered = selCat
+    ? menuItems.filter((m) => m.category === selCat)
+    : menuItems
+
+  const getMethodIcon = (type: string, isCash: boolean) => {
+    if (isCash || type === "cash") return <Banknote className="w-4 h-4" />
+    if (type === "ewallet") return <Wallet className="w-4 h-4" />
+    return <CreditCard className="w-4 h-4" />
+  }
+
+  const buildPayments = (): PaymentSplit[] => {
     if (!isSplit) {
       const method = activePaymentMethods.find((m) => m.id === selectedMethodId)
       return [
         {
           paymentMethodId: selectedMethodId,
-          paymentMethodName: isRTL
-            ? method?.nameAr || method?.name || "كاش"
-            : method?.name || "Cash",
+          paymentMethodName: localize(method, lang) || (selectedMethodId === "pm_cash" ? t("cash") : ""),
           amount: totals.total,
           isCash: method ? method.isCash : selectedMethodId === "pm_cash",
         },
@@ -241,7 +249,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
         const val = parseFloat(splitAmounts[m.id] || "0")
         return {
           paymentMethodId: m.id,
-          paymentMethodName: isRTL ? m.nameAr || m.name : m.name,
+          paymentMethodName: localize(m, lang),
           amount: val > 0 ? val : 0,
           isCash: m.isCash,
         }
@@ -262,71 +270,64 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
     return Math.abs(sum - totals.total) < 0.01 && sum > 0
   }
 
-  const filtered = selCat
-    ? menuItems.filter((i) => i.category === selCat)
-    : menuItems
-
-  async function handleCheckout() {
-    if (cart.length === 0 || isProcessing) return
+  const handleCheckout = async () => {
+    if (cart.length === 0) return
     setIsProcessing(true)
+
+    const finalPayments = buildPayments()
+
     try {
-      const splits = buildPosPayments()
-      const summary = await checkout(currentUser?.name || "Cashier", splits)
-      setLastReceipt({
+      await checkout(
+        (currentUser as any)?.name || "Staff",
+        undefined,
+        finalPayments,
+      )
+      setLastSaleReceipt({
         entries: [...cart],
         total: totals.total,
         discount: totals.discount,
-        promoLabel: promoCode.toUpperCase() || "PROMO",
-        payments: splits,
+        promoLabel: promoApplied ? promoCode : "",
+        payments: finalPayments,
       })
       clearCart()
       setIsPaymentModalOpen(false)
-      setShowReceipt(true)
+      setIsSplit(false)
+      setSplitAmounts({})
+      if (toast) toast(t("saleCompleted"))
     } catch (err: any) {
-      console.error("Error processing sale:", err)
-      toast?.(
-        isRTL
-          ? `فشل إتمام البيع: ${err.message || err}`
-          : `Failed to process sale: ${err.message || err}`,
-      )
+      if (toast) toast(err.message || t("cartEmpty"))
     } finally {
       setIsProcessing(false)
     }
   }
 
-  function handleDone() {
-    setLastReceipt(null)
-    setShowReceipt(false)
-    setMobileCartOpen(false)
-  }
-
-  const getMethodIcon = (type: string, isCash: boolean) => {
-    if (isCash || type === "cash") return <Banknote className="w-4 h-4" />
-    if (type === "ewallet") return <Wallet className="w-4 h-4" />
-    return <CreditCard className="w-4 h-4" />
-  }
-
-  if (showReceipt && lastReceipt) {
+  if (lastSaleReceipt) {
     return (
       <ReceiptView
-        entries={lastReceipt.entries}
-        total={lastReceipt.total}
-        discount={lastReceipt.discount}
-        promoLabel={lastReceipt.promoLabel}
-        payments={lastReceipt.payments}
+        entries={lastSaleReceipt.entries}
+        total={lastSaleReceipt.total}
+        discount={lastSaleReceipt.discount}
+        promoLabel={lastSaleReceipt.promoLabel}
+        payments={lastSaleReceipt.payments}
         isRTL={isRTL}
-        onDone={handleDone}
+        lang={lang}
+        onDone={() => setLastSaleReceipt(null)}
       />
     )
   }
 
   return (
     <div className="flex h-full bg-slate-50 dark:bg-[#07090e] overflow-hidden select-none relative">
-      {/* Left / Main area: Item browser */}
-      <PullToRefresh onRefresh={refresh} isRTL={isRTL} className="flex-1">
+      {/* Left / Center: Items Grid */}
+      <PullToRefresh
+        onRefresh={refresh}
+        isRTL={isRTL}
+        lang={lang}
+        className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto"
+      >
         {/* Category Filter Pills & Refresh */}
-        <div className="bg-white/80 dark:bg-[#0e121b]/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-1">
+        <div className="sticky top-0 z-10 bg-white/80 dark:bg-[#0b0e17]/80 backdrop-blur-md px-4 sm:px-6 py-3 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
             <button
               type="button"
               onClick={() => setSelCat("")}
@@ -336,7 +337,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
-              {isRTL ? "جميع الأصناف" : "All Categories"}
+              {t("allCategories")}
             </button>
             {categories.map((cat) => (
               <button
@@ -349,7 +350,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
-                {isRTL ? cat.nameAr : cat.name}
+                {localize(cat, lang)}
               </button>
             ))}
           </div>
@@ -358,6 +359,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
             onRefresh={refresh}
             isRefreshing={isRefreshing}
             isRTL={isRTL}
+            lang={lang}
           />
         </div>
 
@@ -377,6 +379,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
               message={error || undefined}
               onRetry={retry}
               isRTL={isRTL}
+              lang={lang}
             />
           </div>
         )}
@@ -384,15 +387,11 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
         {status === "empty" && (
           <div className="p-4 sm:p-6">
             <EmptyStateCard
-              title={isRTL ? "لا توجد أصناف للبيع" : "No items available"}
-              description={
-                isRTL
-                  ? "لم يتم العثور على أي أصناف في القائمة حالياً."
-                  : "No menu items found in inventory."
-              }
-              actionLabel={isRTL ? "تحديث" : "Refresh"}
+              title={t("noOrdersRecorded")}
+              actionLabel={t("refresh")}
               onAction={refresh}
               isRTL={isRTL}
+              lang={lang}
             />
           </div>
         )}
@@ -400,9 +399,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
         {status === "success" && (
           <div className="p-4 sm:p-6 pb-28 lg:pb-8">
             <div className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">
-              {isRTL
-                ? `${filtered.length} صنف متاح`
-                : `${filtered.length} items available`}
+              {`${filtered.length} ${t("itemsAvailable")}`}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
@@ -439,7 +436,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
 
                     <div>
                       <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                        {isRTL && item.nameAr ? item.nameAr : item.name}
+                        {localize(item, lang)}
                       </div>
                       <div className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400 mt-1">
                         {money(item.price, isRTL)}
@@ -448,14 +445,12 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                         <div className="text-amber-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
                           <span>
-                            {isRTL
-                              ? `المتبقي: ${item.stock}`
-                              : `Stock: ${item.stock}`}
+                            {`${t("inStock")}: ${item.stock}`}
                           </span>
                         </div>
                       ) : !isTracked ? (
                         <div className="text-slate-400 text-[10px] font-semibold mt-1 flex items-center gap-1">
-                          <span>{isRTL ? "غير محدود" : "Unlimited"}</span>
+                          <span>{t("unlimited")}</span>
                         </div>
                       ) : null}
                     </div>
@@ -477,7 +472,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
           >
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
-              <span>{isRTL ? "عرض السلة" : "View Cart"}</span>
+              <span>{t("viewCart")}</span>
               <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs">
                 {totalItemsCount}
               </span>
@@ -506,7 +501,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
           <div className="flex items-center gap-2">
             <ShoppingCart className="w-4 h-4 text-[#0070d1]" />
             <span className="font-bold text-sm text-slate-900 dark:text-white">
-              {isRTL ? "طلب البيع الحالي" : "Current Order"}
+              {t("currentOrder")}
             </span>
             <span className="text-xs text-slate-400 font-mono">
               ({totalItemsCount})
@@ -528,9 +523,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
             <div className="text-center py-16 text-slate-400">
               <ShoppingCart className="w-10 h-10 mx-auto opacity-30 mb-2 stroke-1" />
               <p className="text-xs">
-                {isRTL
-                  ? "السلة فارغة، اختر الأصناف للإضافة"
-                  : "Cart is empty. Tap items to add."}
+                {t("cartEmpty")}
               </p>
             </div>
           ) : (
@@ -541,7 +534,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
               >
                 <div className="min-w-0 flex-1 pe-2">
                   <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                    {isRTL && item.nameAr ? item.nameAr : item.name}
+                    {localize(item, lang)}
                   </div>
                   <div className="text-xs font-mono text-[#0070d1] dark:text-sky-400">
                     {money(item.price, isRTL)}
@@ -577,7 +570,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder={isRTL ? "كود الخصم (PLAY10)" : "Promo code (PLAY10)"}
+              placeholder={t("promoCodePlaceholder")}
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value)}
               disabled={promoApplied}
@@ -589,33 +582,27 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
               onClick={() => applyPromo(promoCode)}
               disabled={promoApplied || !promoCode.trim()}
             >
-              {promoApplied
-                ? isRTL
-                  ? "مُطبّق"
-                  : "Applied"
-                : isRTL
-                  ? "تطبيق"
-                  : "Apply"}
+              {t("apply")}
             </Button>
           </div>
 
           <div className="space-y-1.5 text-xs text-slate-500">
             <div className="flex justify-between">
-              <span>{isRTL ? "المجموع الجزئي" : "Subtotal"}</span>
+              <span>{t("subtotal")}</span>
               <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
                 {money(totals.subtotal, isRTL)}
               </span>
             </div>
             {totals.discount > 0 && (
               <div className="flex justify-between text-emerald-500 font-semibold">
-                <span>{isRTL ? "الخصم (10%)" : "Discount (10%)"}</span>
+                <span>{t("discountPercent")}</span>
                 <span className="font-mono">
                   −{money(totals.discount, isRTL)}
                 </span>
               </div>
             )}
             <div className="flex justify-between items-center text-base font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
-              <span>{isRTL ? "الإجمالي" : "Total"}</span>
+              <span>{t("total")}</span>
               <span className="font-mono text-xl text-[#0070d1] dark:text-sky-400">
                 {money(totals.total, isRTL)}
               </span>
@@ -635,7 +622,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
             }}
             icon={<Receipt className="w-4 h-4" />}
           >
-            {isRTL ? "متابعة الدفع" : "Proceed to Payment"}
+            {t("proceedToPayment")}
           </Button>
         </div>
       </div>
@@ -645,12 +632,8 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         isRTL={isRTL}
-        title={isRTL ? "إتمام عملية الدفع" : "Complete Sale Payment"}
-        subtitle={
-          isRTL
-            ? "اختر طريقة الدفع أو قسّم المبلغ بين الكاش والمحفظة الإلكترونية"
-            : "Choose payment method or split between cash and e-wallet"
-        }
+        title={t("completeSalePayment")}
+        subtitle={t("specifyMethodAmounts")}
         icon={<Receipt className="w-5 h-5 text-[#0070d1]" />}
         maxWidth="md"
       >
@@ -659,21 +642,21 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
           <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0070d1]/10 border border-[#0070d1]/20">
             <div>
               <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {isRTL ? "إجمالي المبلغ المطلوب" : "Total Due"}
+                {t("totalDue")}
               </div>
               <div className="text-xl font-black font-mono text-[#0070d1] dark:text-sky-400">
                 {money(totals.total, isRTL)}
               </div>
             </div>
             <div className="text-end text-xs text-slate-400 font-mono">
-              {totalItemsCount} {isRTL ? "عناصر في السلة" : "items"}
+              {totalItemsCount} {t("itemsInCart")}
             </div>
           </div>
 
           {/* Payment Mode Selector: Single vs Split */}
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              {isRTL ? "طريقة التحصيل:" : "Payment Mode:"}
+              {t("paymentModeLabel")}
             </span>
             <div className="flex bg-slate-100 dark:bg-[#141926] p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
               <button
@@ -685,7 +668,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                     : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                {isRTL ? "طريقة واحدة" : "Single"}
+                {t("singleMethod")}
               </button>
               <button
                 type="button"
@@ -736,7 +719,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                     </div>
                     <div className="flex-1">
                       <div className="whitespace-nowrap font-bold">
-                        {isRTL ? m.nameAr || m.name : m.name}
+                        {localize(m, lang)}
                       </div>
                       {m.isCash && (
                         <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal whitespace-nowrap">
@@ -764,7 +747,7 @@ export default function POSSales({ currentUser, isRTL, toast, t: propT }: Props)
                     <div className="flex items-center gap-2 min-w-[130px] text-xs font-bold text-slate-800 dark:text-slate-200 shrink-0">
                       {getMethodIcon(m.type, m.isCash)}
                       <span className="whitespace-nowrap font-bold">
-                        {isRTL ? m.nameAr || m.name : m.name}
+                        {localize(m, lang)}
                       </span>
                     </div>
 

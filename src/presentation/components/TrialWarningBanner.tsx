@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react"
 import { AlertTriangle, Clock, RefreshCw } from "lucide-react"
 import type { TrialState } from "@/domain"
+import { createTranslator } from "@/i18n"
 
 interface Props {
   trialState: TrialState | null
   isRTL: boolean
+  lang?: "en" | "ar"
   onRefresh?: () => void
 }
 
 export default function TrialWarningBanner({
   trialState,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onRefresh,
 }: Props) {
+  const t = createTranslator(lang)
   const [now, setNow] = useState(Date.now())
 
   // Keep countdown updated in real-time every 10 seconds
@@ -42,29 +46,21 @@ export default function TrialWarningBanner({
       <div className="flex items-center gap-2 flex-wrap font-medium">
         <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[11px] uppercase tracking-wider border border-amber-500/30 shrink-0 animate-pulse">
           <AlertTriangle className="w-3.5 h-3.5" />
-          <span>{isRTL ? "نسخة تجريبية" : "Trial Version"}</span>
+          <span>{t("trialVersion")}</span>
         </span>
 
         <span className="flex items-center gap-1">
           <Clock className="w-3.5 h-3.5 opacity-75 shrink-0" />
           <span>
-            {isRTL
-              ? `الوقت المتبقي: ${days} يوم و ${hours} ساعة و ${minutes} دقيقة`
-              : `Time remaining: ${days}d ${hours}h ${minutes}m`}
+            {`${t("remaining")}: ${days}d ${hours}h ${minutes}m`}
           </span>
-        </span>
-
-        <span className="hidden md:inline text-[11px] text-amber-700/80 dark:text-amber-400/80">
-          {isRTL
-            ? "— يرجى التواصل مع الدعم لتفعيل الاشتراك الكامل"
-            : "— Please contact support to activate full subscription"}
         </span>
       </div>
 
       {onRefresh && (
         <button
           onClick={onRefresh}
-          title={isRTL ? "تحديث حالة الترخيص" : "Refresh license status"}
+          title={t("refreshLicenseStatus")}
           className="p-1 rounded-md hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-colors shrink-0"
         >
           <RefreshCw className="w-3 h-3" />

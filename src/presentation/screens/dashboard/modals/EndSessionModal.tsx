@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import {
   Square,
   CheckCircle2,
@@ -9,7 +9,6 @@ import {
   Wallet,
   CreditCard,
   Split,
-  Pause,
 } from "lucide-react"
 import type { GameConsole, MenuItem, PricingTier, PaymentSplit } from "@/domain"
 import { money } from "@/domain"
@@ -17,12 +16,13 @@ import { getElapsedMs, calcCost, tabSum, formatTime } from "../ConsoleCard"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
 import { usePaymentMethods } from "@/presentation/hooks"
-import { translations, type TranslationKey } from "@/i18n"
+import { createTranslator, localize } from "@/i18n"
 
 interface EndSessionModalProps {
   con: GameConsole | null
   tiers?: PricingTier[]
   isRTL: boolean
+  lang?: "en" | "ar"
   menuItems?: MenuItem[]
   onClose: () => void
   onConfirm: (amount: number, payments: PaymentSplit[]) => void
@@ -31,10 +31,11 @@ interface EndSessionModalProps {
 export default function EndSessionModal({
   con,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onClose,
   onConfirm,
 }: EndSessionModalProps) {
-  const t = (k: TranslationKey) => translations[isRTL ? "ar" : "en"][k] || k
+  const t = createTranslator(lang)
   const { paymentMethods } = usePaymentMethods()
   const [selectedMethodId, setSelectedMethodId] = useState<string>("pm_cash")
   const [isSplit, setIsSplit] = useState<boolean>(false)
@@ -114,9 +115,7 @@ export default function EndSessionModal({
       return [
         {
           paymentMethodId: selectedMethodId,
-          paymentMethodName: isRTL
-            ? method?.nameAr || method?.name || "كاش"
-            : method?.name || "Cash",
+          paymentMethodName: localize(method, lang) || (selectedMethodId === "pm_cash" ? t("cash") : ""),
           amount: totalTarget,
           isCash: method ? method.isCash : selectedMethodId === "pm_cash",
         },
@@ -128,7 +127,7 @@ export default function EndSessionModal({
         const val = parseFloat(splitAmounts[m.id] || "0")
         return {
           paymentMethodId: m.id,
-          paymentMethodName: isRTL ? m.nameAr || m.name : m.name,
+          paymentMethodName: localize(m, lang),
           amount: val > 0 ? val : 0,
           isCash: m.isCash,
         }
@@ -169,18 +168,10 @@ export default function EndSessionModal({
       isRTL={isRTL}
       title={
         isBreak
-          ? `${isRTL ? "إنهاء وحساب استراحة:" : "Checkout Lounge:"} ${con.name}`
-          : `${isRTL ? "إنهاء الجلسة والدفع:" : "Checkout:"} ${con.name}`
+          ? `${t("checkoutLoungeTitle")} ${con.name}`
+          : `${t("checkoutSessionTitle")} ${con.name}`
       }
-      subtitle={
-        isBreak
-          ? isRTL
-            ? "ملخص طلبات ومشروبات الاستراحة مع اختيار طريقة الدفع"
-            : "Break lounge orders summary & payment method"
-          : isRTL
-            ? "ملخص الحساب والطلبات مع اختيار طريقة الدفع"
-            : "Session summary & payment method"
-      }
+      subtitle={t("sessionSummarySubtitle")}
       icon={
         isBreak ? (
           <Coffee className="w-5 h-5 text-emerald-500" />
@@ -195,16 +186,10 @@ export default function EndSessionModal({
           <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 p-3.5 flex items-center justify-between">
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-semibold">
               <Coffee className="w-4 h-4" />
-              <span>
-                {isRTL
-                  ? "جلسة استراحة (بدون وقت)"
-                  : "Lounge Tab (No hourly fee)"}
-              </span>
+              <span>{t("breakLoungeNotice")}</span>
             </div>
             <span className="text-xs text-slate-500">
-              {isRTL
-                ? `${session.tab.length} طلبات`
-                : `${session.tab.length} items`}
+              {`${session.tab.length} ${t("itemsInCart")}`}
             </span>
           </div>
         ) : (
@@ -213,11 +198,11 @@ export default function EndSessionModal({
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm">
                 <Clock className="w-4 h-4 text-[#0070d1]" />
-                <span>{isRTL ? "إجمالي وقت اللعب" : "Total Time Played"}</span>
+                <span>{t("totalTimePlayed")}</span>
                 {session.pausedAt && (
                   <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    {isRTL ? "متوقف مؤقتاً للحساب" : "Paused for checkout"}
+                    {t("pausedForCheckout")}
                   </span>
                 )}
               </div>
@@ -229,7 +214,7 @@ export default function EndSessionModal({
             {/* Rate Segments Breakdown */}
             <div className="space-y-1.5">
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {isRTL ? "تفاصيل أوقات اللعب" : "Session Segments"}
+                {t("sessionSegments")}
               </div>
               {session.priceSegments.map((seg, i) => {
                 const start = seg.startElapsedMs
@@ -247,13 +232,7 @@ export default function EndSessionModal({
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-[#0070d1]" />
                       <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {seg.playerType === "single"
-                          ? isRTL
-                            ? "فردي (Single)"
-                            : "Single Player"
-                          : isRTL
-                            ? "زوجي (Multi)"
-                            : "Multi Player"}
+                        {seg.playerType === "single" ? t("single") : t("multi")}
                       </span>
                       <span className="text-slate-400 text-xs">
                         ({formatTime(dur)})
@@ -273,7 +252,7 @@ export default function EndSessionModal({
         {session.tab.length > 0 && (
           <div className="space-y-1.5">
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>{isRTL ? "الطلبات والمشروبات" : "Cafe Orders"}</span>
+              <span>{t("cafeOrders")}</span>
               <span className="font-mono text-slate-900 dark:text-white">
                 {money(tabTotal, isRTL)}
               </span>
@@ -285,7 +264,7 @@ export default function EndSessionModal({
                   className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50"
                 >
                   <span className="text-slate-700 dark:text-slate-300">
-                    {item.qty}× {isRTL ? item.nameAr || item.name : item.name}
+                    {item.qty}× {localize(item, lang)}
                   </span>
                   <span className="font-mono text-slate-900 dark:text-white">
                     {money(item.price * item.qty, isRTL)}
@@ -296,7 +275,7 @@ export default function EndSessionModal({
           </div>
         )}
 
-        {/* ── Payment Method Selector (طريقة الدفع) ── */}
+        {/* ── Payment Method Selector ── */}
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -354,7 +333,7 @@ export default function EndSessionModal({
                   >
                     <div className="shrink-0">{getMethodIcon(m.type, m.isCash)}</div>
                     <span className="whitespace-nowrap font-bold">
-                      {isRTL ? m.nameAr || m.name : m.name}
+                      {localize(m, lang)}
                     </span>
                     {m.isCash && (
                       <span className="ms-auto px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-semibold whitespace-nowrap">
@@ -383,7 +362,7 @@ export default function EndSessionModal({
                       <div className="flex items-center gap-2 min-w-[130px] text-xs font-bold text-slate-800 dark:text-slate-200 shrink-0">
                         {getMethodIcon(m.type, m.isCash)}
                         <span className="whitespace-nowrap font-bold">
-                          {isRTL ? m.nameAr || m.name : m.name}
+                          {localize(m, lang)}
                         </span>
                       </div>
 
@@ -405,7 +384,6 @@ export default function EndSessionModal({
                         <button
                           type="button"
                           onClick={() => {
-                            // Calculate remaining balance to allocate to this method
                             const otherSum = Object.entries(splitAmounts).reduce(
                               (s, [id, val]) =>
                                 id === m.id ? s : s + (parseFloat(val) || 0),
@@ -418,9 +396,9 @@ export default function EndSessionModal({
                             }))
                           }}
                           className="px-1.5 py-1 text-[10px] rounded bg-slate-100 dark:bg-slate-800 hover:bg-[#0070d1] hover:text-white text-slate-600 dark:text-slate-300 font-semibold transition-colors shrink-0"
-                          title={isRTL ? "تعبئة المتبقي" : "Fill balance"}
+                          title={t("fillBalance")}
                         >
-                          {isRTL ? "الباقي" : "Fill"}
+                          {t("fillBalance")}
                         </button>
                       </div>
                     </div>
@@ -464,11 +442,7 @@ export default function EndSessionModal({
           <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>
-                {isRTL
-                  ? "تم إنهاء الجلسة مسبقة الدفع قبل انتهاء كامل الوقت:"
-                  : "Prepaid session ended before full duration expired:"}
-              </span>
+              <span>{t("sessionExpiredMsg")}</span>
             </div>
 
             <button
@@ -478,12 +452,10 @@ export default function EndSessionModal({
             >
               <div>
                 <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isRTL
-                    ? "تحصيل المبلغ المحجوز كاملاً"
-                    : "Charge Full Booked Amount"}
+                  {t("prepaid")}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {isRTL ? "حسب الحجز المسبق" : "As originally booked"}
+                  {t("asOriginallyBooked")}
                 </div>
               </div>
               <span className="font-mono text-lg font-bold text-[#0070d1] dark:text-sky-400">
@@ -498,14 +470,10 @@ export default function EndSessionModal({
             >
               <div>
                 <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isRTL
-                    ? "محاسبة على الوقت الفعلي فقط"
-                    : "Charge for Actual Time Played"}
+                  {t("elapsed")}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {isRTL
-                    ? "خصم الوقت المتبقي للزبون"
-                    : "Discount remaining minutes"}
+                  {t("sessionDuration")}
                 </div>
               </div>
               <span className="font-mono text-lg font-bold text-emerald-500">
@@ -514,7 +482,7 @@ export default function EndSessionModal({
             </button>
 
             <Button variant="secondary" onClick={onClose} fullWidth>
-              {isRTL ? "تراجع" : "Cancel"}
+              {t("cancel")}
             </Button>
           </div>
         ) : (
@@ -523,22 +491,17 @@ export default function EndSessionModal({
             <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0070d1]/10 border border-[#0070d1]/30">
               <div>
                 <span className="text-base font-bold text-slate-900 dark:text-white block">
-                  {isRTL ? "المبلغ الإجمالي المطلوب" : "Total Due"}
+                  {t("totalDue")}
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400">
                   {isSplit
-                    ? isRTL
-                      ? "دفع مقسم"
-                      : "Split Payment"
-                    : isRTL
-                      ? `طريقة الدفع: ${
-                          activeMethods.find((m) => m.id === selectedMethodId)
-                            ?.nameAr || "كاش"
-                        }`
-                      : `Method: ${
-                          activeMethods.find((m) => m.id === selectedMethodId)
-                            ?.name || "Cash"
-                        }`}
+                    ? t("splitPayment")
+                    : `${t("paymentMethod")}: ${
+                        localize(
+                          activeMethods.find((m) => m.id === selectedMethodId),
+                          lang,
+                        ) || t("cash")
+                      }`}
                 </span>
               </div>
               <span className="font-mono text-2xl sm:text-3xl font-bold text-[#0070d1] dark:text-sky-400">
@@ -548,7 +511,7 @@ export default function EndSessionModal({
 
             <div className="flex gap-2">
               <Button variant="secondary" onClick={onClose} className="flex-1">
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -557,7 +520,7 @@ export default function EndSessionModal({
                 className="flex-1"
                 icon={<CheckCircle2 className="w-4 h-4" />}
               >
-                {isRTL ? "تأكيد الدفع وإنهاء الجلسة" : "Confirm & Checkout"}
+                {t("confirmAndCheckout")}
               </Button>
             </div>
           </div>

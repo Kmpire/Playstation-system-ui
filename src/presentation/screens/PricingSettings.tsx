@@ -9,9 +9,7 @@ import {
   AlertCircle,
   Banknote,
   Wallet,
-  CreditCard,
   ShieldCheck,
-  ShieldAlert,
 } from "lucide-react"
 import type { ConsoleType, PaymentMethod } from "@/domain"
 import { money } from "@/domain"
@@ -24,11 +22,12 @@ import {
   RefreshButton,
 } from "../components/states"
 import { PullToRefresh } from "../components/common/PullToRefresh"
-import { translations } from "@/i18n"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
-  t: (k: string) => string
-  isRTL: boolean
+  t?: (k: string, fb?: string) => string
+  isRTL?: boolean
+  lang?: "en" | "ar"
   toast?: (msg: string) => void
   [key: string]: unknown
 }
@@ -36,38 +35,38 @@ interface Props {
 const TYPE_META: Record<
   ConsoleType,
   {
-    label: string
+    labelKey: string
     icon: string
     color: string
     border: string
   }
 > = {
   PS4: {
-    label: "PlayStation 4",
+    labelKey: "typePS4",
     icon: "🎮",
     color: "text-blue-600 dark:text-blue-400",
     border: "border-blue-200 dark:border-blue-800/50",
   },
   PS5: {
-    label: "PlayStation 5",
+    labelKey: "typePS5",
     icon: "🕹️",
     color: "text-indigo-600 dark:text-indigo-400",
     border: "border-indigo-200 dark:border-indigo-800/50",
   },
   Xbox: {
-    label: "Xbox",
+    labelKey: "typeXbox",
     icon: "🎯",
     color: "text-green-600 dark:text-green-400",
     border: "border-green-200 dark:border-green-800/50",
   },
   VIP: {
-    label: "VIP Room",
+    labelKey: "typeVIP",
     icon: "👑",
     color: "text-amber-600 dark:text-amber-400",
     border: "border-amber-200 dark:border-amber-800/50",
   },
   Break: {
-    label: "Break Lounge (استراحة)",
+    labelKey: "typeBreak",
     icon: "☕",
     color: "text-emerald-600 dark:text-emerald-400",
     border: "border-emerald-200 dark:border-emerald-800/50",
@@ -77,14 +76,11 @@ const TYPE_META: Record<
 const ORDER: ConsoleType[] = ["PS4", "PS5", "Xbox", "VIP"]
 
 export default function PricingSettings(props: Props) {
-  const { isRTL, toast } = props
-  const t =
-    props.t ||
-    ((key: string) =>
-      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
+  const { isRTL = true, lang, toast } = props
+  const currentLang = lang || (isRTL ? "ar" : "en")
+  const t = props.t || createTranslator(currentLang)
 
   const {
-    tiers,
     draftTiers,
     configs,
     draftConfigs,
@@ -122,36 +118,36 @@ export default function PricingSettings(props: Props) {
 
   const handleSaveEdit = (tierId: string) => {
     if (!editTierName.trim() && !editTierNameAr.trim()) {
-      toast?.(isRTL ? "يرجى كتابة اسم نوع السعر" : "Please enter pricing type name")
+      toast?.(t("enterPricingTypeNamePrompt"))
       return
     }
     updateTier(tierId, editTierName, editTierNameAr)
     setEditingTierId(null)
-    toast?.(isRTL ? "تم تعديل نوع السعر" : "Pricing type updated")
+    toast?.(t("pricingTypeUpdatedToast"))
   }
 
   const handleAddTier = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTierName.trim() && !newTierNameAr.trim()) {
-      toast?.(isRTL ? "يرجى إدخال اسم نوع السعر" : "Please enter a pricing type name")
+      toast?.(t("enterPricingTypeNamePrompt"))
       return
     }
     addTier(newTierName, newTierNameAr)
     setNewTierName("")
     setNewTierNameAr("")
     setIsAddingTier(false)
-    toast?.(isRTL ? "تمت إضافة نوع سعر جديد بنجاح ✓" : "New pricing type added ✓")
+    toast?.(t("pricingTypeAddedToast"))
   }
 
   const handleDeleteTier = (id: string, nameAr: string) => {
     if (draftTiers.length <= 1) {
-      toast?.(isRTL ? "لا يمكن الحذف: يجب الإبقاء على نوع سعر واحد على الأقل!" : "Cannot delete: at least one pricing type must remain!")
+      toast?.(t("cannotDeleteLastPricingType"))
       return
     }
     try {
       deleteTier(id)
       toast?.(
-        isRTL
+        currentLang === "ar"
           ? `تم حذف نوع السعر "${nameAr}"`
           : "Pricing type deleted",
       )
@@ -166,7 +162,6 @@ export default function PricingSettings(props: Props) {
   // Payment methods hook and state
   const {
     paymentMethods,
-    loading: pmLoading,
     addMethod,
     updateMethod,
     deleteMethod,
@@ -187,7 +182,7 @@ export default function PricingSettings(props: Props) {
     const nameEn = newMethodName.trim() || newMethodNameAr.trim()
     const nameAr = newMethodNameAr.trim() || newMethodName.trim()
     if (!nameEn) {
-      toast?.(isRTL ? "يرجى كتابة اسم طريقة الدفع" : "Please enter payment method name")
+      toast?.(t("enterPaymentMethodNamePrompt"))
       return
     }
     try {
@@ -196,7 +191,7 @@ export default function PricingSettings(props: Props) {
       setNewMethodNameAr("")
       setNewMethodIsCash(false)
       setIsAddingMethod(false)
-      toast?.(isRTL ? "تمت إضافة طريقة الدفع بنجاح ✓" : "Payment method added ✓")
+      toast?.(t("paymentMethodAddedToast"))
     } catch (err: any) {
       toast?.(err?.message || "Failed to add payment method")
     }
@@ -214,7 +209,7 @@ export default function PricingSettings(props: Props) {
     const nameEn = editMethodName.trim() || editMethodNameAr.trim()
     const nameAr = editMethodNameAr.trim() || editMethodName.trim()
     if (!nameEn) {
-      toast?.(isRTL ? "يرجى إدخال اسم طريقة الدفع" : "Please enter method name")
+      toast?.(t("enterPaymentMethodNamePrompt"))
       return
     }
     try {
@@ -225,7 +220,7 @@ export default function PricingSettings(props: Props) {
         isCash: editingMethod.isProtected ? true : editMethodIsCash,
       })
       setEditingMethod(null)
-      toast?.(isRTL ? "تم تعديل طريقة الدفع بنجاح ✓" : "Payment method updated ✓")
+      toast?.(t("paymentMethodUpdatedToast"))
     } catch (err: any) {
       toast?.(err?.message || "Failed to update payment method")
     }
@@ -233,24 +228,16 @@ export default function PricingSettings(props: Props) {
 
   const handleDeletePaymentMethod = async (m: PaymentMethod) => {
     if (m.isProtected || m.id === "pm_cash") {
-      toast?.(
-        isRTL
-          ? "لا يمكن حذف طريقة الدفع الأساسية (كاش) إطلاقاً!"
-          : "Cannot delete protected Cash payment method!",
-      )
+      toast?.(t("cashProtectedCannotDelete"))
       return
     }
     if (paymentMethods.length <= 1) {
-      toast?.(
-        isRTL
-          ? "يجب الإبقاء على طريقة دفع واحدة على الأقل!"
-          : "At least one payment method must remain!",
-      )
+      toast?.(t("atLeastOnePricingType"))
       return
     }
     try {
       await deleteMethod(m.id)
-      toast?.(isRTL ? `تم حذف طريقة الدفع "${m.nameAr}"` : "Payment method deleted")
+      toast?.(t("paymentMethodDeletedToast"))
     } catch (err: any) {
       toast?.(err?.message || "Failed to delete payment method")
     }
@@ -259,12 +246,10 @@ export default function PricingSettings(props: Props) {
   const handleSave = async () => {
     try {
       await save()
-      toast?.(isRTL ? "تم حفظ الأسعار بنجاح ✓" : "Pricing saved successfully ✓")
+      toast?.(t("pricingSavedSuccessToast"))
     } catch (err: any) {
       toast?.(
-        isRTL
-          ? `فشل حفظ الأسعار: ${err.message || err}`
-          : `Failed to save pricing: ${err.message || err}`,
+        `${t("pricingSettingsTitle")}: ${err.message || err}`,
       )
     }
   }
@@ -279,10 +264,10 @@ export default function PricingSettings(props: Props) {
       <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#1a1d26]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/50 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between flex-wrap gap-2.5 sm:gap-0">
         <div>
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            {isRTL ? "إعدادات الأسعار" : "Pricing Settings"}
+            {t("pricingSettingsTitle")}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-            {isRTL ? "تحديد أنواع أسعار اللعب وسعر الساعة لكل جهاز" : "Manage play pricing types and hourly rates"}
+            {t("pricingSettingsSubtitle")}
           </p>
         </div>
 
@@ -296,7 +281,7 @@ export default function PricingSettings(props: Props) {
 
           {saved && (
             <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm flex items-center gap-1 font-medium">
-              ✓ {isRTL ? "تم الحفظ" : "Saved"}
+              ✓ {t("savedBadge")}
             </span>
           )}
 
@@ -306,13 +291,7 @@ export default function PricingSettings(props: Props) {
             disabled={isSaving || status === "loading"}
             className="px-4 sm:px-5 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isSaving
-              ? isRTL
-                ? "جارٍ الحفظ..."
-                : "Saving..."
-              : isRTL
-                ? "حفظ الأسعار"
-                : "Save Pricing"}
+            {isSaving ? t("processing") : t("save")}
           </button>
         </div>
       </div>
@@ -339,15 +318,9 @@ export default function PricingSettings(props: Props) {
           {/* Empty State */}
           {status === "empty" && (
             <EmptyStateCard
-              title={
-                isRTL ? "لا توجد أسعار معرفة" : "No pricing configurations"
-              }
-              description={
-                isRTL
-                  ? "لم يتم العثور على إعدادات أسعار الأجهزة. اضغط على تحديث أو أعد المحاولة."
-                  : "No console pricing rates found. Try refreshing the page."
-              }
-              actionLabel={isRTL ? "تحديث" : "Refresh"}
+              title={t("noPricingConfigs")}
+              description={t("noDataAvailable")}
+              actionLabel={t("refresh")}
               onAction={refresh}
               isRTL={isRTL}
             />
@@ -365,7 +338,7 @@ export default function PricingSettings(props: Props) {
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span>{isRTL ? "أسعار الأجهزة والساعة" : "Console Hourly Rates"}</span>
+              <span>{t("pricingConsoleRatesTab")}</span>
             </button>
 
             <button
@@ -378,7 +351,7 @@ export default function PricingSettings(props: Props) {
               }`}
             >
               <Banknote className="w-4 h-4" />
-              <span>{isRTL ? "طرق الدفع والدرج" : "Payment Methods"}</span>
+              <span>{t("pricingPaymentMethodsTab")}</span>
             </button>
           </div>
 
@@ -394,12 +367,10 @@ export default function PricingSettings(props: Props) {
                     </div>
                     <div>
                       <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
-                        {isRTL ? "أنواع أسعار اللعب (ديناميكية)" : "Play Pricing Types (Dynamic)"}
+                        {t("pricingTypesDynamicTitle")}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {isRTL
-                          ? "يمكنك إضافة أو تعديل أو حذف أي نوع سعر (بشرط بقاء نوع واحد على الأقل)"
-                          : "Add, edit, or delete pricing types (at least one type must remain)"}
+                        {t("pricingTypesSubtitle")}
                       </p>
                     </div>
                   </div>
@@ -411,7 +382,7 @@ export default function PricingSettings(props: Props) {
                       className="px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>{isRTL ? "إضافة نوع سعر" : "Add Pricing Type"}</span>
+                      <span>{t("addPricingType")}</span>
                     </button>
                   )}
                 </div>
@@ -424,12 +395,12 @@ export default function PricingSettings(props: Props) {
                   >
                     <div className="w-full sm:flex-1">
                       <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                        {isRTL ? "الاسم بالعربية *" : "Arabic Name *"}
+                        {t("arabicName")}
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder={isRTL ? "مثال: ثلاثي، رباعي، بطولة" : "e.g. ثلاثي"}
+                        placeholder={t("arabicNamePlaceholder")}
                         value={newTierNameAr}
                         onChange={(e) => setNewTierNameAr(e.target.value)}
                         className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#151922] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -437,7 +408,7 @@ export default function PricingSettings(props: Props) {
                     </div>
                     <div className="w-full sm:flex-1">
                       <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                        {isRTL ? "الاسم بالإنجليزية *" : "English Name *"}
+                        {t("englishName")}
                       </label>
                       <input
                         type="text"
@@ -453,14 +424,14 @@ export default function PricingSettings(props: Props) {
                         type="submit"
                         className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
                       >
-                        {isRTL ? "إضافة" : "Add"}
+                        {t("add")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsAddingTier(false)}
                         className="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
                       >
-                        {isRTL ? "إلغاء" : "Cancel"}
+                        {t("cancel")}
                       </button>
                     </div>
                   </form>
@@ -481,14 +452,14 @@ export default function PricingSettings(props: Props) {
                           <input
                             type="text"
                             value={editTierNameAr}
-                            placeholder={isRTL ? "الاسم بالعربي" : "Arabic name"}
+                            placeholder={t("arabicNameField")}
                             onChange={(e) => setEditTierNameAr(e.target.value)}
                             className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#151922] text-slate-900 dark:text-white"
                           />
                           <input
                             type="text"
                             value={editTierName}
-                            placeholder={isRTL ? "الاسم بالإنجليزي" : "English name"}
+                            placeholder={t("englishNameField")}
                             onChange={(e) => setEditTierName(e.target.value)}
                             className="w-full text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#151922] text-slate-900 dark:text-white"
                           />
@@ -499,7 +470,7 @@ export default function PricingSettings(props: Props) {
                               className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
                             >
                               <Check className="w-3.5 h-3.5" />
-                              <span>{isRTL ? "حفظ" : "Done"}</span>
+                              <span>{t("done")}</span>
                             </button>
                             <button
                               type="button"
@@ -520,10 +491,10 @@ export default function PricingSettings(props: Props) {
                       >
                         <div className="min-w-0">
                           <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate">
-                            {isRTL ? tier.nameAr : tier.name}
+                            {localize(tier, currentLang)}
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {isRTL ? tier.name : tier.nameAr}
+                            {currentLang === "ar" ? tier.name : tier.nameAr}
                           </div>
                         </div>
 
@@ -532,7 +503,7 @@ export default function PricingSettings(props: Props) {
                             type="button"
                             onClick={() => handleStartEdit(tier)}
                             className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-                            title={isRTL ? "تعديل المسمى" : "Edit Name"}
+                            title={t("editNameTitle")}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -547,12 +518,8 @@ export default function PricingSettings(props: Props) {
                             }`}
                             title={
                               isOnlyOne
-                                ? isRTL
-                                  ? "يجب الإبقاء على نوع واحد على الأقل"
-                                  : "At least one type must remain"
-                                : isRTL
-                                  ? "حذف النوع"
-                                  : "Delete Type"
+                                ? t("atLeastOnePricingType")
+                                : t("deleteType")
                             }
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -566,11 +533,7 @@ export default function PricingSettings(props: Props) {
                 {draftTiers.length <= 1 && (
                   <div className="mt-3 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {isRTL
-                        ? "يجب أن يتضمن النظام نوع سعر واحد على الأقل دائماً."
-                        : "The system must always keep at least one pricing type."}
-                    </span>
+                    <span>{t("pricingTypeMustRemainWarning")}</span>
                   </div>
                 )}
               </div>
@@ -592,14 +555,14 @@ export default function PricingSettings(props: Props) {
                           {type}
                         </div>
                         <div className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-                          {meta.label}
+                          {t(meta.labelKey)}
                         </div>
                       </div>
                     </div>
 
                     {/* Dynamic Rate Inputs for all active tiers */}
                     <div
-                      className={`grid gap-3 sm:gap-4 items-start ${
+                      className={`grid gap-2.5 sm:gap-3.5 items-start ${
                         draftTiers.length === 1
                           ? "grid-cols-1"
                           : draftTiers.length === 2
@@ -619,15 +582,14 @@ export default function PricingSettings(props: Props) {
 
                         return (
                           <div key={tier.id} className="flex flex-col">
-                            <label className="min-h-[2.5rem] flex items-end text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            <label className="text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1 leading-tight">
                               <span>
-                                🎮 {isRTL ? tier.nameAr : tier.name} /{" "}
-                                {isRTL ? "ساعة" : "hour"}
+                                🎮 {localize(tier, currentLang)} / {t("hourUnit")}
                               </span>
                             </label>
                             <div className="relative">
                               <span className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-mono text-xs font-bold">
-                                {isRTL ? "ج.م" : "EGP"}
+                                {t("egp")}
                               </span>
                               <input
                                 type="number"
@@ -641,17 +603,15 @@ export default function PricingSettings(props: Props) {
                                   inputError
                                     ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
                                     : "border-slate-200 dark:border-slate-600 focus:border-blue-400 focus:ring-blue-100 dark:focus:ring-blue-900/30"
-                                } rounded-xl ps-12 sm:ps-14 pe-3 py-2.5 sm:py-3 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 bg-white dark:bg-[#1a1d26]`}
+                                } rounded-xl ps-12 sm:ps-14 pe-3 py-2 sm:py-2.5 text-base sm:text-lg font-mono font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 bg-white dark:bg-[#1a1d26]`}
                               />
                             </div>
-                            <div className="min-h-[22px] mt-1.5 flex items-center">
-                              {inputError && (
-                                <span className="text-[11px] font-semibold text-rose-500 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
-                                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                                  {t(inputError)}
-                                </span>
-                              )}
-                            </div>
+                            {inputError && (
+                              <div className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-rose-500 animate-in fade-in slide-in-from-top-1">
+                                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>{t(inputError)}</span>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -670,9 +630,9 @@ export default function PricingSettings(props: Props) {
                           <React.Fragment key={tier.id}>
                             <span className="hidden sm:inline w-px h-3 bg-slate-300 dark:bg-slate-600" />
                             <span className="inline-flex items-center gap-1">
-                              <span>{isRTL ? tier.nameAr : tier.name}:</span>
+                              <span>{localize(tier, currentLang)}:</span>
                               <strong className="text-slate-800 dark:text-slate-200 font-mono font-bold">
-                                {money(originalRate, isRTL)}
+                                {money(originalRate, currentLang)}
                               </strong>
                             </span>
                           </React.Fragment>
@@ -696,12 +656,10 @@ export default function PricingSettings(props: Props) {
                     </div>
                     <div>
                       <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
-                        {isRTL ? "طرق الدفع والتحصيل" : "Payment Methods"}
+                        {t("paymentMethodsTitle")}
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {isRTL
-                          ? "إدارة طرق الدفع المعتمدة (كاش، محافظ إلكترونية، إلخ) وقواعد مطابقة درج النقدية للوردية"
-                          : "Manage accepted payment methods & cash drawer reconciliation rules"}
+                        {t("paymentMethodsSubtitle")}
                       </p>
                     </div>
                   </div>
@@ -734,7 +692,7 @@ export default function PricingSettings(props: Props) {
                         </label>
                         <input
                           type="text"
-                          placeholder={isRTL ? "مثال: إنستاباي / فيزا" : "e.g. InstaPay"}
+                          placeholder={t("paymentMethodNamePlaceholder")}
                           value={newMethodNameAr}
                           onChange={(e) => setNewMethodNameAr(e.target.value)}
                           className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#151923] text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
@@ -762,11 +720,7 @@ export default function PricingSettings(props: Props) {
                           onChange={(e) => setNewMethodIsCash(e.target.checked)}
                           className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700"
                         />
-                        <span>
-                          {isRTL
-                            ? "تعتبر نقداً وتدخل في حساب درج النقدية عند تسليم الوردية (Cash Drawer)"
-                            : "Counts as cash in drawer reconciliation during shift handover"}
-                        </span>
+                        <span>{t("countsInCashDrawer")}</span>
                       </label>
                     </div>
 
@@ -822,7 +776,7 @@ export default function PricingSettings(props: Props) {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-sm text-slate-900 dark:text-white whitespace-nowrap">
-                                {isRTL ? m.nameAr || m.name : m.name}
+                                {localize(m, currentLang)}
                               </span>
                               {isProtected ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 whitespace-nowrap">
@@ -851,7 +805,7 @@ export default function PricingSettings(props: Props) {
                             type="button"
                             onClick={() => handleStartEditMethod(m)}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                            title={isRTL ? "تعديل" : "Edit"}
+                            title={t("edit")}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
@@ -867,12 +821,8 @@ export default function PricingSettings(props: Props) {
                             }`}
                             title={
                               isProtected
-                                ? isRTL
-                                  ? "طريقة الكاش محمية ولا يمكن حذفها"
-                                  : "Cash is protected and cannot be deleted"
-                                : isRTL
-                                  ? "حذف"
-                                  : "Delete"
+                                ? t("cashProtectedCannotDelete")
+                                : t("delete")
                             }
                           >
                             <Trash2 className="w-4 h-4" />
@@ -894,13 +844,13 @@ export default function PricingSettings(props: Props) {
           <div className="w-full max-w-md bg-white dark:bg-[#1a1d26] rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 animate-in zoom-in-95">
             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Edit2 className="w-4 h-4 text-blue-600" />
-              <span>{isRTL ? "تعديل طريقة الدفع" : "Edit Payment Method"}</span>
+              <span>{t("editPaymentMethodTitle")}</span>
             </h3>
 
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  {isRTL ? "الاسم بالعربية" : "Name (Arabic)"}
+                  {t("nameArabic")}
                 </label>
                 <input
                   type="text"
@@ -912,7 +862,7 @@ export default function PricingSettings(props: Props) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                  {isRTL ? "الاسم بالإنجليزية" : "Name (English)"}
+                  {t("nameEnglish")}
                 </label>
                 <input
                   type="text"
@@ -930,11 +880,7 @@ export default function PricingSettings(props: Props) {
                     onChange={(e) => setEditMethodIsCash(e.target.checked)}
                     className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700"
                   />
-                  <span>
-                    {isRTL
-                      ? "تدخل في درج النقدية عند تسليم الوردية (Cash Drawer)"
-                      : "Counts in cash drawer reconciliation"}
-                  </span>
+                  <span>{t("countsInCashDrawerSimple")}</span>
                 </label>
               )}
             </div>
@@ -945,14 +891,14 @@ export default function PricingSettings(props: Props) {
                 onClick={() => setEditingMethod(null)}
                 className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </button>
               <button
                 type="button"
                 onClick={handleSaveEditMethod}
                 className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors"
               >
-                {isRTL ? "حفظ التعديلات" : "Save Changes"}
+                {t("saveChanges")}
               </button>
             </div>
           </div>
@@ -961,4 +907,5 @@ export default function PricingSettings(props: Props) {
     </PullToRefresh>
   )
 }
+
 

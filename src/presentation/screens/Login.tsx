@@ -5,14 +5,13 @@ import {
   User,
   Globe,
   ShieldCheck,
-  Clock,
-  Sparkles,
   Sun,
   Moon,
 } from "lucide-react"
 import type { Language, CompanyInfo, Theme } from "@/domain"
 import { useServices } from "../context/ServicesContext"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator, localize } from "@/i18n"
 
 interface Props {
   isRTL: boolean
@@ -35,6 +34,7 @@ export default function Login({
   activated,
   onLogin,
 }: Props) {
+  const t = createTranslator(lang)
   const { companyRepo } = useServices()
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
 
@@ -100,7 +100,7 @@ export default function Login({
           className="px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#0070d1] dark:hover:text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
         >
           <Globe className="w-3.5 h-3.5 text-[#0070d1]" />
-          <span>{lang === "en" ? "التحويل للعربية" : "English"}</span>
+          <span>{lang === "en" ? t("switchToArabic") : t("switchToEnglish")}</span>
         </button>
 
         {setTheme && (
@@ -108,25 +108,17 @@ export default function Login({
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#0070d1] dark:hover:text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-            title={
-              isRTL
-                ? theme === "dark"
-                  ? "التبديل للوضع الفاتح"
-                  : "التبديل للوضع الليلي"
-                : theme === "dark"
-                  ? "Switch to Light Mode"
-                  : "Switch to Dark Mode"
-            }
+            title={theme === "dark" ? t("switchToLightMode") : t("switchToDarkMode")}
           >
             {theme === "dark" ? (
               <>
                 <Sun className="w-4 h-4 text-amber-400" />
-                <span>{isRTL ? "نهاري" : "Light"}</span>
+                <span>{t("lightMode")}</span>
               </>
             ) : (
               <>
                 <Moon className="w-4 h-4 text-[#0070d1]" />
-                <span>{isRTL ? "ليلي" : "Dark"}</span>
+                <span>{t("darkMode")}</span>
               </>
             )}
           </button>
@@ -141,18 +133,14 @@ export default function Login({
           </div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <span>
-              {isRTL
-                ? companyInfo?.nameAr || "صالة بلايستيشن كافيه"
-                : companyInfo?.name || "PlayStation Café"}
+              {localize(companyInfo, lang) || (lang === "ar" ? "صالة بلايستيشن كافيه" : "PlayStation Café")}
             </span>
             <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#0070d1]/25 text-[#0070d1] dark:text-sky-400 border border-[#0070d1]/40 font-bold">
               PRO
             </span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {isRTL
-              ? "نظام إدارة صالات الألعاب ونقاط البيع"
-              : "PlayStation Lounge & POS Management"}
+            {t("loungeManagementSubtitle")}
           </p>
         </div>
 
@@ -163,7 +151,7 @@ export default function Login({
         >
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-              {isRTL ? "اسم المستخدم" : "Username"}
+              {t("username")}
             </label>
             <div className="relative flex items-center">
               <User className="w-4 h-4 text-slate-400 absolute start-3.5 pointer-events-none" />
@@ -182,7 +170,7 @@ export default function Login({
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
-              {isRTL ? "كلمة المرور" : "Password"}
+              {t("password")}
             </label>
             <div className="relative flex items-center">
               <Lock className="w-4 h-4 text-slate-400 absolute start-3.5 pointer-events-none" />
@@ -202,11 +190,7 @@ export default function Login({
           {error && (
             <div className="text-rose-500 dark:text-rose-400 text-xs bg-rose-500/10 border border-rose-500/25 rounded-xl px-3 py-2.5 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-              <span>
-                {isRTL
-                  ? "اسم المستخدم أو كلمة المرور غير صحيحة"
-                  : "Invalid username or password"}
-              </span>
+              <span>{t("invalidCredentials")}</span>
             </div>
           )}
 
@@ -218,21 +202,13 @@ export default function Login({
             loading={loading}
             disabled={loading}
           >
-            {loading
-              ? isRTL
-                ? "جاري تسجيل الدخول..."
-                : "Signing in..."
-              : isRTL
-                ? "تسجيل الدخول"
-                : "Sign In"}
+            {loading ? t("loggingIn") : t("loginButton")}
           </Button>
 
           {/* Quick Demo Access Pills */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80">
             <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 text-center">
-              {isRTL
-                ? "تسجيل سريع تجريبي (بنقرة واحدة):"
-                : "One-click Demo Accounts:"}
+              {t("oneClickDemoAccounts")}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -240,14 +216,14 @@ export default function Login({
                 onClick={() => fillDemo("admin", "admin123")}
                 className="py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-[#0070d1] dark:hover:text-sky-400 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/60 transition-all text-center cursor-pointer"
               >
-                👑 {isRTL ? "المدير (Admin)" : "Admin"}
+                👑 {t("adminRoleLabel")}
               </button>
               <button
                 type="button"
                 onClick={() => fillDemo("cashier", "cashier123")}
                 className="py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800/70 hover:bg-[#0070d1]/20 hover:text-[#0070d1] dark:hover:text-sky-400 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700/60 transition-all text-center cursor-pointer"
               >
-                🎮 {isRTL ? "الكاشير (Cashier)" : "Cashier"}
+                🎮 {t("cashierRoleLabel")}
               </button>
             </div>
           </div>
@@ -263,12 +239,8 @@ export default function Login({
               }
             >
               {activated
-                ? isRTL
-                  ? "نسخة مفعلة (مشترك)"
-                  : "Active Subscription"
-                : isRTL
-                  ? `نسخة تجريبية · متبقي ${trialDaysLeft} أيام`
-                  : `Trial · ${trialDaysLeft}d left`}
+                ? t("activeSubscriptionBadge")
+                : t("trialDaysRemainingBadge").replace("{days}", String(trialDaysLeft))}
             </span>
           </span>
         </div>

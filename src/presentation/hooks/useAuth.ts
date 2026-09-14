@@ -5,9 +5,26 @@ import { useServices } from "../context/ServicesContext"
 export function useAuth() {
   const { authService, authRepo } = useServices()
   const [accounts, setAccounts] = useState<UserAccount[]>([])
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    try {
+      const token = localStorage.getItem("ps_auth_token")
+      const stored = localStorage.getItem("ps_current_user")
+      if (token && stored) {
+        return JSON.parse(stored)
+      }
+    } catch {}
+    return null
+  })
   const [trialState, setTrialState] = useState<TrialState | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      const token = localStorage.getItem("ps_auth_token")
+      const stored = localStorage.getItem("ps_current_user")
+      return !!token && !stored
+    } catch {
+      return false
+    }
+  })
 
   const refresh = useCallback(async () => {
     try {
@@ -52,7 +69,15 @@ export function useAuth() {
   }
 
   const logout = async () => {
-    await authService.logout()
+    try {
+      await authService.logout()
+    } catch (e) {
+      console.error("Logout service error:", e)
+    }
+    try {
+      localStorage.removeItem("ps_auth_token")
+      localStorage.removeItem("ps_current_user")
+    } catch {}
     setCurrentUser(null)
     setAccounts([])
   }

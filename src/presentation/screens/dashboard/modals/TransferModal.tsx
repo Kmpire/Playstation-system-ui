@@ -3,11 +3,13 @@ import { ArrowRightLeft, Tv, Gamepad2, Crown, Check, Coffee } from "lucide-react
 import type { GameConsole, ConsoleType } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
+import { createTranslator } from "@/i18n"
 
 interface TransferModalProps {
   fromCon: GameConsole | null
   consoles: GameConsole[]
   isRTL: boolean
+  lang?: "en" | "ar"
   onClose: () => void
   onTransfer: (toId: number) => void
 }
@@ -24,9 +26,11 @@ export default function TransferModal({
   fromCon,
   consoles,
   isRTL,
+  lang = isRTL ? "ar" : "en",
   onClose,
   onTransfer,
 }: TransferModalProps) {
+  const t = createTranslator(lang)
   if (!fromCon) return null
 
   const targets = consoles.filter(
@@ -38,23 +42,15 @@ export default function TransferModal({
       isOpen={!!fromCon}
       onClose={onClose}
       isRTL={isRTL}
-      title={`${
-        isRTL ? "نقل الجلسة من:" : "Transfer Session from:"
-      } ${fromCon.name}`}
-      subtitle={
-        isRTL
-          ? "اختر الجهاز المتاح لنقل الجلسة إليه"
-          : "Select an available destination console"
-      }
+      title={`${t("transferFrom")} ${fromCon.name}`}
+      subtitle={t("transferSessionSubtitle")}
       icon={<ArrowRightLeft className="w-5 h-5 text-[#0070d1]" />}
       maxWidth="sm"
     >
       <div className="space-y-3">
         {targets.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm">
-            {isRTL
-              ? "لا توجد أجهزة متاحة شاغرة حالياً للنقل."
-              : "No available consoles at the moment."}
+            {t("noConsoles")}
           </div>
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -62,7 +58,7 @@ export default function TransferModal({
               <button
                 key={target.id}
                 onClick={() => onTransfer(target.id)}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-[#141926] hover:bg-emerald-500/10 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 transition-all text-start group"
+                className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-[#141926] hover:bg-emerald-500/10 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/40 transition-all text-start group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-sm">
@@ -72,7 +68,9 @@ export default function TransferModal({
                     <div className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">
                       {target.name}
                     </div>
-                    <div className="text-xs text-slate-400">{target.type}</div>
+                    <div className="text-xs text-slate-400">
+                      {target.type === "Break" ? t("typeBreak") : target.type}
+                    </div>
                   </div>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -84,7 +82,7 @@ export default function TransferModal({
         )}
 
         <Button variant="secondary" onClick={onClose} fullWidth>
-          {isRTL ? "إلغاء" : "Cancel"}
+          {t("cancel")}
         </Button>
       </div>
     </Modal>
