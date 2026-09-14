@@ -529,6 +529,17 @@ export default function ConsoleDashboard({
   }
 
   const handleChangeTabQty = async (conId: number, itemId: string, delta: number) => {
+    if (delta > 0) {
+      const item = menuItems.find((m) => m.id === itemId)
+      if (item && item.trackStock !== false) {
+        const con = localConsoles.find((c) => c.id === conId)
+        const tabIt = con?.session?.tab?.find((t) => t.id === itemId)
+        if (tabIt && tabIt.qty >= item.stock) {
+          toast(t("outOfStockToast"))
+          return
+        }
+      }
+    }
     try {
       await changeTabItemQty(conId, itemId, delta)
     } catch (err: any) {

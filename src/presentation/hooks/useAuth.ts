@@ -28,10 +28,21 @@ export function useAuth() {
 
   const refresh = useCallback(async () => {
     try {
+      const token = localStorage.getItem("ps_auth_token")
+      const trialPromise = authService.getTrialState()
+
+      if (!token) {
+        const trial = await trialPromise
+        setAccounts([])
+        setCurrentUser(null)
+        setTrialState(trial)
+        return
+      }
+
       const [accs, user, trial] = await Promise.all([
         authRepo.getAccounts(),
         authRepo.getCurrentUser(),
-        authService.getTrialState(),
+        trialPromise,
       ])
       setAccounts(accs)
       setCurrentUser(user)

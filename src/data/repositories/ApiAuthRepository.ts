@@ -4,6 +4,10 @@ import { apiClient, getAuthToken, setAuthToken } from "../api/apiClient"
 
 export class ApiAuthRepository implements IAuthRepository {
   async getAccounts(): Promise<UserAccount[]> {
+    const token = getAuthToken()
+    if (!token) {
+      return []
+    }
     try {
       return await apiClient<UserAccount[]>("/auth/accounts")
     } catch {

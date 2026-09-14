@@ -302,6 +302,7 @@ export const translations = {
     increase: "Increase",
     decrease: "Decrease",
     unlimitedStock: "Unlimited",
+    maxStockReached: "Maximum available stock reached",
     // StartSessionModal
     startBreakLoungeTitle: "Start Break Lounge:",
     startSessionModalTitle: "Start Session:",
@@ -1035,6 +1036,7 @@ export const translations = {
     increase: "زيادة",
     decrease: "إنقاص",
     unlimitedStock: "غير محدود",
+    maxStockReached: "تم الوصول للحد الأقصى بالمخزون",
     startBreakLoungeTitle: "بدء استراحة جديدة:",
     startSessionModalTitle: "بدء جلسة جديدة:",
     startSessionTitle: "بدء جلسة:",

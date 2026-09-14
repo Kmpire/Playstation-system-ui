@@ -407,6 +407,7 @@ export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en
                 const inCart = cart.find((e) => e.item.id === item.id)
                 const isTracked = item.trackStock !== false
                 const outOfStock = isTracked && item.stock <= 0
+                const isMaxReached = Boolean(isTracked && inCart && inCart.qty >= item.stock)
                 const lowStock = isTracked && item.stock <= item.lowStockThreshold
 
                 return (
@@ -414,13 +415,15 @@ export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en
                     key={item.id}
                     type="button"
                     onClick={() => addItem(item)}
-                    disabled={outOfStock}
-                    className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border text-start transition-all duration-200 flex flex-col justify-between active:scale-[0.98] cursor-pointer ${
+                    disabled={outOfStock || isMaxReached}
+                    className={`relative p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border text-start transition-all duration-200 flex flex-col justify-between active:scale-[0.98] ${
                       outOfStock
-                        ? "opacity-40 pointer-events-none border-slate-200 dark:border-slate-800"
-                        : inCart
-                          ? "border-[#0070d1] ring-2 ring-[#0070d1]/20 shadow-md"
-                          : "border-slate-200/80 dark:border-slate-800/80 hover:border-[#0070d1]/50 hover:shadow-md"
+                        ? "opacity-40 pointer-events-none border-slate-200 dark:border-slate-800 cursor-not-allowed"
+                        : isMaxReached
+                          ? "border-[#0070d1]/60 ring-2 ring-[#0070d1]/10 opacity-75 cursor-default"
+                          : inCart
+                            ? "border-[#0070d1] ring-2 ring-[#0070d1]/20 shadow-md cursor-pointer"
+                            : "border-slate-200/80 dark:border-slate-800/80 hover:border-[#0070d1]/50 hover:shadow-md cursor-pointer"
                     }`}
                   >
                     {/* Cart badge quantity */}
@@ -441,18 +444,27 @@ export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en
                       <div className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400 mt-1">
                         {money(item.price, isRTL)}
                       </div>
-                      {lowStock ? (
+                      {outOfStock ? (
+                        <div className="text-rose-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>{t("outOfStockToast") || "غير متوفر"}</span>
+                        </div>
+                      ) : lowStock ? (
                         <div className="text-amber-500 text-[10px] font-semibold mt-1 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
                           <span>
                             {`${t("inStock")}: ${item.stock}`}
                           </span>
                         </div>
-                      ) : !isTracked ? (
+                      ) : isTracked ? (
+                        <div className="text-slate-400 text-[10px] font-medium mt-1 flex items-center gap-1">
+                          <span>{`${t("inStock")}: ${item.stock}`}</span>
+                        </div>
+                      ) : (
                         <div className="text-slate-400 text-[10px] font-semibold mt-1 flex items-center gap-1">
                           <span>{t("unlimited")}</span>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </button>
                 )
@@ -468,14 +480,16 @@ export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en
           <button
             type="button"
             onClick={() => setMobileCartOpen(true)}
-            className="w-full p-3.5 bg-[#0070d1] text-white rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm cursor-pointer"
+            className="w-full py-3.5 px-5 rounded-2xl bg-[#0070d1] text-white font-bold flex items-center justify-between shadow-xl active:scale-[0.99] transition-transform cursor-pointer"
           >
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" />
-              <span>{t("viewCart")}</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs">
-                {totalItemsCount}
-              </span>
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <ShoppingCart className="w-5 h-5" />
+                <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-mono font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {totalItemsCount}
+                </span>
+              </div>
+              <span className="text-sm">{t("viewCart")}</span>
             </div>
             <span className="font-mono text-base">
               {money(totals.total, isRTL)}
@@ -527,41 +541,65 @@ export default function POSSales({ currentUser, isRTL, lang = isRTL ? "ar" : "en
               </p>
             </div>
           ) : (
-            cart.map(({ item, qty }) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200/60 dark:border-slate-800/80"
-              >
-                <div className="min-w-0 flex-1 pe-2">
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                    {localize(item, lang)}
-                  </div>
-                  <div className="text-xs font-mono text-[#0070d1] dark:text-sky-400">
-                    {money(item.price, isRTL)}
-                  </div>
-                </div>
+            cart.map(({ item, qty }) => {
+              const isTracked = item.trackStock !== false
+              const reachedMax = Boolean(isTracked && qty >= item.stock)
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => changeQty(item.id, -1)}
-                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
-                  >
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span className="w-6 text-center font-mono font-bold text-sm text-slate-900 dark:text-white">
-                    {qty}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => changeQty(item.id, 1)}
-                    className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200/60 dark:border-slate-800/80"
+                >
+                  <div className="min-w-0 flex-1 pe-2">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                      {localize(item, lang)}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-[#0070d1] dark:text-sky-400 mt-0.5">
+                      <span className="font-mono">{money(item.price, isRTL)}</span>
+                      {isTracked && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-700">|</span>
+                          <span className="text-[11px] font-medium text-slate-400">
+                            {`${t("inStock")}: ${item.stock}`}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => changeQty(item.id, -1)}
+                      className="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 flex items-center justify-center font-bold text-xs cursor-pointer"
+                      title={t("decrease")}
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="w-6 text-center font-mono font-bold text-sm text-slate-900 dark:text-white">
+                      {qty}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={reachedMax}
+                      onClick={() => changeQty(item.id, 1)}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs transition-colors ${
+                        reachedMax
+                          ? "opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400"
+                          : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 cursor-pointer"
+                      }`}
+                      title={
+                        reachedMax
+                          ? t("maxStockReached")
+                          : t("increase")
+                      }
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
 

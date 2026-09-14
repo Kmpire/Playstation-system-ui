@@ -53,6 +53,9 @@ export default function ViewTabModal({
           ) : (
             items.map((it) => {
               const matchedMenuItem = menuItems?.find((m) => m.id === it.id)
+              const isTracked = matchedMenuItem?.trackStock !== false
+              const maxStock = matchedMenuItem ? matchedMenuItem.stock : Infinity
+              const reachedMax = Boolean(matchedMenuItem && isTracked && it.qty >= maxStock)
               const displayName =
                 localize(it, lang) ||
                 (matchedMenuItem ? localize(matchedMenuItem, lang) : it.name)
@@ -66,11 +69,21 @@ export default function ViewTabModal({
                     <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
                       {displayName}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {money(it.price, isRTL)} × {it.qty} ={" "}
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {money(it.price * it.qty, isRTL)}
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      <span>
+                        {money(it.price, isRTL)} × {it.qty} ={" "}
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {money(it.price * it.qty, isRTL)}
+                        </span>
                       </span>
+                      {matchedMenuItem && isTracked && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-700">|</span>
+                          <span className="text-[11px] font-medium text-slate-400">
+                            {`${t("inStock")}: ${matchedMenuItem.stock}`}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -98,9 +111,18 @@ export default function ViewTabModal({
 
                       <button
                         type="button"
-                        onClick={() => onChangeQty?.(it.id, 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-[#0070d1] hover:text-white text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-                        title={t("increase")}
+                        disabled={reachedMax}
+                        onClick={() => !reachedMax && onChangeQty?.(it.id, 1)}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                          reachedMax
+                            ? "opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400"
+                            : "bg-slate-100 dark:bg-slate-800 hover:bg-[#0070d1] hover:text-white text-slate-600 dark:text-slate-300 cursor-pointer"
+                        }`}
+                        title={
+                          reachedMax
+                            ? t("maxStockReached")
+                            : t("increase")
+                        }
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>

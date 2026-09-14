@@ -65,6 +65,7 @@ function MainApp() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
 
   const refreshMenuItems = useCallback(async () => {
+    if (!currentUser) return
     try {
       const items = await services.menuRepo.getItems()
       if (Array.isArray(items)) {
@@ -73,11 +74,15 @@ function MainApp() {
     } catch (err) {
       console.error("Failed to load items for low stock alert:", err)
     }
-  }, [services.menuRepo])
+  }, [services.menuRepo, currentUser])
 
   useEffect(() => {
-    refreshMenuItems()
-  }, [refreshMenuItems])
+    if (currentUser) {
+      refreshMenuItems()
+    } else {
+      setMenuItems([])
+    }
+  }, [currentUser, refreshMenuItems])
 
   const lowStockItems = useMemo(
     () =>

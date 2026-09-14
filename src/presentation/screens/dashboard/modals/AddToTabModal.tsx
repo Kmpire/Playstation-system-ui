@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react"
-import { Coffee, Plus, Minus, Check, X } from "lucide-react"
+import { Coffee, Plus, Minus, Check, X, AlertTriangle } from "lucide-react"
 import type { GameConsole, MenuItem, Category, TabItem } from "@/domain"
 import { money } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
@@ -50,9 +50,15 @@ export default function AddToTabModal({
   )
 
   const handleIncrement = (itemId: string) => {
+    const item = menuItems.find((m) => m.id === itemId)
+    if (!item) return
+    const isTracked = item.trackStock !== false
+    const currentQty = draftQty[itemId] || 0
+    if (isTracked && currentQty >= item.stock) return
+
     setDraftQty((prev) => ({
       ...prev,
-      [itemId]: (prev[itemId] || 0) + 1,
+      [itemId]: currentQty + 1,
     }))
   }
 
@@ -153,28 +159,54 @@ export default function AddToTabModal({
             const qty = draftQty[item.id] || 0
             const isTracked = item.trackStock !== false
             const outOfStock = isTracked && item.stock <= 0
+            const isMaxReached = isTracked && qty >= item.stock
+            const isLowStock =
+              isTracked &&
+              item.stock > 0 &&
+              item.stock <= (item.lowStockThreshold || 0)
 
             return (
               <div
                 key={item.id}
-                onClick={() => !outOfStock && handleIncrement(item.id)}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all text-start group cursor-pointer ${
+                onClick={() =>
+                  !outOfStock && !isMaxReached && handleIncrement(item.id)
+                }
+                className={`flex items-center justify-between p-3 rounded-xl border transition-all text-start group ${
                   outOfStock
                     ? "opacity-40 pointer-events-none bg-slate-50 dark:bg-[#141926] border-slate-200 dark:border-slate-800"
-                    : qty > 0
-                      ? "bg-[#0070d1]/10 dark:bg-[#0070d1]/15 border-[#0070d1] shadow-sm"
-                      : "bg-slate-50 dark:bg-[#141926] hover:bg-slate-100 dark:hover:bg-[#1b2233] border-slate-200/70 dark:border-slate-800 hover:border-[#0070d1]/50"
+                    : isMaxReached
+                      ? "bg-[#0070d1]/10 dark:bg-[#0070d1]/15 border-[#0070d1] shadow-sm cursor-default"
+                      : qty > 0
+                        ? "bg-[#0070d1]/10 dark:bg-[#0070d1]/15 border-[#0070d1] shadow-sm cursor-pointer hover:border-[#0070d1]"
+                        : "bg-slate-50 dark:bg-[#141926] hover:bg-slate-100 dark:hover:bg-[#1b2233] border-slate-200/70 dark:border-slate-800 hover:border-[#0070d1]/50 cursor-pointer"
                 }`}
               >
                 <div className="min-w-0 flex-1 pe-2">
                   <div className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-[#0070d1] dark:group-hover:text-sky-400">
                     {localize(item, lang)}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-mono font-bold text-[#0070d1] dark:text-sky-400">
                       {money(item.price, isRTL)}
                     </span>
-                    {!isTracked && (
+                    <span className="text-slate-300 dark:text-slate-700 text-xs">|</span>
+                    {isTracked ? (
+                      outOfStock ? (
+                        <span className="text-[11px] text-rose-500 font-semibold flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>{t("outOfStockToast") || "غير متوفر"}</span>
+                        </span>
+                      ) : isLowStock ? (
+                        <span className="text-[11px] text-amber-500 font-semibold flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>{`${t("inStock")}: ${item.stock}`}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                          {`${t("inStock")}: ${item.stock}`}
+                        </span>
+                      )
+                    ) : (
                       <span className="text-[10px] text-slate-400 font-medium">
                         {t("unlimitedStock")}
                       </span>
@@ -205,8 +237,17 @@ export default function AddToTabModal({
                       <button
                         type="button"
                         onClick={() => handleIncrement(item.id)}
-                        className="w-7 h-7 rounded-lg bg-[#0070d1]/10 hover:bg-[#0070d1] text-[#0070d1] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                        title={t("increase")}
+                        disabled={isMaxReached}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                          isMaxReached
+                            ? "opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400"
+                            : "bg-[#0070d1]/10 hover:bg-[#0070d1] text-[#0070d1] hover:text-white cursor-pointer"
+                        }`}
+                        title={
+                          isMaxReached
+                            ? t("maxStockReached")
+                            : t("increase")
+                        }
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -216,7 +257,7 @@ export default function AddToTabModal({
                       type="button"
                       onClick={() => !outOfStock && handleIncrement(item.id)}
                       disabled={outOfStock}
-                      className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 text-slate-500 group-hover:text-white group-hover:bg-[#0070d1] flex items-center justify-center shadow-sm transition-colors cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 text-slate-500 group-hover:text-white group-hover:bg-[#0070d1] flex items-center justify-center shadow-sm transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <Plus className="w-4 h-4" />
                     </button>

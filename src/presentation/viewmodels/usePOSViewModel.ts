@@ -66,6 +66,9 @@ export function usePOSViewModel() {
     setCart((prev) => {
       const idx = prev.findIndex((e) => e.item.id === item.id)
       if (idx >= 0) {
+        if (item.trackStock !== false && prev[idx].qty >= item.stock) {
+          return prev
+        }
         return prev.map((e, i) => (i === idx ? { ...e, qty: e.qty + 1 } : e))
       }
       return [...prev, { item, qty: 1 }]
@@ -75,7 +78,20 @@ export function usePOSViewModel() {
   const changeQty = useCallback((itemId: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((e) => (e.item.id === itemId ? { ...e, qty: e.qty + delta } : e))
+        .map((e) => {
+          if (e.item.id === itemId) {
+            const newQty = e.qty + delta
+            if (
+              delta > 0 &&
+              e.item.trackStock !== false &&
+              newQty > e.item.stock
+            ) {
+              return e
+            }
+            return { ...e, qty: newQty }
+          }
+          return e
+        })
         .filter((e) => e.qty > 0),
     )
   }, [])
