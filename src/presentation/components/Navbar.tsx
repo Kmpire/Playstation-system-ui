@@ -80,7 +80,7 @@ export default function Navbar({
   const currentTitle =
     screen === "staff" && role === "cashier"
       ? t("shiftHandover")
-      : t(screen) || screen
+      : (isRTL ? SCREEN_NAMES[screen]?.ar : SCREEN_NAMES[screen]?.en) || t(screen) || screen
 
   return (
     <>

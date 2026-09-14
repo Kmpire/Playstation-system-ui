@@ -122,7 +122,7 @@ export default function ShiftReports(props: Props) {
                     <tr className="border-b border-slate-100 dark:border-slate-700/30 bg-slate-50 dark:bg-[#252a36]">
                       {[
                         t("date"),
-                        t("staff"),
+                        t("staffCol") || t("staff"),
                         t("expected"),
                         t("counted"),
                         t("varianceCol"),
