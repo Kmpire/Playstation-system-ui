@@ -7,6 +7,8 @@ import type {
   MenuItem,
   Category,
   PricingConfig,
+  PricingTier,
+  PaymentSplit,
 } from "@/domain"
 import type { ViewStatus } from "../types/uiState"
 import { useServices } from "../context/ServicesContext"
@@ -16,6 +18,7 @@ export function useDashboardViewModel() {
 
   const [consoles, setConsoles] = useState<GameConsole[]>([])
   const [pricing, setPricing] = useState<PricingConfig[]>([])
+  const [pricingTiers, setPricingTiers] = useState<PricingTier[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
@@ -33,15 +36,16 @@ export function useDashboardViewModel() {
       setError(null)
 
       try {
-        const [consolesData, pricingData, itemsData, catsData] =
+        const [consolesData, pricingDataRes, itemsData, catsData] =
           await Promise.all([
             consoleRepo.getAll(),
-            pricingRepo.getAll(),
+            pricingRepo.getPricingData(),
             menuRepo.getItems(),
             menuRepo.getCategories(),
           ])
         setConsoles(consolesData)
-        setPricing(pricingData)
+        setPricing(pricingDataRes?.configs || [])
+        setPricingTiers(pricingDataRes?.tiers || [])
         setMenuItems(itemsData)
         setCategories(catsData)
 
@@ -87,8 +91,14 @@ export function useDashboardViewModel() {
     return updated
   }
 
-  const pauseSession = async (consoleId: number) => {
-    const updated = await consoleService.pauseSession(consoleId)
+  const pauseSession = async (
+    consoleId: number,
+    pausedAtTimestamp?: number,
+  ) => {
+    const updated = await consoleService.pauseSession(
+      consoleId,
+      pausedAtTimestamp,
+    )
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
   }
@@ -103,11 +113,13 @@ export function useDashboardViewModel() {
     consoleId: number,
     finalAmount: number,
     staffName?: string,
+    paymentsList?: PaymentSplit[],
   ) => {
     const updated = await consoleService.endSession(
       consoleId,
       finalAmount,
       staffName,
+      paymentsList,
     )
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
@@ -140,6 +152,12 @@ export function useDashboardViewModel() {
 
   const removeTabItem = async (consoleId: number, itemId: string) => {
     const updated = await consoleService.removeTabItem(consoleId, itemId)
+    setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
+    return updated
+  }
+
+  const updateSessionTab = async (consoleId: number, newTab: any[]) => {
+    const updated = await consoleService.updateTab(consoleId, newTab)
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
   }
@@ -222,6 +240,7 @@ export function useDashboardViewModel() {
     consoles,
     setConsoles,
     pricing,
+    pricingTiers,
     menuItems,
     categories,
     status,
@@ -237,6 +256,7 @@ export function useDashboardViewModel() {
     addTabItem,
     changeTabItemQty,
     removeTabItem,
+    updateSessionTab,
     transferSession,
     editSessionTime,
     toggleReserve,

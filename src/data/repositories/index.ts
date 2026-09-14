@@ -6,3 +6,6 @@ export * from "./ApiShiftRepository"
 export * from "./ApiAuthRepository"
 export * from "./ApiAuditRepository"
 export * from "./ApiCompanyRepository"
+export * from "./ApiPaymentMethodRepository"
+export * from "./ApiPaymentRepository"
+

@@ -1,13 +1,20 @@
 import type { UserAccount } from "../../domain/models/types"
 import type { IAuthRepository } from "../../domain/repositories"
-import { apiClient, setAuthToken } from "../api/apiClient"
+import { apiClient, getAuthToken, setAuthToken } from "../api/apiClient"
 
 export class ApiAuthRepository implements IAuthRepository {
   async getAccounts(): Promise<UserAccount[]> {
-    return apiClient<UserAccount[]>("/auth/accounts")
+    try {
+      return await apiClient<UserAccount[]>("/auth/accounts")
+    } catch {
+      return []
+    }
   }
 
   async login(username: string, pass: string): Promise<UserAccount | null> {
+    const cleanUser = username.trim()
+    const cleanPass = pass.trim()
+
     try {
       const res = await apiClient<{
         success: boolean
@@ -15,7 +22,7 @@ export class ApiAuthRepository implements IAuthRepository {
         user?: UserAccount
       }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ username, password: pass }),
+        body: JSON.stringify({ username: cleanUser, password: cleanPass }),
       })
       if (res && res.token) {
         setAuthToken(res.token)
@@ -24,11 +31,12 @@ export class ApiAuthRepository implements IAuthRepository {
         await this.setCurrentUser(res.user)
         return res.user
       }
-      return null
-    } catch (e) {
-      console.error("Login API error:", e)
+    } catch (e: any) {
+      console.error("[Auth] Login API request failed:", e)
       return null
     }
+
+    return null
   }
 
   async changePassword(
@@ -56,17 +64,35 @@ export class ApiAuthRepository implements IAuthRepository {
   }
 
   async getCurrentUser(): Promise<UserAccount | null> {
-    try {
-      const res = await apiClient<{ user: UserAccount }>("/auth/me")
-      return res.user || res as unknown as UserAccount || null
-    } catch {
+    const token = getAuthToken()
+    if (!token) {
       return null
     }
+
+    try {
+      const res = await apiClient<{ user: UserAccount }>("/auth/me")
+      const user = res.user || (res as unknown as UserAccount) || null
+      if (user) {
+        localStorage.setItem("ps_current_user", JSON.stringify(user))
+        return user
+      }
+    } catch {
+      await this.setCurrentUser(null)
+      return null
+    }
+    return null
   }
 
   async setCurrentUser(user: UserAccount | null): Promise<void> {
     if (!user) {
       setAuthToken(null)
+      try {
+        localStorage.removeItem("ps_current_user")
+      } catch {}
+    } else {
+      try {
+        localStorage.setItem("ps_current_user", JSON.stringify(user))
+      } catch {}
     }
   }
 

@@ -58,14 +58,16 @@ export default function Login({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!username.trim() || !password.trim()) {
+    const cleanUser = username.trim()
+    const cleanPass = password.trim()
+    if (!cleanUser || !cleanPass) {
       setError(true)
       return
     }
     setError(false)
     setLoading(true)
     try {
-      const ok = await onLogin(username, password)
+      const ok = await onLogin(cleanUser, cleanPass)
       if (!ok) setError(true)
     } catch {
       setError(true)
@@ -208,8 +210,21 @@ export default function Login({
             </div>
           )}
 
-          <Button variant="primary" type="submit" fullWidth size="lg">
-            {isRTL ? "تسجيل الدخول" : "Sign In"}
+          <Button
+            variant="primary"
+            type="submit"
+            fullWidth
+            size="lg"
+            loading={loading}
+            disabled={loading}
+          >
+            {loading
+              ? isRTL
+                ? "جاري تسجيل الدخول..."
+                : "Signing in..."
+              : isRTL
+                ? "تسجيل الدخول"
+                : "Sign In"}
           </Button>
 
           {/* Quick Demo Access Pills */}

@@ -2,12 +2,15 @@ import React from "react"
 import { Gamepad2, ShoppingCart, Coffee, Clock } from "lucide-react"
 import type { Screen, UserRole } from "@/domain"
 
+import { translations, type TranslationKey } from "@/i18n"
+
 interface BottomNavProps {
   screen: Screen
   setScreen: (s: Screen) => void
   onOpenMore?: () => void
   role: UserRole
   isRTL: boolean
+  t?: (key: string) => string
 }
 
 export default function BottomNav({
@@ -15,33 +18,33 @@ export default function BottomNav({
   setScreen,
   role,
   isRTL,
+  t: customT,
 }: BottomNavProps) {
+  const t =
+    customT ||
+    ((key: string) =>
+      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
+
   const items = [
     {
       id: "dashboard" as Screen,
       icon: Gamepad2,
-      label: isRTL ? "الأجهزة" : "Consoles",
+      label: t("consoles"),
     },
     {
       id: "pos" as Screen,
       icon: ShoppingCart,
-      label: isRTL ? "البيع" : "POS",
+      label: t("pos"),
     },
     {
       id: "menu" as Screen,
       icon: Coffee,
-      label: isRTL ? "القائمة" : "Menu",
+      label: t("menu"),
     },
     {
       id: (role === "admin" ? "shiftReports" : "staff") as Screen,
       icon: Clock,
-      label: isRTL
-        ? role === "admin"
-          ? "الورديات"
-          : "تسليم الوردية"
-        : role === "admin"
-          ? "Shifts"
-          : "Handover",
+      label: role === "admin" ? t("shifts") : t("handover"),
     },
   ]
 

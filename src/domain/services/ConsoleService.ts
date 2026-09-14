@@ -7,16 +7,21 @@ import type {
   MenuItem,
   TabItem,
   PriceSegment,
+  PaymentSplit,
 } from "../models/types"
-import type { IConsoleRepository } from "../repositories"
-import type { IPricingRepository } from "../repositories"
-import type { IAuditRepository } from "../repositories"
+import type {
+  IConsoleRepository,
+  IPricingRepository,
+  IAuditRepository,
+  IPaymentRepository,
+} from "../repositories"
 
 export class ConsoleService {
   constructor(
     private consoleRepo: IConsoleRepository,
     private pricingRepo: IPricingRepository,
     private auditRepo?: IAuditRepository,
+    private paymentRepo?: IPaymentRepository,
   ) {}
 
   /**
@@ -75,15 +80,10 @@ export class ConsoleService {
    */
   async getRate(type: ConsoleType, playerType: PlayerType): Promise<number> {
     if (type === "Break") return 0
-    const configs = await this.pricingRepo.getAll()
-    const cfg = configs.find((p) => p.type === type)
-    if (!cfg) {
-      if (type === "VIP") return playerType === "single" ? 60 : 85
-      if (type === "PS5") return playerType === "single" ? 40 : 55
-      if (type === "Xbox") return playerType === "single" ? 30 : 45
-      return playerType === "single" ? 25 : 35
-    }
-    return playerType === "single" ? cfg.singleRate : cfg.multiRate
+    const data = await this.pricingRepo.getPricingData()
+    const cfg = data.configs?.find((p) => p.type === type)
+    if (!cfg || !cfg.rates) return 0
+    return cfg.rates[playerType] ?? 0
   }
 
   async getAllConsoles(): Promise<GameConsole[]> {
@@ -143,7 +143,10 @@ export class ConsoleService {
     return updated
   }
 
-  async pauseSession(consoleId: number): Promise<GameConsole> {
+  async pauseSession(
+    consoleId: number,
+    pausedAtTimestamp?: number,
+  ): Promise<GameConsole> {
     const console = await this.consoleRepo.getById(consoleId)
     if (!console || !console.session)
       throw new Error(`Active session not found on console #${consoleId}`)
@@ -153,7 +156,7 @@ export class ConsoleService {
       status: "paused",
       session: {
         ...console.session,
-        pausedAt: Date.now(),
+        pausedAt: pausedAtTimestamp || Date.now(),
       },
     }
 
@@ -186,6 +189,7 @@ export class ConsoleService {
     consoleId: number,
     finalAmount: number,
     staffName: string = "Staff",
+    paymentsList?: PaymentSplit[],
   ): Promise<GameConsole> {
     const console = await this.consoleRepo.getById(consoleId)
     if (!console) throw new Error(`Console #${consoleId} not found`)
@@ -199,12 +203,34 @@ export class ConsoleService {
 
     await this.consoleRepo.save(updated)
 
+    // Record payment transactions
+    const splits =
+      paymentsList && paymentsList.length > 0
+        ? paymentsList
+        : [{ paymentMethodId: "pm_cash", amount: finalAmount, isCash: true }]
+
+    if (this.paymentRepo) {
+      await this.paymentRepo.processPayments({
+        consoleId,
+        payments: splits,
+        staff: staffName,
+        notes: `Console checkout: ${console.name}`,
+      })
+    }
+
+    const paymentSummaryStr = splits
+      .map(
+        (s) =>
+          `${s.paymentMethodName || (s.isCash ? "كاش" : "إلكتروني")}: $${s.amount}`,
+      )
+      .join(" + ")
+
     await this.auditRepo?.addLog({
       id: "a_" + Date.now(),
       timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
       staff: staffName,
       actionType: "Session Ended",
-      details: `${console.name} ended. Total collected: $${finalAmount.toFixed(2)}`,
+      details: `${console.name} ended. Total collected: $${finalAmount.toFixed(2)} [${paymentSummaryStr}]`,
     })
 
     return updated
@@ -317,6 +343,23 @@ export class ConsoleService {
       session: {
         ...console.session,
         tab: currentTab,
+      },
+    }
+
+    await this.consoleRepo.save(updated)
+    return updated
+  }
+
+  async updateTab(consoleId: number, newTab: TabItem[]): Promise<GameConsole> {
+    const console = await this.consoleRepo.getById(consoleId)
+    if (!console || !console.session)
+      throw new Error(`No active session on console #${consoleId}`)
+
+    const updated: GameConsole = {
+      ...console,
+      session: {
+        ...console.session,
+        tab: newTab.filter((t) => t.qty > 0),
       },
     }
 

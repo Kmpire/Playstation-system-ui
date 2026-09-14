@@ -71,6 +71,17 @@ export async function apiClient<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      setAuthToken(null)
+      try {
+        localStorage.removeItem("ps_current_user")
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("ps_auth_unauthorized"))
+        }
+      } catch {}
+    }
     let errorMsg = `HTTP Error ${response.status}: ${response.statusText}`
     try {
       const errData = await response.json()

@@ -3,6 +3,7 @@ import type {
   MenuItem,
   Category,
   PricingConfig,
+  PricingData,
   Controller,
   MaintenanceRecord,
   ShiftReport,
@@ -11,6 +12,10 @@ import type {
   CompanyInfo,
   SessionOrderRecord,
   ConsoleSessionRecord,
+  PaymentMethod,
+  PaymentRecord,
+  PaymentSplit,
+  PaymentSummary,
 } from "../models/types"
 
 export interface IConsoleRepository {
@@ -27,6 +32,7 @@ export interface IMenuRepository {
   getItems(): Promise<MenuItem[]>
   saveItem(item: MenuItem): Promise<void>
   saveAllItems(items: MenuItem[]): Promise<void>
+  deductStock?(items: { id: string; qty: number }[]): Promise<void>
   deleteItem(id: string): Promise<void>
   getCategories(): Promise<Category[]>
   saveCategory(cat: Category): Promise<void>
@@ -35,8 +41,10 @@ export interface IMenuRepository {
 }
 
 export interface IPricingRepository {
-  getAll(): Promise<PricingConfig[]>
-  saveAll(pricing: PricingConfig[]): Promise<void>
+  getPricingData(): Promise<PricingData>
+  savePricingData(data: PricingData): Promise<void>
+  getAll?(): Promise<PricingConfig[]>
+  saveAll?(configs: PricingConfig[]): Promise<void>
 }
 
 export interface IControllerRepository {
@@ -85,3 +93,28 @@ export interface IAuditRepository {
 export interface ICompanyRepository {
   getCompanyInfo(): Promise<CompanyInfo>
 }
+
+export interface IPaymentMethodRepository {
+  getAll(): Promise<PaymentMethod[]>
+  getById(id: string): Promise<PaymentMethod | null>
+  save(method: PaymentMethod): Promise<PaymentMethod>
+  delete(id: string): Promise<void>
+}
+
+export interface IPaymentRepository {
+  getPayments(filter?: {
+    sessionId?: number
+    consoleId?: number
+    isCash?: boolean
+  }): Promise<PaymentRecord[]>
+  processPayments(data: {
+    sessionId?: number
+    consoleId?: number
+    orderId?: string
+    payments: PaymentSplit[]
+    staff?: string
+    notes?: string
+  }): Promise<PaymentRecord[]>
+  getSummary(): Promise<PaymentSummary>
+}
+

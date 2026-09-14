@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
-import type { MenuItem, Category } from "@/domain"
+import type { MenuItem, Category, PaymentSplit } from "@/domain"
 import type { CartItem } from "@/domain/services/POSService"
 import type { ViewStatus } from "../types/uiState"
 import { useServices } from "../context/ServicesContext"
@@ -93,12 +93,13 @@ export function usePOSViewModel() {
   )
 
   const checkout = useCallback(
-    async (staffName: string = "Cashier") => {
+    async (staffName: string = "Cashier", paymentsList?: PaymentSplit[]) => {
       if (cart.length === 0) throw new Error("Cart is empty")
       const summary = await posService.processSale(
         cart,
         promoApplied ? promoCode : "",
         staffName,
+        paymentsList,
       )
       // Deduct sold quantities locally if tracked
       setMenuItems((prev) =>

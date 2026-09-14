@@ -7,6 +7,8 @@ import {
   ApiAuthRepository,
   ApiAuditRepository,
   ApiCompanyRepository,
+  ApiPaymentMethodRepository,
+  ApiPaymentRepository,
 } from "../data"
 import type {
   IConsoleRepository,
@@ -17,6 +19,8 @@ import type {
   IAuthRepository,
   IAuditRepository,
   ICompanyRepository,
+  IPaymentMethodRepository,
+  IPaymentRepository,
 } from "../domain/repositories"
 import {
   ConsoleService,
@@ -41,6 +45,8 @@ export interface AppServices {
   authRepo: IAuthRepository & { resetToDefaults?: () => Promise<unknown> }
   auditRepo: IAuditRepository & { resetToDefaults?: () => Promise<unknown> }
   companyRepo: ICompanyRepository
+  paymentMethodRepo: IPaymentMethodRepository
+  paymentRepo: IPaymentRepository
 
   // Domain Services
   consoleService: ConsoleService
@@ -66,12 +72,19 @@ export function createContainer(): AppServices {
   const authRepo = new ApiAuthRepository()
   const auditRepo = new ApiAuditRepository()
   const companyRepo = new ApiCompanyRepository()
+  const paymentMethodRepo = new ApiPaymentMethodRepository()
+  const paymentRepo = new ApiPaymentRepository()
 
   // 2. Services
   const auditService = new AuditService(auditRepo)
   const pricingService = new PricingService(pricingRepo, auditRepo)
-  const consoleService = new ConsoleService(consoleRepo, pricingRepo, auditRepo)
-  const posService = new POSService(menuRepo, auditRepo)
+  const consoleService = new ConsoleService(
+    consoleRepo,
+    pricingRepo,
+    auditRepo,
+    paymentRepo,
+  )
+  const posService = new POSService(menuRepo, auditRepo, paymentRepo)
   const inventoryService = new InventoryService(menuRepo, auditRepo)
   const controllerService = new ControllerService(controllerRepo, auditRepo)
   const shiftService = new ShiftService(shiftRepo, auditRepo)
@@ -96,6 +109,8 @@ export function createContainer(): AppServices {
     authRepo,
     auditRepo,
     companyRepo,
+    paymentMethodRepo,
+    paymentRepo,
 
     consoleService,
     posService,
@@ -110,4 +125,4 @@ export function createContainer(): AppServices {
   }
 }
 
-export const defaultContainer = createContainer()
+export const defaultContainer: AppServices = createContainer()

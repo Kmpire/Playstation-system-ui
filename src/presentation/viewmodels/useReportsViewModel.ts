@@ -6,6 +6,8 @@ import type {
   SessionOrderRecord,
   ConsoleSessionRecord,
   AuditEntry,
+  PaymentRecord,
+  PaymentSummary,
 } from "@/domain"
 import type { ViewStatus } from "../types/uiState"
 import { useServices } from "../context/ServicesContext"
@@ -19,6 +21,16 @@ export interface TopSellingItem {
   revenue: number
 }
 
+export interface PaymentMethodBreakdown {
+  methodId: string
+  name: string
+  nameAr: string
+  isCash: boolean
+  amount: number
+  count: number
+  percentage: number
+}
+
 export interface PeriodStats {
   revenue: number
   profit: number
@@ -28,8 +40,14 @@ export interface PeriodStats {
 }
 
 export function useReportsViewModel() {
-  const { shiftRepo, consoleRepo, menuRepo, auditRepo, controllerRepo } =
-    useServices()
+  const {
+    shiftRepo,
+    consoleRepo,
+    menuRepo,
+    auditRepo,
+    controllerRepo,
+    paymentRepo,
+  } = useServices()
 
   const [period, setPeriod] = useState<ReportPeriod>("daily")
   const [shiftReports, setShiftReports] = useState<ShiftReport[]>([])
@@ -38,6 +56,10 @@ export function useReportsViewModel() {
   const [tabOrders, setTabOrders] = useState<SessionOrderRecord[]>([])
   const [allSessions, setAllSessions] = useState<ConsoleSessionRecord[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([])
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(
+    null,
+  )
   const [maintenanceCost, setMaintenanceCost] = useState(0)
 
   const [status, setStatus] = useState<ViewStatus>("loading")
@@ -62,6 +84,8 @@ export function useReportsViewModel() {
           tabs,
           logs,
           sessionsList,
+          paymentList,
+          summaryData,
         ] = await Promise.all([
           shiftRepo.getShiftReports(),
           consoleRepo.getAll(),
@@ -76,6 +100,8 @@ export function useReportsViewModel() {
           consoleRepo.getAllSessions
             ? consoleRepo.getAllSessions()
             : Promise.resolve([]),
+          paymentRepo.getPayments().catch(() => []),
+          paymentRepo.getSummary().catch(() => null),
         ])
 
         setShiftReports(shifts || [])
@@ -84,6 +110,8 @@ export function useReportsViewModel() {
         setTabOrders(tabs || [])
         setAuditLogs(logs || [])
         setAllSessions(sessionsList || [])
+        setPayments(paymentList || [])
+        setPaymentSummary(summaryData || null)
 
         const totalMaintCost = (maintRecords || []).reduce(
           (sum, r) => sum + (r.cost || 0),
@@ -100,7 +128,7 @@ export function useReportsViewModel() {
         setIsRefreshing(false)
       }
     },
-    [shiftRepo, consoleRepo, menuRepo, controllerRepo, auditRepo],
+    [shiftRepo, consoleRepo, menuRepo, controllerRepo, auditRepo, paymentRepo],
   )
 
   useEffect(() => {
@@ -354,6 +382,137 @@ export function useReportsViewModel() {
     )
   }, [tabOrders, consoles, auditLogs, menuItems, period])
 
+  // Aggregate revenue breakdown by payment method
+  const paymentBreakdown = useMemo<PaymentMethodBreakdown[]>(() => {
+    const now = Date.now()
+    const startOfToday = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      new Date().getDate(),
+    ).getTime()
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
+
+    const isWithin = (dateVal?: string | Date) => {
+      if (!dateVal) return true
+      const dateStr = typeof dateVal === "string" ? dateVal : dateVal.toISOString()
+      const t = new Date(dateStr).getTime()
+      if (isNaN(t)) return true
+      if (period === "daily")
+        return t >= startOfToday || now - t <= 24 * 3600 * 1000
+      if (period === "weekly") return t >= sevenDaysAgo
+      if (period === "monthly") return t >= thirtyDaysAgo
+      return true
+    }
+
+    const filtered = payments.filter((p) => isWithin(p.createdAt))
+    const expectedRevenue = periodStats[period]?.revenue || 0
+
+    if (filtered.length > 0) {
+      let totalAmount = filtered.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+      const methodMap = new Map<string, PaymentMethodBreakdown>()
+
+      for (const p of filtered) {
+        const key = p.paymentMethodId || (p.isCash ? "pm_cash" : "pm_ewallet")
+        const name = p.paymentMethodName || (p.isCash ? "Cash" : "E-Wallet")
+        const nameAr = p.isCash
+          ? "كاش / نقدي"
+          : name === "E-Wallet"
+            ? "محفظة إلكترونية"
+            : name
+
+        const existing = methodMap.get(key) || {
+          methodId: key,
+          name,
+          nameAr,
+          isCash: p.isCash,
+          amount: 0,
+          count: 0,
+          percentage: 0,
+        }
+        existing.amount += Number(p.amount) || 0
+        existing.count += 1
+        methodMap.set(key, existing)
+      }
+
+      // If recorded payment splits don't cover full reported revenue (e.g. legacy session revenue before payment tracking),
+      // allocate remaining difference to drawer Cash
+      if (expectedRevenue > totalAmount + 0.01) {
+        const diff = expectedRevenue - totalAmount
+        const cashKey = "pm_cash"
+        const existingCash = methodMap.get(cashKey) || {
+          methodId: cashKey,
+          name: "Cash",
+          nameAr: "كاش / نقدي",
+          isCash: true,
+          amount: 0,
+          count: 0,
+          percentage: 0,
+        }
+        existingCash.amount += diff
+        existingCash.count = Math.max(existingCash.count, 1)
+        methodMap.set(cashKey, existingCash)
+        totalAmount = expectedRevenue
+      }
+
+      const effectiveTotal = Math.max(totalAmount, expectedRevenue)
+
+      return Array.from(methodMap.values())
+        .map((m) => ({
+          ...m,
+          amount: +m.amount.toFixed(2),
+          percentage:
+            effectiveTotal > 0
+              ? +((m.amount / effectiveTotal) * 100).toFixed(1)
+              : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+    }
+
+    if (
+      paymentSummary &&
+      paymentSummary.breakdown &&
+      paymentSummary.breakdown.length > 0
+    ) {
+      const summaryTotal =
+        paymentSummary.totalRevenue > 0
+          ? paymentSummary.totalRevenue
+          : paymentSummary.breakdown.reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+
+      return paymentSummary.breakdown.map((b: any) => {
+        const id = b.paymentMethodId || b.methodId || (b.isCash ? "pm_cash" : "pm_ewallet")
+        const amt = Number(b.amount) || 0
+        return {
+          methodId: id,
+          name: b.name || (b.isCash ? "Cash" : "E-Wallet"),
+          nameAr: b.nameAr || (b.isCash ? "كاش / نقدي" : "محفظة إلكترونية"),
+          isCash: b.isCash,
+          amount: +amt.toFixed(2),
+          count: b.count || 1,
+          percentage:
+            summaryTotal > 0 ? +((amt / summaryTotal) * 100).toFixed(1) : 0,
+        }
+      })
+    }
+
+    // Graceful fallback: If revenue exists in period but no payment splits were logged yet, show 100% Cash
+    if (expectedRevenue > 0) {
+      return [
+        {
+          methodId: "pm_cash",
+          name: "Cash",
+          nameAr: "كاش / نقدي",
+          isCash: true,
+          amount: +expectedRevenue.toFixed(2),
+          count: periodStats[period]?.sessions || 1,
+          percentage: 100,
+        },
+      ]
+    }
+
+    return []
+  }, [payments, paymentSummary, period, periodStats])
+
   const currentStats = periodStats[period]
 
   return {
@@ -362,6 +521,8 @@ export function useReportsViewModel() {
     currentStats,
     periodStats,
     topItems,
+    paymentBreakdown,
+    paymentSummary,
     shiftReports,
     consoles,
     status,

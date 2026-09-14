@@ -6,10 +6,11 @@ import Button from "@/presentation/components/ui/Button"
 
 interface EditConsoleModalProps {
   con: GameConsole | null
-  isOpen: boolean
+  isOpen?: boolean
   isRTL: boolean
   onClose: () => void
-  onSave: (conId: number, name: string, type: ConsoleType) => void
+  onSave?: (conId: number, name: string, type: ConsoleType) => void
+  onUpdate?: (conId: number, name: string, type: ConsoleType) => void
 }
 
 const TYPE_CONFIG: Record<
@@ -49,10 +50,11 @@ const TYPE_CONFIG: Record<
 
 export default function EditConsoleModal({
   con,
-  isOpen,
+  isOpen = !!con,
   isRTL,
   onClose,
   onSave,
+  onUpdate,
 }: EditConsoleModalProps) {
   const [name, setName] = useState("")
   const [type, setType] = useState<ConsoleType>("PS5")
@@ -69,7 +71,8 @@ export default function EditConsoleModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    onSave(con.id, name.trim(), type)
+    const saveFn = onUpdate || onSave
+    if (saveFn) saveFn(con.id, name.trim(), type)
     onClose()
   }
 

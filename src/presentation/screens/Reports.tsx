@@ -1,4 +1,3 @@
-import React from "react"
 import {
   BarChart3,
   Printer,
@@ -9,6 +8,9 @@ import {
   TrendingUp,
   Receipt,
   FileSpreadsheet,
+  Banknote,
+  Wallet,
+  PieChart,
 } from "lucide-react"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
@@ -20,6 +22,7 @@ import { CardGridSkeleton } from "@/presentation/components/states/LoadingSkelet
 import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
+import { translations } from "@/i18n"
 
 interface Props {
   t?: (k: string) => string
@@ -48,11 +51,13 @@ function StatCard({
           : "bg-white dark:bg-[#0e121b] border-slate-200 dark:border-slate-800"
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           {label}
         </span>
-        <div className="text-slate-400">{icon}</div>
+        <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80">
+          {icon}
+        </div>
       </div>
       <div
         className={`text-xl sm:text-2xl font-bold font-mono ${
@@ -70,7 +75,12 @@ function StatCard({
   )
 }
 
-export default function Reports({ isRTL = true }: Props) {
+export default function Reports({ isRTL = true, t: customT }: Props) {
+  const t =
+    customT ||
+    ((key: string) =>
+      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
+
   const vm = useReportsViewModel()
   const data = vm.currentStats
   const maxRev = Math.max(1, ...vm.topItems.map((i) => i.revenue))
@@ -99,6 +109,11 @@ export default function Reports({ isRTL = true }: Props) {
     csv += `المنتجات الأكثر مبيعاً\nالصنف,الكمية المباعة,الإيراد\n`
     vm.topItems.forEach((it) => {
       csv += `${isRTL ? it.nameAr : it.name},${it.sold},${it.revenue} EGP\n`
+    })
+
+    csv += `\nتفاصيل طرق التحصيل والدفع\nطريقة الدفع,النوع,المبلغ,النسبة,عدد العمليات\n`
+    vm.paymentBreakdown.forEach((pm) => {
+      csv += `${isRTL ? pm.nameAr : pm.name},${pm.isCash ? "كاش (درج)" : "إلكتروني"},${pm.amount} EGP,${pm.percentage}%,${pm.count}\n`
     })
 
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
@@ -131,12 +146,10 @@ export default function Reports({ isRTL = true }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#0070d1]" />
-            <span>{isRTL ? "التقارير والإحصاءات" : "Reports & Analytics"}</span>
+            <span>{t("reports")}</span>
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {isRTL
-              ? "تحليل الإيرادات، الأرباح، ونشاط الجلسات"
-              : "Financial breakdown, profits, and console usage"}
+            {t("financialStatement")}
           </p>
         </div>
 
@@ -154,7 +167,7 @@ export default function Reports({ isRTL = true }: Props) {
             onClick={handleExportCSV}
             icon={<Download className="w-4 h-4" />}
           >
-            {isRTL ? "تصدير CSV" : "Export CSV"}
+            {t("exportCsv")}
           </Button>
 
           <Button
@@ -163,7 +176,7 @@ export default function Reports({ isRTL = true }: Props) {
             onClick={handlePrintPDF}
             icon={<Printer className="w-4 h-4" />}
           >
-            {isRTL ? "طباعة / حفظ PDF" : "Print / Save PDF"}
+            {t("printPdf")}
           </Button>
         </div>
       </div>
@@ -188,7 +201,7 @@ export default function Reports({ isRTL = true }: Props) {
               {/* Today's Summary Stat Cards - Responsive Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                 <StatCard
-                  label={isRTL ? "إجمالي الإيرادات" : "Total Revenue"}
+                  label={t("totalShiftSales")}
                   value={money(data.revenue, isRTL)}
                   sub={
                     isRTL
@@ -199,7 +212,7 @@ export default function Reports({ isRTL = true }: Props) {
                   accent
                 />
                 <StatCard
-                  label={isRTL ? "صافي الأرباح" : "Net Profit"}
+                  label={t("netOperatingIncome")}
                   value={money(data.profit, isRTL)}
                   sub={
                     isRTL
@@ -209,13 +222,13 @@ export default function Reports({ isRTL = true }: Props) {
                   icon={<TrendingUp className="w-4 h-4 text-[#0070d1]" />}
                 />
                 <StatCard
-                  label={isRTL ? "إجمالي المصروفات" : "Expenses"}
+                  label={t("maintenanceAndExpenses")}
                   value={money(data.expenses, isRTL)}
-                  sub={isRTL ? "صيانة ومشتريات" : "Maint & restock"}
+                  sub={t("maintAndRestock")}
                   icon={<Receipt className="w-4 h-4 text-rose-500" />}
                 />
                 <StatCard
-                  label={isRTL ? "جلسات اللعب" : "Gaming Sessions"}
+                  label={t("gamingSessions")}
                   value={String(data.sessions)}
                   sub={
                     isRTL
@@ -225,7 +238,7 @@ export default function Reports({ isRTL = true }: Props) {
                   icon={<Gamepad2 className="w-4 h-4 text-amber-500" />}
                 />
                 <StatCard
-                  label={isRTL ? "ساعات اللعب النشطة" : "Active Hours"}
+                  label={t("activeHours")}
                   value={`${data.activeHours}h`}
                   sub={
                     isRTL
@@ -279,17 +292,13 @@ export default function Reports({ isRTL = true }: Props) {
                 <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <FileSpreadsheet className="w-4 h-4 text-[#0070d1]" />
-                    <span>
-                      {isRTL ? "ملخص البيان المالي" : "Financial Statement"}
-                    </span>
+                    <span>{t("financialStatement")}</span>
                   </h3>
 
                   <div className="space-y-2.5 text-xs sm:text-sm">
                     <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500">
-                        {isRTL
-                          ? "إجمالي إيراد الأجهزة والطلبات"
-                          : "Gross Revenue"}
+                        {t("grossRevenue")}
                       </span>
                       <span className="font-mono font-bold text-slate-900 dark:text-white">
                         {money(data.revenue, isRTL)}
@@ -298,9 +307,7 @@ export default function Reports({ isRTL = true }: Props) {
 
                     <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500">
-                        {isRTL
-                          ? "تكاليف الصيانة والمصروفات"
-                          : "Maintenance & Expenses"}
+                        {t("maintenanceAndExpenses")}
                       </span>
                       <span className="font-mono font-bold text-rose-500">
                         - {money(data.expenses, isRTL)}
@@ -309,7 +316,7 @@ export default function Reports({ isRTL = true }: Props) {
 
                     <div className="flex justify-between py-2 border-t-2 border-slate-200 dark:border-slate-700 font-bold">
                       <span className="text-slate-900 dark:text-white">
-                        {isRTL ? "صافي الدخل التشغيلي" : "Net Operating Income"}
+                        {t("netOperatingIncome")}
                       </span>
                       <span className="font-mono text-base text-emerald-500">
                         {money(data.profit, isRTL)}
@@ -322,18 +329,12 @@ export default function Reports({ isRTL = true }: Props) {
                 <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-500" />
-                    <span>
-                      {isRTL
-                        ? "الأصناف الأكثر طلباً (الكافيه)"
-                        : "Top Cafe Items"}
-                    </span>
+                    <span>{t("topCafeItems")}</span>
                   </h3>
 
                   {vm.topItems.length === 0 ? (
                     <div className="py-10 text-center text-slate-400 text-xs sm:text-sm">
-                      {isRTL
-                        ? "لا توجد مبيعات أصناف أو طلبات مسجلة حتى الآن"
-                        : "No cafe orders or item sales recorded yet"}
+                      {t("noOrdersRecorded")}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -367,6 +368,116 @@ export default function Reports({ isRTL = true }: Props) {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Payment Methods Breakdown Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-[#0070d1]" />
+                    <span>
+                      {isRTL
+                        ? "تفاصيل وتوزيع الإيرادات حسب طرق الدفع (كاش ومحافظ)"
+                        : "Revenue Breakdown by Payment Method"}
+                    </span>
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    {isRTL
+                      ? "تسليم الوردية ومطابقة الدرج تقارن الكاش فقط"
+                      : "Shift drawer audit compares Cash only"}
+                  </span>
+                </div>
+
+                {/* Visual Proportion Bar & Itemized Grid */}
+                {vm.paymentBreakdown.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400">
+                    {isRTL
+                      ? "لا توجد حركات دفع مسجلة لهذه الفترة"
+                      : "No payment transactions recorded for this period"}
+                  </div>
+                ) : (
+                  <>
+                    {/* Visual Proportion Bar */}
+                    <div className="h-3 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex mb-4">
+                      {vm.paymentBreakdown.map((pm, idx) => {
+                        const colors = [
+                          "bg-emerald-500",
+                          "bg-sky-500",
+                          "bg-indigo-500",
+                          "bg-amber-500",
+                        ]
+                        const color = pm.isCash
+                          ? "bg-emerald-500"
+                          : colors[(idx + 1) % colors.length]
+                        return (
+                          <div
+                            key={pm.methodId}
+                            style={{ width: `${Math.max(2, pm.percentage || 0)}%` }}
+                            className={`${color} transition-all duration-500`}
+                            title={`${isRTL ? pm.nameAr : pm.name}: ${pm.percentage}% (${money(pm.amount, isRTL)})`}
+                          />
+                        )
+                      })}
+                    </div>
+
+                    {/* Itemized Grid of Payment Methods */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {vm.paymentBreakdown.map((pm) => (
+                        <div
+                          key={pm.methodId}
+                          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                            pm.isCash
+                              ? "bg-emerald-500/5 border-emerald-500/20"
+                              : "bg-slate-50 dark:bg-[#141926] border-slate-200 dark:border-slate-800"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`p-2 rounded-lg shrink-0 ${
+                                pm.isCash
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                              }`}
+                            >
+                              {pm.isCash ? (
+                                <Banknote className="w-4 h-4" />
+                              ) : (
+                                <Wallet className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span className="whitespace-nowrap font-bold">
+                                  {isRTL ? pm.nameAr || pm.name : pm.name}
+                                </span>
+                                {pm.isCash && (
+                                  <span className="shrink-0 px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 text-[10px] font-semibold">
+                                    {t("cashDrawer")}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-400 mt-0.5">
+                                {pm.count} {t("transactions")} • {pm.percentage}%
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-end shrink-0">
+                            <div
+                              className={`text-sm font-bold font-mono ${
+                                pm.isCash
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-slate-900 dark:text-white"
+                              }`}
+                            >
+                              {money(pm.amount, isRTL)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </PullToRefresh>

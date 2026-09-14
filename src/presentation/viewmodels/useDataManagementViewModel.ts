@@ -66,7 +66,7 @@ export function useDataManagementViewModel() {
           consoleRepo.getAll().catch(() => []),
           menuRepo.getItems().catch(() => []),
           menuRepo.getCategories().catch(() => []),
-          pricingRepo.getAll().catch(() => []),
+          pricingRepo.getPricingData().catch(() => ({ tiers: [], configs: [] })),
           controllerRepo.getAll().catch(() => []),
           controllerRepo.getMaintenanceRecords().catch(() => []),
           shiftRepo.getShiftReports().catch(() => []),
@@ -77,7 +77,7 @@ export function useDataManagementViewModel() {
           consolesCount: consoles.length,
           menuItemsCount: items.length,
           categoriesCount: categories.length,
-          pricingRulesCount: pricing.length,
+          pricingRulesCount: (pricing as any)?.configs?.length || 0,
           controllersCount: controllers.length,
           maintenanceRecordsCount: maint.length,
           shiftReportsCount: shifts.length,
@@ -120,7 +120,7 @@ export function useDataManagementViewModel() {
         consoleRepo.getAll(),
         menuRepo.getItems(),
         menuRepo.getCategories(),
-        pricingRepo.getAll(),
+        pricingRepo.getPricingData(),
         controllerRepo.getAll(),
         controllerRepo.getMaintenanceRecords(),
         shiftRepo.getShiftReports(),
@@ -179,8 +179,16 @@ export function useDataManagementViewModel() {
       if (Array.isArray(data.categories)) {
         tasks.push(menuRepo.saveAllCategories(data.categories))
       }
-      if (Array.isArray(data.pricing)) {
-        tasks.push(pricingRepo.saveAll(data.pricing))
+      if (data.pricing) {
+        if (data.pricing.tiers || data.pricing.configs) {
+          tasks.push(pricingRepo.savePricingData(data.pricing))
+        } else if (Array.isArray(data.pricing)) {
+          tasks.push(
+            pricingRepo.saveAll
+              ? pricingRepo.saveAll(data.pricing)
+              : pricingRepo.savePricingData({ tiers: [], configs: data.pricing }),
+          )
+        }
       }
       if (Array.isArray(data.controllers)) {
         tasks.push(controllerRepo.saveAll(data.controllers))

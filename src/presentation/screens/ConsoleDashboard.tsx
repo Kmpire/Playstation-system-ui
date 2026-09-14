@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react"
 import {
   Gamepad2,
   Plus,
   Activity,
   CheckCircle,
   Wrench,
-  DollarSign,
   ArrowUpDown,
 } from "lucide-react"
 import type {
@@ -16,6 +15,7 @@ import type {
   SessionMode,
   MenuItem,
   Theme,
+  PaymentSplit,
 } from "@/domain"
 import { money } from "@/domain"
 import Button from "@/presentation/components/ui/Button"
@@ -47,7 +47,7 @@ interface Props {
   toast: (msg: string) => void
   isRTL: boolean
   theme?: Theme
-  currentUser?: { name?: string username?: string role?: string }
+  currentUser?: { name?: string; username?: string; role?: string }
   [key: string]: unknown
 }
 
@@ -60,6 +60,7 @@ export default function ConsoleDashboard({
   const {
     consoles,
     pricing,
+    pricingTiers,
     menuItems,
     categories,
     status,
@@ -81,6 +82,7 @@ export default function ConsoleDashboard({
     deleteConsole,
     updateConsoleInfo,
     changeTabItemQty,
+    updateSessionTab,
     reorderConsoles,
   } = useDashboardViewModel()
 
@@ -111,7 +113,111 @@ export default function ConsoleDashboard({
     null,
   )
 
+  // Local reordering & smooth animation states
+  const [localConsoles, setLocalConsoles] = useState<GameConsole[]>(consoles)
+  const initialConsolesRef = useRef<GameConsole[]>([])
+  const lastTargetIdRef = useRef<number | null>(null)
+  const hasDroppedRef = useRef<boolean>(false)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const positionsRef = useRef<Map<number, DOMRect>>(new Map())
+
+  // Keep localConsoles in sync with consoles when not actively dragging
+  useEffect(() => {
+    if (!draggedConsoleId) {
+      setLocalConsoles(consoles)
+    }
+  }, [consoles, draggedConsoleId])
+
+  // Reset local state if reorder mode is toggled off
+  useEffect(() => {
+    if (!isReordering) {
+      setLocalConsoles(consoles)
+      setDraggedConsoleId(null)
+      lastTargetIdRef.current = null
+    }
+  }, [isReordering, consoles])
+
+  // Capture bounding rects before re-render for FLIP animation
+  const capturePositions = () => {
+    if (!gridRef.current) return
+    const cards = gridRef.current.querySelectorAll<HTMLElement>("[data-console-id]")
+    const map = new Map<number, DOMRect>()
+    cards.forEach((el) => {
+      const id = Number(el.dataset.consoleId)
+      if (!isNaN(id)) {
+        map.set(id, el.getBoundingClientRect())
+      }
+    })
+    positionsRef.current = map
+  }
+
+  // Smooth FLIP layout animation for grid reordering preview
+  useLayoutEffect(() => {
+    if (!gridRef.current || positionsRef.current.size === 0) return
+
+    const oldPositions = positionsRef.current
+    const cards = gridRef.current.querySelectorAll<HTMLElement>("[data-console-id]")
+
+    cards.forEach((el) => {
+      const id = Number(el.dataset.consoleId)
+      // Exclude the dragged card itself to avoid distorting native browser drag image
+      if (id === draggedConsoleId) return
+
+      const oldRect = oldPositions.get(id)
+      if (!oldRect) return
+
+      const newRect = el.getBoundingClientRect()
+      const dx = oldRect.left - newRect.left
+      const dy = oldRect.top - newRect.top
+
+      if (dx !== 0 || dy !== 0) {
+        // Snap immediately to old coordinate
+        el.style.transform = `translate(${dx}px, ${dy}px)`
+        el.style.transition = "transform 0s"
+
+        // Force browser layout reflow
+        void el.offsetHeight
+
+        // Glide smoothly to new destination
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 320ms cubic-bezier(0.2, 0, 0, 1)"
+          el.style.transform = ""
+        })
+      }
+    })
+
+    positionsRef.current.clear()
+  }, [localConsoles, draggedConsoleId])
+
   const isAdmin = currentUser?.role === "admin"
+
+  const activeAddToTabCon = addToTabCon
+    ? localConsoles.find((c) => c.id === addToTabCon.id) || addToTabCon
+    : null
+  const activeViewTabCon = viewTabCon
+    ? localConsoles.find((c) => c.id === viewTabCon.id) || viewTabCon
+    : null
+
+  const autoPausedConIdRef = useRef<number | null>(null)
+
+  const activeEndSessionCon = useMemo(() => {
+    if (!endSessionCon) return null
+    const found = localConsoles.find((c) => c.id === endSessionCon.id)
+    if (!found) return endSessionCon
+    if (endSessionCon.session?.pausedAt) {
+      return {
+        ...found,
+        status: "paused" as const,
+        session: found.session
+          ? { ...found.session, pausedAt: endSessionCon.session.pausedAt }
+          : found.session,
+      }
+    }
+    if (autoPausedConIdRef.current === found.id && found.status !== "paused") {
+      return endSessionCon
+    }
+    return found
+  }, [endSessionCon, localConsoles])
 
   const alertedSessions = useRef<Set<number>>(new Set())
 
@@ -165,16 +271,12 @@ export default function ConsoleDashboard({
 
   // Rate getter
   const getRate = (type: ConsoleType, playerType: PlayerType): number => {
+    if (type === "Break") return 0
     const cfg = pricing.find(
       (p) => p.type === type || (p as any).consoleType === type,
     )
-    if (!cfg) {
-      if (type === "VIP") return playerType === "single" ? 60 : 85
-      if (type === "PS5") return playerType === "single" ? 40 : 55
-      if (type === "Xbox") return playerType === "single" ? 30 : 45
-      return playerType === "single" ? 25 : 35
-    }
-    return playerType === "single" ? cfg.singleRate : cfg.multiRate
+    if (!cfg || !cfg.rates) return 0
+    return cfg.rates[playerType] ?? 0
   }
 
   const handleToggleReserve = async (conId: number) => {
@@ -255,12 +357,63 @@ export default function ConsoleDashboard({
     }
   }
 
-  const handleEndSession = async (conId: number, finalAmount: number) => {
+  const handleOpenEndSession = async (con: GameConsole) => {
+    if (con.status === "occupied" && con.session) {
+      autoPausedConIdRef.current = con.id
+      const freezeTimestamp = Date.now()
+      const optimisticCon: GameConsole = {
+        ...con,
+        status: "paused",
+        session: {
+          ...con.session,
+          pausedAt: freezeTimestamp,
+        },
+      }
+      setEndSessionCon(optimisticCon)
+      try {
+        const updated = await pauseSession(con.id, freezeTimestamp)
+        setEndSessionCon({
+          ...updated,
+          status: "paused",
+          session: updated.session
+            ? { ...updated.session, pausedAt: freezeTimestamp }
+            : updated.session,
+        })
+      } catch (err: any) {
+        console.error("Auto-pause on end session failed:", err)
+      }
+    } else {
+      autoPausedConIdRef.current = null
+      setEndSessionCon(con)
+    }
+  }
+
+  const handleCloseEndSession = async () => {
+    const autoPausedId = autoPausedConIdRef.current
+    autoPausedConIdRef.current = null
+    setEndSessionCon(null)
+
+    if (autoPausedId) {
+      try {
+        await resumeSession(autoPausedId)
+      } catch (err: any) {
+        console.error("Auto-resume on end session cancel failed:", err)
+      }
+    }
+  }
+
+  const handleEndSession = async (
+    conId: number,
+    finalAmount: number,
+    paymentsList?: PaymentSplit[],
+  ) => {
     try {
+      autoPausedConIdRef.current = null
       await endSession(
         conId,
         finalAmount,
         (currentUser as any)?.name || "Staff",
+        paymentsList,
       )
       alertedSessions.current.delete(conId)
       setEndSessionCon(null)
@@ -285,10 +438,12 @@ export default function ConsoleDashboard({
   ) => {
     try {
       await togglePlayerType(conId, newPlayerType)
+      const tier = pricingTiers.find((t) => t.id === newPlayerType)
+      const label = tier ? (isRTL ? tier.nameAr : tier.name) : newPlayerType
       toast(
         isRTL
-          ? `تم التغيير إلى لعب ${newPlayerType === "single" ? "فردي" : "زوجي"}`
-          : `Switched to ${newPlayerType} player rate`,
+          ? `تم التغيير إلى لعب ${label}`
+          : `Switched to ${label} player rate`,
       )
     } catch (err: any) {
       toast(
@@ -457,35 +612,83 @@ export default function ConsoleDashboard({
     }
   }
 
-  const handleDragStart = (id: number) => {
+  const handleSaveTab = async (conId: number, newTab: any[]) => {
+    try {
+      await updateSessionTab(conId, newTab)
+      toast(isRTL ? "تم حفظ طلبات الحساب بنجاح ✓" : "Tab orders saved successfully ✓")
+    } catch (err: any) {
+      toast(
+        isRTL
+          ? `فشل حفظ الطلبات: ${err.message || err}`
+          : `Failed to save tab orders: ${err.message || err}`,
+      )
+    }
+  }
+
+  const handleCardSelect = (con: GameConsole) => {
+    if (con.type === "Break") {
+      // Direct instant start for Break Lounge: 0 rate, no time/modal required!
+      const defaultPt = pricingTiers?.[0]?.id || "single"
+      handleStartSession(con.id, "postpaid", 0, defaultPt)
+      return
+    }
+    setStartSessionCon(con)
+  }
+
+  const handleDragStart = (e: React.DragEvent, id: number) => {
     setDraggedConsoleId(id)
+    lastTargetIdRef.current = id
+    hasDroppedRef.current = false
+    initialConsolesRef.current = [...localConsoles]
+    e.dataTransfer.setData("text/plain", String(id))
+    e.dataTransfer.effectAllowed = "move"
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetId: number) => {
     e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+
+    if (!draggedConsoleId || draggedConsoleId === targetId) return
+    if (lastTargetIdRef.current === targetId) return
+
+    lastTargetIdRef.current = targetId
+
+    setLocalConsoles((prev) => {
+      const fromIndex = prev.findIndex((c) => c.id === draggedConsoleId)
+      const toIndex = prev.findIndex((c) => c.id === targetId)
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return prev
+
+      capturePositions()
+
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      return next
+    })
   }
 
-  const handleDrop = async (targetId: number) => {
-    if (draggedConsoleId === null || draggedConsoleId === targetId) {
-      setDraggedConsoleId(null)
-      return
-    }
-    const fromIndex = consoles.findIndex((c) => c.id === draggedConsoleId)
-    const toIndex = consoles.findIndex((c) => c.id === targetId)
-    if (fromIndex === -1 || toIndex === -1) {
-      setDraggedConsoleId(null)
-      return
-    }
-
-    const newConsoles = [...consoles]
-    const [moved] = newConsoles.splice(fromIndex, 1)
-    newConsoles.splice(toIndex, 0, moved)
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    hasDroppedRef.current = true
+    const finalOrder = [...localConsoles]
+    const fromId = draggedConsoleId
 
     setDraggedConsoleId(null)
+    lastTargetIdRef.current = null
+
+    if (!fromId) return
+
+    const hasChanged = finalOrder.some(
+      (c, i) => c.id !== initialConsolesRef.current[i]?.id,
+    )
+    if (!hasChanged) return
+
     try {
-      await reorderConsoles(newConsoles)
+      await reorderConsoles(finalOrder)
       toast(isRTL ? "تم حفظ ترتيب الأجهزة بنجاح ✓" : "Console order updated ✓")
     } catch (err: any) {
+      capturePositions()
+      setLocalConsoles(initialConsolesRef.current)
       toast(
         isRTL
           ? `فشل حفظ ترتيب الأجهزة: ${err.message || err}`
@@ -494,20 +697,36 @@ export default function ConsoleDashboard({
     }
   }
 
+  const handleDragEnd = () => {
+    if (!hasDroppedRef.current) {
+      if (initialConsolesRef.current.length > 0) {
+        capturePositions()
+        setLocalConsoles(initialConsolesRef.current)
+      }
+    }
+    setDraggedConsoleId(null)
+    lastTargetIdRef.current = null
+    hasDroppedRef.current = false
+  }
+
   const handleMoveConsole = async (id: number, direction: "up" | "down") => {
-    const index = consoles.findIndex((c) => c.id === id)
+    const index = localConsoles.findIndex((c) => c.id === id)
     if (index === -1) return
     const targetIndex = direction === "up" ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= consoles.length) return
+    if (targetIndex < 0 || targetIndex >= localConsoles.length) return
 
-    const newConsoles = [...consoles]
+    capturePositions()
+    const newConsoles = [...localConsoles]
     const [moved] = newConsoles.splice(index, 1)
     newConsoles.splice(targetIndex, 0, moved)
+    setLocalConsoles(newConsoles)
 
     try {
       await reorderConsoles(newConsoles)
-      toast(isRTL ? "تم تحديث ترتيب الأجهزة" : "Console order updated")
+      toast(isRTL ? "تم تحديث ترتيب الأجهزة ✓" : "Console order updated ✓")
     } catch (err: any) {
+      capturePositions()
+      setLocalConsoles(consoles)
       toast(
         isRTL
           ? `فشل حفظ الترتيب: ${err.message || err}`
@@ -517,23 +736,13 @@ export default function ConsoleDashboard({
   }
 
   // Summary Metrics
-  const activeCount = consoles.filter((c) => c.status === "occupied").length
-  const availableCount = consoles.filter((c) => c.status === "available").length
-  const maintenanceCount = consoles.filter(
+  const activeCount = localConsoles.filter((c) => c.status === "occupied").length
+  const availableCount = localConsoles.filter((c) => c.status === "available").length
+  const maintenanceCount = localConsoles.filter(
     (c) => c.status === "maintenance",
   ).length
 
-  const totalLiveRevenue = consoles.reduce((sum, c) => {
-    if (c.status === "occupied" && c.session) {
-      const elapsed = getElapsedMs(c.session)
-      const cost = calcCost(c.session, elapsed)
-      const items = tabSum(c.session)
-      return sum + cost + items
-    }
-    return sum
-  }, 0)
-
-  const filteredConsoles = consoles.filter((con) => {
+  const filteredConsoles = localConsoles.filter((con) => {
     if (filter !== "all" && con.status !== filter) return false
     if (typeFilter !== "all" && con.type !== typeFilter) return false
     return true
@@ -593,7 +802,7 @@ export default function ConsoleDashboard({
         </div>
 
         {/* Metric Summary Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
           <div className="p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0070d1]/15 text-[#0070d1] flex items-center justify-center shrink-0">
               <Activity className="w-5 h-5" />
@@ -632,20 +841,6 @@ export default function ConsoleDashboard({
               </div>
               <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
                 {maintenanceCount}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white dark:bg-[#0e121b] border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-500 flex items-center justify-center shrink-0">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isRTL ? "دخل الجلسات الحالية" : "Live Revenue"}
-              </div>
-              <div className="text-lg sm:text-xl font-bold font-mono text-[#0070d1] dark:text-sky-400 truncate">
-                {money(totalLiveRevenue, isRTL)}
               </div>
             </div>
           </div>
@@ -735,8 +930,33 @@ export default function ConsoleDashboard({
         />
       )}
 
+      {isReordering && (
+        <div className="mb-4 p-3 rounded-2xl bg-[#0070d1]/10 border border-[#0070d1]/30 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#0070d1] dark:text-sky-300">
+            <ArrowUpDown className="w-4 h-4 shrink-0" />
+            <span>
+              {isRTL
+                ? "وضع ترتيب الأجهزة نشط: اسحب أي جهاز لتبديل مكانه، أو استخدم الأسهم (↑ / ↓) للتحريك."
+                : "Reorder mode active: Drag any console to reposition it, or use the arrows (↑ / ↓)."}
+            </span>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsReordering(false)}
+          >
+            {isRTL ? "إنهاء الترتيب" : "Done"}
+          </Button>
+        </div>
+      )}
+
       {status === "success" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-24 lg:pb-8">
+        <div
+          ref={gridRef}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-24 lg:pb-8"
+        >
           {filteredConsoles.map((con) => {
             const expired =
               con.status === "occupied" &&
@@ -746,31 +966,40 @@ export default function ConsoleDashboard({
                 con.session.targetDurationMin * 60_000
 
             return (
-              <ConsoleCard
+              <div
                 key={con.id}
-                con={con}
-                isRTL={isRTL}
-                isExpired={expired}
-                theme={theme}
-                onSelect={() => setStartSessionCon(con)}
-                onPause={() => handlePause(con.id)}
-                onResume={() => handleResume(con.id)}
-                onEnd={() => setEndSessionCon(con)}
-                onTransfer={() => setTransferFromCon(con)}
-                onAddToTab={() => setAddToTabCon(con)}
-                onTogglePlayer={(pt) => handleTogglePlayer(con.id, pt)}
-                onShowTab={() => setViewTabCon(con)}
-                onEditTime={() => setTimeModalState({ con, mode: "edit" })}
-                onToggleReserve={() => handleToggleReserve(con.id)}
-                onEdit={() => setEditConsoleTarget(con)}
-                onDelete={isAdmin ? () => setDeleteConsoleTarget(con) : undefined}
-                isDraggable={isReordering}
-                onDragStart={() => handleDragStart(con.id)}
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop(con.id)}
-                onMoveUp={() => handleMoveConsole(con.id, "up")}
-                onMoveDown={() => handleMoveConsole(con.id, "down")}
-              />
+                data-console-id={con.id}
+                className="h-full select-none will-change-transform"
+              >
+                <ConsoleCard
+                  con={con}
+                  tiers={pricingTiers}
+                  isRTL={isRTL}
+                  isExpired={expired}
+                  theme={theme}
+                  onSelect={() => handleCardSelect(con)}
+                  onPause={() => handlePause(con.id)}
+                  onResume={() => handleResume(con.id)}
+                  onEnd={() => handleOpenEndSession(con)}
+                  onTransfer={() => setTransferFromCon(con)}
+                  onAddToTab={() => setAddToTabCon(con)}
+                  onTogglePlayer={(pt) => handleTogglePlayer(con.id, pt)}
+                  onShowTab={() => setViewTabCon(con)}
+                  onEditTime={() => setTimeModalState({ con, mode: "edit" })}
+                  onToggleReserve={() => handleToggleReserve(con.id)}
+                  onEdit={() => setEditConsoleTarget(con)}
+                  onDelete={isAdmin ? () => setDeleteConsoleTarget(con) : undefined}
+                  canReorder={isReordering}
+                  draggable={isReordering}
+                  isDragging={draggedConsoleId === con.id}
+                  onDragStart={(e) => handleDragStart(e, con.id)}
+                  onDragOver={(e) => handleDragOver(e, con.id)}
+                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  onMoveUp={() => handleMoveConsole(con.id, "up")}
+                  onMoveDown={() => handleMoveConsole(con.id, "down")}
+                />
+              </div>
             )
           })}
         </div>
@@ -779,6 +1008,7 @@ export default function ConsoleDashboard({
       {/* ── Sub-Modals (Separated & Modular) ─────────────────────────────────── */}
       <StartSessionModal
         con={startSessionCon}
+        tiers={pricingTiers}
         isRTL={isRTL}
         onClose={() => setStartSessionCon(null)}
         onStart={handleStartSession}
@@ -786,36 +1016,42 @@ export default function ConsoleDashboard({
       />
 
       <EndSessionModal
-        con={endSessionCon}
+        con={activeEndSessionCon}
+        tiers={pricingTiers}
         isRTL={isRTL}
         menuItems={menuItems}
-        onClose={() => setEndSessionCon(null)}
-        onConfirm={(amt) =>
-          endSessionCon && handleEndSession(endSessionCon.id, amt)
+        onClose={handleCloseEndSession}
+        onConfirm={(amt, payments) =>
+          activeEndSessionCon &&
+          handleEndSession(activeEndSessionCon.id, amt, payments)
         }
       />
 
       <AddToTabModal
-        con={addToTabCon ? consoles.find((c) => c.id === addToTabCon.id) || addToTabCon : null}
+        con={activeAddToTabCon}
         menuItems={menuItems}
         categories={categories}
         isRTL={isRTL}
         onClose={() => setAddToTabCon(null)}
-        onAdd={(item) => addToTabCon && handleAddToTab(addToTabCon.id, item)}
-        onChangeQty={(itemId, delta) => addToTabCon && handleChangeTabQty(addToTabCon.id, itemId, delta)}
-        onRemove={(itemId) => addToTabCon && handleRemoveTabItem(addToTabCon.id, itemId)}
+        onSaveTab={(finalTab) => {
+          if (activeAddToTabCon) {
+            return handleSaveTab(activeAddToTabCon.id, finalTab)
+          }
+        }}
       />
 
       <ViewTabModal
-        con={viewTabCon ? consoles.find((c) => c.id === viewTabCon.id) || viewTabCon : null}
+        con={activeViewTabCon}
         isRTL={isRTL}
         menuItems={menuItems}
         onClose={() => setViewTabCon(null)}
-        onChangeQty={(itemId, delta) => viewTabCon && handleChangeTabQty(viewTabCon.id, itemId, delta)}
-        onRemove={(itemId) => viewTabCon && handleRemoveTabItem(viewTabCon.id, itemId)}
+        onChangeQty={(itemId, delta) => activeViewTabCon && handleChangeTabQty(activeViewTabCon.id, itemId, delta)}
+        onRemove={(itemId) => activeViewTabCon && handleRemoveTabItem(activeViewTabCon.id, itemId)}
         onOpenAdd={() => {
-          if (viewTabCon) {
-            setAddToTabCon(viewTabCon)
+          if (activeViewTabCon) {
+            const target = activeViewTabCon
+            setViewTabCon(null)
+            setTimeout(() => setAddToTabCon(target), 50)
           }
         }}
       />
@@ -905,8 +1141,10 @@ export default function ConsoleDashboard({
           }
         }}
         onEnd={() => {
-          setEndSessionCon(expiredAlertCon)
-          setExpiredAlertCon(null)
+          if (expiredAlertCon) {
+            handleOpenEndSession(expiredAlertCon)
+            setExpiredAlertCon(null)
+          }
         }}
       />
     </PullToRefresh>

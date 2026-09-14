@@ -6,6 +6,7 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Clock,
   Archive,
   Trash2,
@@ -76,13 +77,23 @@ interface Props {
 
 type SubTab = "controllers" | "maintenance"
 
-const EMPTY_RECORD = {
+interface MaintenanceFormState {
+  date: string
+  targetType: "console" | "controller"
+  targetId: string
+  targetLabel: string
+  issue: string
+  cost: string
+  resolvedBy: string
+}
+
+const EMPTY_RECORD: MaintenanceFormState = {
   date: new Date().toISOString().split("T")[0],
-  targetType: "console" as "console" | "controller",
+  targetType: "console",
   targetId: "",
   targetLabel: "",
   issue: "",
-  cost: 0,
+  cost: "",
   resolvedBy: "",
 }
 
@@ -97,7 +108,8 @@ export default function Controllers(props: Props) {
 
   const [subTab, setSubTab] = useState<SubTab>("controllers")
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState(EMPTY_RECORD)
+  const [form, setForm] = useState<MaintenanceFormState>(EMPTY_RECORD)
+  const [maintErrors, setMaintErrors] = useState<Record<string, string>>({})
   const [filterTarget, setFilterTarget] = useState("")
   const [showAddCtrl, setShowAddCtrl] = useState(false)
   const [newCtrlId, setNewCtrlId] = useState("")
@@ -119,10 +131,9 @@ export default function Controllers(props: Props) {
   }
 
   async function addController() {
-    const number = newCtrlId.trim()
-    if (!number) return
+    if (!newCtrlId.trim()) return
     try {
-      await vm.addController(number)
+      await vm.addController(newCtrlId.trim())
       setNewCtrlId("")
       setShowAddCtrl(false)
       toast(
@@ -187,12 +198,46 @@ export default function Controllers(props: Props) {
   }
 
   async function addRecord() {
-    if (!form.date || !form.issue) return
+    const errors: Record<string, string> = {}
+    if (!form.date) {
+      errors.date = isRTL ? "يرجى اختيار التاريخ" : "Date is required"
+    }
+    if (!form.targetLabel.trim()) {
+      errors.targetLabel = isRTL
+        ? "يرجى تحديد الجهاز أو ذراع التحكم *"
+        : "Target device is required *"
+    }
+    if (!form.issue.trim()) {
+      errors.issue = isRTL
+        ? "يرجى وصف المشكلة والإصلاح *"
+        : "Issue description is required *"
+    }
+    const costStr = String(form.cost ?? "").trim()
+    if (costStr === "") {
+      errors.cost = isRTL ? "يرجى إدخال التكلفة *" : "Cost is required *"
+    } else {
+      const parsedCost = parseFloat(costStr)
+      if (isNaN(parsedCost) || parsedCost < 0) {
+        errors.cost = isRTL
+          ? "يرجى إدخال تكلفة صحيحة (0 أو أكثر)"
+          : "Please enter a valid cost (>= 0)"
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setMaintErrors(errors)
+      return
+    }
+
     try {
-      await vm.addMaintenanceRecord(form)
+      await vm.addMaintenanceRecord({
+        ...form,
+        cost: parseFloat(costStr),
+      })
       setForm(EMPTY_RECORD)
+      setMaintErrors({})
       setShowForm(false)
-      toast(isRTL ? "تم تسجيل عملية الصيانة" : "Maintenance record saved")
+      toast(isRTL ? "تم تسجيل عملية الصيانة بنجاح ✓" : "Maintenance record saved ✓")
     } catch (err: any) {
       console.error("Error adding maintenance record:", err)
       toast(
@@ -237,7 +282,11 @@ export default function Controllers(props: Props) {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setForm(EMPTY_RECORD)
+                setMaintErrors({})
+                setShowForm(true)
+              }}
               icon={<Plus className="w-4 h-4" />}
             >
               {isRTL ? "إضافة سجل صيانة" : "Add Record"}
@@ -800,61 +849,113 @@ export default function Controllers(props: Props) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isRTL ? "اسم أو رقم الهدف" : "Target Name / ID"}
+              {isRTL ? "اسم أو رقم الهدف *" : "Target Name / ID *"}
             </label>
             <input
               type="text"
               value={form.targetLabel}
-              onChange={(e) =>
+              onChange={(e) => {
                 setForm((p) => ({
                   ...p,
                   targetLabel: e.target.value,
                   targetId: e.target.value,
                 }))
-              }
+                if (maintErrors.targetLabel) {
+                  setMaintErrors((p) => {
+                    const n = { ...p }
+                    delete n.targetLabel
+                    return n
+                  })
+                }
+              }}
               placeholder={
                 isRTL ? "مثال: PS5 — 02 أو ذراع C-04" : "e.g. PS5 — 02"
               }
-              className="w-full rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
+              className={`w-full rounded-xl bg-slate-50 dark:bg-[#141926] border ${
+                maintErrors.targetLabel
+                  ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
+                  : "border-slate-200 dark:border-slate-800 focus:ring-[#0070d1]/30"
+              } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
             />
+            {maintErrors.targetLabel && (
+              <span className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {maintErrors.targetLabel}
+              </span>
+            )}
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              {isRTL ? "وصف المشكلة والإصلاح" : "Issue Description & Repair"}
+              {isRTL ? "وصف المشكلة والإصلاح *" : "Issue Description & Repair *"}
             </label>
             <input
               type="text"
               value={form.issue}
-              onChange={(e) =>
+              onChange={(e) => {
                 setForm((p) => ({ ...p, issue: e.target.value }))
-              }
+                if (maintErrors.issue) {
+                  setMaintErrors((p) => {
+                    const n = { ...p }
+                    delete n.issue
+                    return n
+                  })
+                }
+              }}
               placeholder={
                 isRTL
                   ? "تغيير أنالوج، تنظيف مروحة، تحديث سوفتوير…"
                   : "Replaced thumbsticks, fan cleaning…"
               }
-              className="w-full rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
+              className={`w-full rounded-xl bg-slate-50 dark:bg-[#141926] border ${
+                maintErrors.issue
+                  ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
+                  : "border-slate-200 dark:border-slate-800 focus:ring-[#0070d1]/30"
+              } px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
             />
+            {maintErrors.issue && (
+              <span className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {maintErrors.issue}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "التكلفة (ج.م)" : "Cost (EGP)"}
+                {isRTL ? "التكلفة (ج.م) *" : "Cost (EGP) *"}
               </label>
               <input
                 type="number"
                 min={0}
+                step={0.5}
                 value={form.cost}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm((p) => ({
                     ...p,
-                    cost: parseFloat(e.target.value) || 0,
+                    cost: e.target.value,
                   }))
-                }
-                className="w-full rounded-xl bg-slate-50 dark:bg-[#141926] border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0070d1]/30"
+                  if (maintErrors.cost) {
+                    setMaintErrors((p) => {
+                      const n = { ...p }
+                      delete n.cost
+                      return n
+                    })
+                  }
+                }}
+                className={`w-full rounded-xl bg-slate-50 dark:bg-[#141926] border ${
+                  maintErrors.cost
+                    ? "border-rose-500 focus:border-rose-500 focus:ring-rose-100 dark:focus:ring-rose-900/30"
+                    : "border-slate-200 dark:border-slate-800 focus:ring-[#0070d1]/30"
+                } px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2`}
               />
+              {maintErrors.cost && (
+                <span className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {maintErrors.cost}
+                </span>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -883,7 +984,6 @@ export default function Controllers(props: Props) {
             <Button
               variant="primary"
               onClick={addRecord}
-              disabled={!form.date || !form.issue || !form.targetLabel}
               className="flex-1"
             >
               {isRTL ? "حفظ السجل" : "Save Record"}

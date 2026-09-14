@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react"
 import { Play, Clock, User, Users, Coffee, Sparkles } from "lucide-react"
-import type { GameConsole, SessionMode, PlayerType } from "@/domain"
+import type { GameConsole, SessionMode, PlayerType, PricingTier } from "@/domain"
 import { money } from "@/domain"
 import Modal from "@/presentation/components/ui/Modal"
 import Button from "@/presentation/components/ui/Button"
 
 interface StartSessionModalProps {
   con: GameConsole | null
+  tiers?: PricingTier[]
   isRTL: boolean
   onClose: () => void
   onStart: (
@@ -28,14 +29,16 @@ function getCurrentTimeStr(offsetMinutes: number = 0): string {
 
 export default function StartSessionModal({
   con,
+  tiers,
   isRTL,
   onClose,
   onStart,
   getRate,
 }: StartSessionModalProps) {
+  const defaultPt = tiers && tiers.length > 0 ? tiers[0].id : "single"
   const [mode, setMode] = useState<SessionMode>("prepaid")
   const [duration, setDuration] = useState<number>(60)
-  const [playerType, setPlayerType] = useState<PlayerType>("single")
+  const [playerType, setPlayerType] = useState<PlayerType>(defaultPt)
   const [startTimeStr, setStartTimeStr] = useState<string>(() =>
     getCurrentTimeStr(0),
   )
@@ -45,9 +48,9 @@ export default function StartSessionModal({
       setStartTimeStr(getCurrentTimeStr(0))
       setMode("prepaid")
       setDuration(60)
-      setPlayerType("single")
+      setPlayerType(tiers && tiers.length > 0 ? tiers[0].id : "single")
     }
-  }, [con])
+  }, [con, tiers])
 
   if (!con) return null
 
@@ -131,28 +134,6 @@ export default function StartSessionModal({
                     ? "لا يتم احتساب وقت أو سعر ساعة لهذه الاستراحة. سيتم حساب المشروبات والطلبات فقط عند الإغلاق."
                     : "No hourly time or player rates apply. Only drinks and orders will be billed at checkout."}
                 </p>
-              </div>
-            </div>
-
-            {/* Optional Start Time for Break */}
-            <div className="pt-2 border-t border-emerald-500/20">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                {isRTL ? "وقت بدء الاستراحة" : "Break Start Time"}
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={startTimeStr}
-                  onChange={(e) => setStartTimeStr(e.target.value)}
-                  className="rounded-xl bg-white dark:bg-[#131824] border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                />
-                <button
-                  type="button"
-                  onClick={() => setStartTimeStr(getCurrentTimeStr(0))}
-                  className="px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  {isRTL ? "الآن" : "Now"}
-                </button>
               </div>
             </div>
           </div>
@@ -277,33 +258,42 @@ export default function StartSessionModal({
             {/* Player Type Selector */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                {isRTL ? "عدد اللاعبين" : "Player Mode"}
+                {isRTL ? "نوع سعر اللعب" : "Pricing Type"}
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPlayerType("single")}
-                  className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-                    playerType === "single"
-                      ? "border-[#0070d1] bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400"
-                      : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span>{isRTL ? "فردي (1 لاعب)" : "Single Player"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlayerType("multi")}
-                  className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all ${
-                    playerType === "multi"
-                      ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                      : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>{isRTL ? "زوجي (متعدد)" : "Multiplayer"}</span>
-                </button>
+              <div
+                className={`grid gap-2 ${
+                  (tiers?.length || 2) === 1
+                    ? "grid-cols-1"
+                    : (tiers?.length || 2) === 2
+                      ? "grid-cols-2"
+                      : "grid-cols-2 sm:grid-cols-3"
+                }`}
+              >
+                {(tiers && tiers.length > 0
+                  ? tiers
+                  : [{ id: "single", name: "Single", nameAr: "فردي" }]
+                ).map((t, idx) => {
+                  const isSelected = playerType === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setPlayerType(t.id)}
+                      className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-[#0070d1] bg-[#0070d1]/10 text-[#0070d1] dark:text-sky-400 shadow-xs"
+                          : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      }`}
+                    >
+                      {idx % 2 === 0 ? (
+                        <User className="w-4 h-4" />
+                      ) : (
+                        <Users className="w-4 h-4" />
+                      )}
+                      <span>{isRTL ? t.nameAr : t.name}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 

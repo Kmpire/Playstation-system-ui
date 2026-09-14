@@ -75,30 +75,15 @@ function MainApp() {
 
   useEffect(() => {
     refreshMenuItems()
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        refreshMenuItems()
-      }
-    }
-
-    const onFocus = () => {
-      refreshMenuItems()
-    }
-
-    window.addEventListener("focus", onFocus)
-    document.addEventListener("visibilitychange", onVisibilityChange)
-
-    return () => {
-      window.removeEventListener("focus", onFocus)
-      document.removeEventListener("visibilitychange", onVisibilityChange)
-    }
-  }, [refreshMenuItems, screen])
+  }, [refreshMenuItems])
 
   const lowStockItems = useMemo(
     () =>
       menuItems.filter(
-        (i) => i.trackStock !== false && i.stock <= i.lowStockThreshold,
+        (i) =>
+          i.trackStock !== false &&
+          (i.lowStockThreshold > 0 || i.stock > 0) &&
+          i.stock <= i.lowStockThreshold,
       ),
     [menuItems],
   )
@@ -151,11 +136,7 @@ function MainApp() {
     changePassword,
     resetAllData: async () => {
       await services.resetAllDataToDefaults()
-      toast(
-        isRTL
-          ? "تمت استعادة البيانات الافتراضية بنجاح"
-          : "Default data restored",
-      )
+      toast(t("defaultDataRestored"))
     },
   }
 
@@ -287,6 +268,7 @@ function MainApp() {
             setScreen={setScreen}
             role={role}
             isRTL={isRTL}
+            t={t}
           />
         </div>
       </div>

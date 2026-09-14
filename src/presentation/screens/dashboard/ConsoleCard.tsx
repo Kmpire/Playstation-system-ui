@@ -21,6 +21,7 @@ import {
   GripVertical,
   ChevronUp,
   ChevronDown,
+  ArrowUpDown,
 } from "lucide-react"
 import type {
   GameConsole,
@@ -28,6 +29,7 @@ import type {
   ConsoleStatus,
   Session,
   PlayerType,
+  PricingTier,
   Theme,
 } from "@/domain"
 import { money } from "@/domain"
@@ -95,6 +97,7 @@ const TYPE_ICONS: Record<ConsoleType, React.ReactNode> = {
 
 interface ConsoleCardProps {
   con: GameConsole
+  tiers?: PricingTier[]
   isRTL: boolean
   isExpired: boolean
   theme?: Theme
@@ -126,6 +129,7 @@ interface ConsoleCardProps {
 
 export default function ConsoleCard({
   con,
+  tiers,
   isRTL,
   isExpired,
   onSelect,
@@ -207,15 +211,31 @@ export default function ConsoleCard({
       } ${con.type === "VIP" ? "ring-1 ring-amber-500/30" : ""} ${
         isBreak ? "ring-1 ring-emerald-500/25" : ""
       } ${isExpired ? "session-expired ring-2 ring-rose-500" : ""} ${
-        isDragging ? "opacity-30 scale-95 border-dashed border-[#0070d1]" : ""
+        isDragging
+          ? "opacity-35 scale-[0.98] border-2 border-dashed border-[#0070d1] bg-[#0070d1]/10 dark:bg-[#0070d1]/15 ring-2 ring-[#0070d1]/40 shadow-inner"
+          : canReorder
+          ? "cursor-grab active:cursor-grabbing hover:border-[#0070d1]/60"
+          : ""
       } ${isDragOver ? "ring-4 ring-[#0070d1] border-[#0070d1] scale-[1.02]" : ""}`}
     >
+      {/* Live Drop Location Preview Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-30 rounded-2xl bg-[#0070d1]/15 backdrop-blur-[2px] border-2 border-dashed border-[#0070d1] flex flex-col items-center justify-center p-4 text-center pointer-events-none animate-pulse">
+          <div className="w-10 h-10 rounded-full bg-[#0070d1] text-white flex items-center justify-center mb-2 shadow-lg shadow-[#0070d1]/40">
+            <ArrowUpDown className="w-5 h-5 animate-bounce" />
+          </div>
+          <span className="text-xs font-bold text-[#0070d1] dark:text-sky-300">
+            {isRTL ? "مكان الجهاز المقترح (أفلت هنا)" : "Prospective Drop Location"}
+          </span>
+        </div>
+      )}
+
       {/* Top row: Console Name, Type & Status Badge */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {canReorder && (
             <div
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0"
+              className="p-1 rounded-lg text-[#0070d1] bg-[#0070d1]/10 dark:text-sky-400 dark:bg-[#0070d1]/20 cursor-grab active:cursor-grabbing shrink-0 transition-transform active:scale-95"
               title={isRTL ? "سحب لإعادة الترتيب" : "Drag to reorder"}
             >
               <GripVertical className="w-4 h-4" />
@@ -400,26 +420,44 @@ export default function ConsoleCard({
                 </div>
               ) : (
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() =>
-                      onTogglePlayer(
-                        con.session!.playerType === "single" ? "multi" : "single",
-                      )
-                    }
-                    className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors"
-                  >
-                    {con.session.playerType === "single" ? (
-                      <>
-                        <User className="w-3 h-3 text-[#0070d1]" />
-                        <span>{isRTL ? "فردي" : "Single"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Users className="w-3 h-3 text-purple-400" />
-                        <span>{isRTL ? "زوجي" : "Multi"}</span>
-                      </>
-                    )}
-                  </button>
+                  {(() => {
+                    const currentPt = con.session!.playerType
+                    const activeTiers =
+                      tiers && tiers.length > 0
+                        ? tiers
+                        : [{ id: currentPt, name: currentPt, nameAr: currentPt }]
+                    const currentIdx = activeTiers.findIndex(
+                      (t) => t.id === currentPt,
+                    )
+                    const nextIdx = (currentIdx + 1) % activeTiers.length
+                    const nextTier = activeTiers[nextIdx]
+                    const currentTier =
+                      activeTiers.find((t) => t.id === currentPt) || {
+                        id: currentPt,
+                        name: currentPt,
+                        nameAr: currentPt,
+                      }
+
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onTogglePlayer(nextTier.id)}
+                        className="px-2 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                        title={
+                          isRTL
+                            ? `التبديل إلى ${nextTier.nameAr}`
+                            : `Switch to ${nextTier.name}`
+                        }
+                      >
+                        {currentIdx % 2 === 0 ? (
+                          <User className="w-3 h-3 text-[#0070d1]" />
+                        ) : (
+                          <Users className="w-3 h-3 text-purple-400" />
+                        )}
+                        <span>{isRTL ? currentTier.nameAr : currentTier.name}</span>
+                      </button>
+                    )
+                  })()}
 
                   {con.session.mode === "prepaid" && (
                     <button

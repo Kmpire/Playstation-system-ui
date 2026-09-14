@@ -5,6 +5,7 @@ import type {
   PlayerType,
   ConsoleType,
   MenuItem,
+  PaymentSplit,
 } from "../../domain/models/types"
 import { useServices } from "../context/ServicesContext"
 
@@ -44,8 +45,14 @@ export function useConsoles() {
     return updated
   }
 
-  const pauseSession = async (consoleId: number) => {
-    const updated = await consoleService.pauseSession(consoleId)
+  const pauseSession = async (
+    consoleId: number,
+    pausedAtTimestamp?: number,
+  ) => {
+    const updated = await consoleService.pauseSession(
+      consoleId,
+      pausedAtTimestamp,
+    )
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated
   }
@@ -60,11 +67,13 @@ export function useConsoles() {
     consoleId: number,
     finalAmount: number,
     staffName?: string,
+    paymentsList?: PaymentSplit[],
   ) => {
     const updated = await consoleService.endSession(
       consoleId,
       finalAmount,
       staffName,
+      paymentsList,
     )
     setConsoles((prev) => prev.map((c) => (c.id === consoleId ? updated : c)))
     return updated

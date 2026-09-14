@@ -1,16 +1,33 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
-import type { AuditEntry, ShiftReport, Account, GameConsole } from "@/domain"
+import type {
+  AuditEntry,
+  ShiftReport,
+  Account,
+  GameConsole,
+  PaymentRecord,
+  PaymentSummary,
+} from "@/domain"
 import type { ViewStatus } from "../types/uiState"
 import { useServices } from "../context/ServicesContext"
 
 export function useStaffViewModel(currentUser?: Account | null) {
-  const { authRepo, auditRepo, shiftRepo, consoleRepo, shiftService } =
-    useServices()
+  const {
+    authRepo,
+    auditRepo,
+    shiftRepo,
+    consoleRepo,
+    shiftService,
+    paymentRepo,
+  } = useServices()
 
   const [accounts, setAccounts] = useState<Account[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([])
   const [shiftReports, setShiftReports] = useState<ShiftReport[]>([])
   const [consoles, setConsoles] = useState<GameConsole[]>([])
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(
+    null,
+  )
 
   const [status, setStatus] = useState<ViewStatus>("loading")
   const [error, setError] = useState<string | null>(null)
@@ -26,17 +43,22 @@ export function useStaffViewModel(currentUser?: Account | null) {
       setError(null)
 
       try {
-        const [accs, logs, shifts, consolesData] = await Promise.all([
-          authRepo.getAccounts(),
-          auditRepo.getLogs(),
-          shiftRepo.getShiftReports(),
-          consoleRepo.getAll(),
-        ])
+        const [accs, logs, shifts, consolesData, paymentRecords, summary] =
+          await Promise.all([
+            authRepo.getAccounts(),
+            auditRepo.getLogs(),
+            shiftRepo.getShiftReports(),
+            consoleRepo.getAll(),
+            paymentRepo.getPayments().catch(() => []),
+            paymentRepo.getSummary().catch(() => null),
+          ])
 
         setAccounts(accs || [])
         setAuditLogs(logs || [])
         setShiftReports(shifts || [])
         setConsoles(consolesData || [])
+        setPayments(paymentRecords || [])
+        setPaymentSummary(summary || null)
 
         setStatus("success")
       } catch (err: any) {
@@ -49,7 +71,7 @@ export function useStaffViewModel(currentUser?: Account | null) {
         setIsRefreshing(false)
       }
     },
-    [authRepo, auditRepo, shiftRepo, consoleRepo],
+    [authRepo, auditRepo, shiftRepo, consoleRepo, paymentRepo],
   )
 
   useEffect(() => {
@@ -60,12 +82,21 @@ export function useStaffViewModel(currentUser?: Account | null) {
     await fetchStaffData(true)
   }, [fetchStaffData])
 
-  // Compute live drawer cash from active consoles
-  const liveCash = useMemo(() => {
-    return consoles.reduce((sum, c) => sum + (c.dailyTotal || 0), 0)
-  }, [consoles])
+  // Strictly compute drawer cash from Cash payments (isCash === true)
+  const cashTotal = useMemo(() => {
+    return payments
+      .filter((p) => p.isCash)
+      .reduce((sum, p) => sum + p.amount, 0)
+  }, [payments])
 
-  const expectedCash = liveCash
+  // Total digital / e-wallet payments
+  const digitalTotal = useMemo(() => {
+    return payments
+      .filter((p) => !p.isCash)
+      .reduce((sum, p) => sum + p.amount, 0)
+  }, [payments])
+
+  const expectedCash = cashTotal
 
   const submitShift = async (
     countedCash: number,
@@ -100,6 +131,10 @@ export function useStaffViewModel(currentUser?: Account | null) {
     auditLogs,
     shiftReports,
     consoles,
+    payments,
+    paymentSummary,
+    cashTotal,
+    digitalTotal,
     expectedCash,
     status,
     error,

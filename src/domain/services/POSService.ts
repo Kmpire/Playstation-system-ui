@@ -1,6 +1,5 @@
-import type { MenuItem } from "../models/types"
-import type { IMenuRepository } from "../repositories"
-import type { IAuditRepository } from "../repositories"
+import type { MenuItem, PaymentSplit } from "../models/types"
+import type { IMenuRepository, IAuditRepository, IPaymentRepository } from "../repositories"
 
 export interface CartItem {
   item: MenuItem
@@ -26,6 +25,7 @@ export class POSService {
   constructor(
     private menuRepo: IMenuRepository,
     private auditRepo?: IAuditRepository,
+    private paymentRepo?: IPaymentRepository,
   ) {}
 
   calcSubtotal(cart: CartItem[]): number {
@@ -63,6 +63,7 @@ export class POSService {
     cart: CartItem[],
     promoCode: string = "",
     staffName: string = "Cashier",
+    paymentsList?: PaymentSplit[],
   ): Promise<SaleSummary> {
     if (cart.length === 0) {
       throw new Error("Cannot process empty sale")
@@ -70,32 +71,80 @@ export class POSService {
 
     const { subtotal, discount, total } = this.calcTotals(cart, promoCode)
 
-    // Deduct stock in repository
-    const allItems = await this.menuRepo.getItems()
-    const updatedItems = allItems.map((item) => {
-      const sold = cart.find((c) => c.item.id === item.id)
-      if (sold && item.trackStock !== false) {
-        return {
-          ...item,
-          stock: Math.max(0, item.stock - sold.qty),
-        }
-      }
-      return item
-    })
+    // 1. Fast stock deduction: only for tracked items actually in the cart
+    const trackedSold = cart
+      .filter((c) => c.item.trackStock !== false)
+      .map((c) => ({ id: c.item.id, qty: c.qty }))
 
-    await this.menuRepo.saveAllItems(updatedItems)
+    const tasks: Promise<unknown>[] = []
+
+    if (trackedSold.length > 0) {
+      if (this.menuRepo.deductStock) {
+        tasks.push(this.menuRepo.deductStock(trackedSold))
+      } else {
+        tasks.push(
+          (async () => {
+            const allItems = await this.menuRepo.getItems()
+            const updatedItems = allItems.map((item) => {
+              const sold = cart.find((c) => c.item.id === item.id)
+              if (sold && item.trackStock !== false) {
+                return {
+                  ...item,
+                  stock: Math.max(0, item.stock - sold.qty),
+                }
+              }
+              return item
+            })
+            await this.menuRepo.saveAllItems(updatedItems)
+          })()
+        )
+      }
+    }
 
     const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19)
-
     const itemDetails = cart.map((c) => `${c.item.name} ×${c.qty}`).join(", ")
 
-    await this.auditRepo?.addLog({
-      id: "a_" + Date.now(),
-      timestamp,
-      staff: staffName,
-      actionType: "Sale Completed",
-      details: `Walk-in sale: ${itemDetails} — Total: $${total.toFixed(2)}`,
-    })
+    // 2. Record payment transactions
+    const splits =
+      paymentsList && paymentsList.length > 0
+        ? paymentsList
+        : [{ paymentMethodId: "pm_cash", amount: total, isCash: true }]
+
+    if (this.paymentRepo) {
+      tasks.push(
+        this.paymentRepo.processPayments({
+          orderId: `pos_${Date.now()}`,
+          payments: splits,
+          staff: staffName,
+          notes: `POS Sale: ${itemDetails}`,
+        }),
+      )
+    }
+
+    const paymentSummaryStr = splits
+      .map(
+        (s) =>
+          `${s.paymentMethodName || (s.isCash ? "كاش" : "إلكتروني")}: $${s.amount}`,
+      )
+      .join(" + ")
+
+    // 3. Audit log concurrently
+    if (this.auditRepo) {
+      tasks.push(
+        this.auditRepo.addLog({
+          id: "a_" + Date.now(),
+          timestamp,
+          staff: staffName,
+          actionType: "Sale Completed",
+          details: `Walk-in sale: ${itemDetails} — Total: $${total.toFixed(2)} [${paymentSummaryStr}]`,
+        }),
+      )
+    }
+
+    // Execute concurrently for lightning-fast checkout
+    if (tasks.length > 0) {
+      await Promise.all(tasks)
+    }
 
     return {
       entries: [...cart],

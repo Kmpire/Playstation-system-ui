@@ -4,7 +4,7 @@
 export type ConsoleType = "PS4" | "PS5" | "Xbox" | "VIP" | "Break"
 export type ConsoleStatus = "available" | "occupied" | "paused" | "maintenance" | "reserved"
 export type SessionMode = "prepaid" | "postpaid"
-export type PlayerType = "single" | "multi"
+export type PlayerType = string
 export type ControllerStatus = "working" | "damaged" | "repair" | "retired"
 export type UserRole = "admin" | "cashier"
 export type Language = "en" | "ar"
@@ -91,11 +91,26 @@ export interface Category {
   nameAr: string
 }
 
+export interface PricingTier {
+  id: string
+  name: string
+  nameAr: string
+}
+
 export interface PricingConfig {
   type: ConsoleType
-  singleRate: number
-  multiRate: number
+  rates: Record<string, number>
 }
+
+export interface PricingData {
+  tiers: PricingTier[]
+  configs: PricingConfig[]
+}
+
+export const DEFAULT_PRICING_TIERS: PricingTier[] = [
+  { id: "single", name: "Single", nameAr: "فردي" },
+  { id: "multi", name: "Multi", nameAr: "مالتي" },
+]
 
 export interface Controller {
   id: string
@@ -184,3 +199,50 @@ export interface TrialState {
   remainingMs: number
   isExpired: boolean
 }
+
+export interface PaymentMethod {
+  id: string
+  name: string
+  nameAr: string
+  type: string
+  isCash: boolean
+  isProtected: boolean
+  isActive: boolean
+  displayOrder: number
+}
+
+export interface PaymentSplit {
+  paymentMethodId: string
+  amount: number
+  paymentMethodName?: string
+  isCash?: boolean
+}
+
+export interface PaymentRecord {
+  id?: number
+  sessionId?: number
+  consoleId?: number
+  orderId?: string
+  paymentMethodId: string
+  paymentMethodName: string
+  amount: number
+  isCash: boolean
+  staff: string
+  notes?: string
+  createdAt?: string | Date
+}
+
+export interface PaymentSummary {
+  totalRevenue: number
+  cashTotal: number
+  nonCashTotal: number
+  breakdown: {
+    paymentMethodId: string
+    name: string
+    nameAr: string
+    amount: number
+    count: number
+    isCash: boolean
+  }[]
+}
+

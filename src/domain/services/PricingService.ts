@@ -1,4 +1,9 @@
-import type { PricingConfig, ConsoleType, PlayerType } from "../models/types"
+import type {
+  PricingData,
+  PricingConfig,
+  ConsoleType,
+  PlayerType,
+} from "../models/types"
 import type { IPricingRepository } from "../repositories"
 import type { IAuditRepository } from "../repositories"
 
@@ -8,36 +13,37 @@ export class PricingService {
     private auditRepo?: IAuditRepository,
   ) {}
 
-  async getAll(): Promise<PricingConfig[]> {
-    return this.pricingRepo.getAll()
+  async getPricingData(): Promise<PricingData> {
+    return this.pricingRepo.getPricingData()
   }
 
   async getRate(type: ConsoleType, playerType: PlayerType): Promise<number> {
-    const configs = await this.pricingRepo.getAll()
-    const cfg = configs.find((c) => c.type === type)
-    if (!cfg) {
-      if (type === "VIP") return playerType === "single" ? 60 : 85
-      if (type === "PS5") return playerType === "single" ? 40 : 55
-      if (type === "Xbox") return playerType === "single" ? 30 : 45
-      return playerType === "single" ? 25 : 35
-    }
-    return playerType === "single" ? cfg.singleRate : cfg.multiRate
+    if (type === "Break") return 0
+    const data = await this.pricingRepo.getPricingData()
+    const cfg = data.configs?.find((c) => c.type === type)
+    if (!cfg || !cfg.rates) return 0
+    return cfg.rates[playerType] ?? 0
   }
 
   async updatePricing(
-    pricingList: PricingConfig[],
+    pricingData: PricingData,
     staffName: string = "Admin",
-  ): Promise<PricingConfig[]> {
-    await this.pricingRepo.saveAll(pricingList)
+  ): Promise<PricingData> {
+    if (!pricingData.tiers || pricingData.tiers.length === 0) {
+      throw new Error("At least one pricing type must exist")
+    }
+
+    await this.pricingRepo.savePricingData(pricingData)
 
     await this.auditRepo?.addLog({
       id: "a_" + Date.now(),
       timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
       staff: staffName,
       actionType: "Price Changed",
-      details: `Console pricing configurations updated (${pricingList.length} types)`,
+      details: `Pricing configurations updated (${pricingData.tiers.length} types, ${pricingData.configs.length} console configs)`,
     })
 
-    return pricingList
+    return pricingData
   }
 }
+

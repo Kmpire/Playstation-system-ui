@@ -15,7 +15,7 @@ import Button from "@/presentation/components/ui/Button"
 
 interface Props {
   isRTL: boolean
-  onCheckStatus?: () => Promise<boolean> | void
+  onCheckStatus?: () => Promise<boolean | void> | void
   onActivate?: (code: string) => Promise<boolean> | boolean
 }
 

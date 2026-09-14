@@ -21,6 +21,13 @@ export class ApiMenuRepository implements IMenuRepository {
     })
   }
 
+  async deductStock(items: { id: string; qty: number }[]): Promise<void> {
+    await apiClient<{ success: boolean }>("/menu/items/deduct-stock", {
+      method: "POST",
+      body: JSON.stringify(items),
+    })
+  }
+
   async deleteItem(id: string): Promise<void> {
     await apiClient<void>(`/menu/items/${id}`, {
       method: "DELETE",

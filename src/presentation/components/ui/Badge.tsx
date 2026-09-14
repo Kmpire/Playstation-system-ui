@@ -17,7 +17,7 @@ export default function Badge({
   pulse = false,
   className = "",
 }: BadgeProps) {
-  const variantConfig: Record<BadgeVariant, { badge: string dot: string }> = {
+  const variantConfig: Record<BadgeVariant, { badge: string; dot: string }> = {
     available: {
       badge:
         "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30",

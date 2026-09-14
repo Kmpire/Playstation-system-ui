@@ -28,10 +28,24 @@ export function useAuth() {
     refresh()
   }, [refresh])
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentUser(null)
+    }
+    window.addEventListener("ps_auth_unauthorized", handleUnauthorized)
+    return () => {
+      window.removeEventListener("ps_auth_unauthorized", handleUnauthorized)
+    }
+  }, [])
+
   const login = async (username: string, pass: string) => {
     const user = await authService.login(username, pass)
     if (user) {
       setCurrentUser(user)
+      try {
+        const accs = await authRepo.getAccounts()
+        setAccounts(accs)
+      } catch {}
       return true
     }
     return false
@@ -40,6 +54,7 @@ export function useAuth() {
   const logout = async () => {
     await authService.logout()
     setCurrentUser(null)
+    setAccounts([])
   }
 
   const changePassword = async (

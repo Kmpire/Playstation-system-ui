@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Banknote, Wallet, Coins, Info } from "lucide-react"
 import type { AuditEntry, UserRole, ShiftReport, Account } from "@/domain"
 import { money } from "@/domain"
 import { useStaffViewModel } from "../viewmodels/useStaffViewModel"
@@ -9,6 +10,7 @@ import {
 import ErrorStateCard from "@/presentation/components/states/ErrorStateCard"
 import RefreshButton from "@/presentation/components/states/RefreshButton"
 import PullToRefresh from "@/presentation/components/common/PullToRefresh"
+import { translations } from "@/i18n"
 
 interface Props {
   auditLog?: AuditEntry[]
@@ -28,6 +30,10 @@ export default function StaffShifts(props: Props) {
   const role = props.role ?? props.currentUser?.role ?? "admin"
   const isRTL = props.isRTL ?? true
   const toast = props.toast ?? ((_m: string) => {})
+  const t =
+    props.t ||
+    ((key: string) =>
+      (translations[isRTL ? "ar" : "en"] as Record<string, string>)[key] ?? key)
 
   const vm = useStaffViewModel(props.currentUser)
 
@@ -58,14 +64,10 @@ export default function StaffShifts(props: Props) {
       setTimeout(() => setSubmitted(false), 3000)
       setCountedCash("")
       setNotes("")
-      toast(isRTL ? "تم إرسال تقرير الوردية ✓" : "Shift report submitted ✓")
+      toast(t("shiftReportSuccess"))
     } catch (err: any) {
       console.error("Error submitting shift report:", err)
-      toast(
-        isRTL
-          ? `فشل إرسال تقرير الوردية: ${err.message || err}`
-          : `Failed to submit shift report: ${err.message || err}`,
-      )
+      toast(err.message || String(err))
     }
   }
 
@@ -95,7 +97,7 @@ export default function StaffShifts(props: Props) {
 
   const actionTypes = [...new Set(vm.auditLogs.map((e) => e.actionType))]
 
-  const TABS: { id: SubTab label: string labelAr: string }[] =
+  const TABS: { id: SubTab; label: string; labelAr: string }[] =
     role === "admin"
       ? [
           { id: "staff", label: "Staff", labelAr: "الموظفون" },
@@ -241,20 +243,80 @@ export default function StaffShifts(props: Props) {
                   )}
 
                   <div className="bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 sm:p-5 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="p-3.5 bg-slate-50 dark:bg-[#222734] rounded-xl">
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          {isRTL ? "النقدية المتوقعة" : "Expected Cash"}
+                    {/* Key Distinction: Cash in Drawer vs Digital/E-Wallets */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Cash in Drawer */}
+                      <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                            {t("cashDrawerOnlyBadge")}
+                          </span>
+                          <Banknote className="w-4 h-4 text-emerald-500" />
                         </div>
-                        <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">
+                        <div className="text-xl font-bold font-mono text-emerald-800 dark:text-emerald-200 mt-1">
                           {money(vm.expectedCash, isRTL)}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
-                          {isRTL
-                            ? "محسوبة من النظام"
-                            : "Calculated from system"}
+                        <div className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
+                          {t("drawerBaseline")}
                         </div>
                       </div>
+
+                      {/* E-Wallets / Digital */}
+                      <div className="p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-sky-700 dark:text-sky-400">
+                            {t("digitalPayments")}
+                          </span>
+                          <Wallet className="w-4 h-4 text-sky-500" />
+                        </div>
+                        <div className="text-xl font-bold font-mono text-sky-800 dark:text-sky-200 mt-1">
+                          {money(vm.digitalTotal, isRTL)}
+                        </div>
+                        <div className="text-[11px] text-sky-600/80 dark:text-sky-400/80 mt-0.5">
+                          {t("trackedDigitallySub")}
+                        </div>
+                      </div>
+
+                      {/* Total Shift Revenue */}
+                      <div className="p-3.5 bg-slate-50 dark:bg-[#222734] border border-slate-200 dark:border-slate-700/60 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {t("totalShiftSales")}
+                          </span>
+                          <Coins className="w-4 h-4 text-slate-400" />
+                        </div>
+                        <div className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100 mt-1">
+                          {money(vm.cashTotal + vm.digitalTotal, isRTL)}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {t("cashAndWallets")}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Important Rule Banner */}
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-700 dark:text-amber-400">
+                      <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{t("drawerRuleNotice")}</span>
+                    </div>
+
+                    {/* Variance vs Counted Cash */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          {t("countedCashDrawer")}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder="0.00"
+                          value={countedCash}
+                          onChange={(e) => setCountedCash(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#222734] border border-slate-200 dark:border-slate-700/60 rounded-xl text-slate-900 dark:text-white font-mono text-base focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+
                       <div
                         className={`p-3.5 rounded-xl ${
                           countedCash
@@ -267,7 +329,7 @@ export default function StaffShifts(props: Props) {
                         }`}
                       >
                         <div className="text-xs">
-                          {isRTL ? "الفارق (العجز/الزيادة)" : "Variance"}
+                          {t("drawerVariance")}
                         </div>
                         <div className="text-xl font-bold font-mono mt-1">
                           {countedCash ? money(variance, isRTL) : "—"}
@@ -275,51 +337,22 @@ export default function StaffShifts(props: Props) {
                         <div className="text-[11px] mt-0.5">
                           {countedCash
                             ? Math.abs(variance) < 0.01
-                              ? isRTL
-                                ? "متطابق تماماً ✓"
-                                : "Exact match ✓"
+                              ? t("exactMatchCash")
                               : variance < 0
-                                ? isRTL
-                                  ? "عجز في الصندوق"
-                                  : "Deficit"
-                                : isRTL
-                                  ? "فائض في الصندوق"
-                                  : "Surplus"
-                            : isRTL
-                              ? "أدخل النقدية الفعلية"
-                              : "Enter counted cash"}
+                                ? t("deficitCash")
+                                : t("surplusCash")
+                            : t("enterCountedCash")}
                         </div>
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        {isRTL
-                          ? "النقدية الفعلية في الدرج (EGP)"
-                          : "Counted Cash in Drawer (EGP)"}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        placeholder="0.00"
-                        value={countedCash}
-                        onChange={(e) => setCountedCash(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#222734] border border-slate-200 dark:border-slate-700/60 rounded-xl text-slate-900 dark:text-white font-mono text-base focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        {isRTL ? "ملاحظات تقفيل الوردية" : "Shift Notes"}
+                        {t("shiftNotes")}
                       </label>
                       <textarea
                         rows={3}
-                        placeholder={
-                          isRTL
-                            ? "أي ملاحظات عن الوردية، تسليم المفاتيح، مشاكل واجهتك..."
-                            : "Any notes about shift, handover, issues..."
-                        }
+                        placeholder={t("shiftNotesPlaceholder")}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#222734] border border-slate-200 dark:border-slate-700/60 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
@@ -331,7 +364,7 @@ export default function StaffShifts(props: Props) {
                       disabled={!countedCash}
                       className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-xl transition-colors cursor-pointer"
                     >
-                      {isRTL ? "إرسال تقرير الوردية" : "Submit Shift Report"}
+                      {t("submitShiftReport")}
                     </button>
                   </div>
                 </div>
@@ -347,7 +380,7 @@ export default function StaffShifts(props: Props) {
                       className="px-3 py-2 bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
                     >
                       <option value="">
-                        {isRTL ? "جميع الموظفين" : "All Staff"}
+                        {t("allStaff")}
                       </option>
                       {staffList.map((s) => (
                         <option key={s.username} value={s.role}>
@@ -362,7 +395,7 @@ export default function StaffShifts(props: Props) {
                       className="px-3 py-2 bg-white dark:bg-[#1a1d26] border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500"
                     >
                       <option value="">
-                        {isRTL ? "جميع العمليات" : "All Actions"}
+                        {t("allActions")}
                       </option>
                       {actionTypes.map((a) => (
                         <option key={a} value={a}>
@@ -379,12 +412,12 @@ export default function StaffShifts(props: Props) {
                         }}
                         className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                       >
-                        {isRTL ? "إعادة تعيين" : "Reset filters"}
+                        {t("resetFilters")}
                       </button>
                     )}
 
                     <div className="ms-auto text-xs text-slate-400 font-mono">
-                      {filteredLog.length} {isRTL ? "سجلات مراجعة" : "records"}
+                      {filteredLog.length} {t("auditRecords")}
                     </div>
                   </div>
 
@@ -394,16 +427,16 @@ export default function StaffShifts(props: Props) {
                       <thead>
                         <tr className="border-b border-slate-100 dark:border-slate-700/40 bg-slate-50 dark:bg-[#1f2430]">
                           <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-start">
-                            {isRTL ? "التاريخ والوقت" : "Timestamp"}
+                            {t("timestamp")}
                           </th>
                           <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-start">
-                            {isRTL ? "الموظف" : "Staff"}
+                            {t("staff")}
                           </th>
                           <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-start">
-                            {isRTL ? "نوع العملية" : "Action"}
+                            {t("action")}
                           </th>
                           <th className="px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-start">
-                            {isRTL ? "التفاصيل" : "Details"}
+                            {t("details")}
                           </th>
                         </tr>
                       </thead>

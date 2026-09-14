@@ -103,7 +103,7 @@ export default function Inventory({ isRTL, toast }: Props) {
           { id: "consumables", label: "Consumables", labelAr: "مستهلكات" },
           { id: "consoles", label: "Consoles", labelAr: "أجهزة الألعاب" },
           { id: "controllers", label: "Controllers", labelAr: "وحدات التحكم" },
-        ] as { id: CategoryTab label: string labelAr: string }[]).map((tab) => (
+        ] as { id: CategoryTab; label: string; labelAr: string }[]).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -180,7 +180,8 @@ export default function Inventory({ isRTL, toast }: Props) {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/30">
                       {menuItems.map((item) => {
-                        const low = item.stock <= item.lowStockThreshold
+                        const isUntracked = item.trackStock === false
+                        const low = !isUntracked && (item.lowStockThreshold > 0 || item.stock > 0) && item.stock <= item.lowStockThreshold
                         const isEdit = editing === item.id
                         return (
                           <tr
@@ -193,7 +194,7 @@ export default function Inventory({ isRTL, toast }: Props) {
                           >
                             <td className="px-4 py-3">
                               <div className="text-slate-900 dark:text-slate-100 font-medium text-sm">
-                                {isRTL ? item.nameAr : item.name}
+                                {isRTL ? item.nameAr || item.name : item.name}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -205,6 +206,10 @@ export default function Inventory({ isRTL, toast }: Props) {
                                   onChange={(e) => setEditQty(e.target.value)}
                                   className="w-20 border border-blue-300 rounded-lg px-2 py-1 text-sm font-mono focus:outline-none ring-2 ring-blue-100 dark:bg-[#1a1d26] dark:border-slate-600 dark:text-slate-100"
                                 />
+                              ) : isUntracked ? (
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                  {isRTL ? "غير محدود" : "Unlimited"}
+                                </span>
                               ) : (
                                 <span
                                   className={`font-mono text-sm font-semibold ${
@@ -228,6 +233,8 @@ export default function Inventory({ isRTL, toast }: Props) {
                                   }
                                   className="w-20 border border-blue-300 rounded-lg px-2 py-1 text-sm font-mono focus:outline-none ring-2 ring-blue-100 dark:bg-[#1a1d26] dark:border-slate-600 dark:text-slate-100"
                                 />
+                              ) : isUntracked ? (
+                                <span className="text-slate-400 text-xs">-</span>
                               ) : (
                                 <span className="font-mono text-sm text-slate-500 dark:text-slate-400">
                                   {item.lowStockThreshold}
@@ -235,7 +242,11 @@ export default function Inventory({ isRTL, toast }: Props) {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {low ? (
+                              {isUntracked ? (
+                                <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-medium">
+                                  {isRTL ? "بدون مخزون" : "Untracked"}
+                                </span>
+                              ) : low ? (
                                 <span className="text-xs bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full font-medium">
                                   {isRTL ? "منخفض" : "Low Stock"}
                                 </span>
@@ -289,7 +300,8 @@ export default function Inventory({ isRTL, toast }: Props) {
                 {/* Mobile Cards View */}
                 <div className="md:hidden space-y-3">
                   {menuItems.map((item) => {
-                    const low = item.stock <= item.lowStockThreshold
+                    const isUntracked = item.trackStock === false
+                    const low = !isUntracked && (item.lowStockThreshold > 0 || item.stock > 0) && item.stock <= item.lowStockThreshold
                     const isEdit = editing === item.id
                     return (
                       <div
@@ -302,9 +314,13 @@ export default function Inventory({ isRTL, toast }: Props) {
                       >
                         <div className="flex items-center justify-between mb-3">
                           <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                            {isRTL ? item.nameAr : item.name}
+                            {isRTL ? item.nameAr || item.name : item.name}
                           </span>
-                          {low ? (
+                          {isUntracked ? (
+                            <span className="text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full font-medium">
+                              {isRTL ? "بدون مخزون" : "Untracked"}
+                            </span>
+                          ) : low ? (
                             <span className="text-[11px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full font-medium">
                               {isRTL ? "منخفض" : "Low Stock"}
                             </span>

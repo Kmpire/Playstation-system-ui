@@ -9,8 +9,8 @@ export function usePricing() {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await pricingRepo.getAll()
-      setPricing(data)
+      const data = await pricingRepo.getPricingData()
+      setPricing(data?.configs || [])
     } finally {
       setLoading(false)
     }
@@ -21,9 +21,16 @@ export function usePricing() {
   }, [refresh])
 
   const updatePricing = async (list: PricingConfig[], staffName?: string) => {
-    const updated = await pricingService.updatePricing(list, staffName)
-    setPricing(updated)
-    return updated
+    const current = await pricingRepo.getPricingData().catch(() => null)
+    const updated = await pricingService.updatePricing(
+      {
+        tiers: current?.tiers || [],
+        configs: list,
+      },
+      staffName,
+    )
+    setPricing(updated.configs || [])
+    return updated.configs || []
   }
 
   return {
